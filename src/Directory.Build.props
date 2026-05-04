@@ -1,0 +1,7 @@
+<Project>
+  <ItemGroup>
+    <Reference Include="System.ComponentModel.Annotations"
+               HintPath="$(MSBuildThisFileDirectory)..\local-packages\System.ComponentModel.Annotations.dll"
+               Private="true" />
+  </ItemGroup>
+</Project>
