@@ -1,0 +1,97 @@
+@page "/profile"
+
+<h3>Scenario 5: IAsyncValidatableObject — Property-Scoped (Profile)</h3>
+<p>
+    <strong>Profile</strong> implements <code>IAsyncValidatableObject.ValidateAsync</code>.
+    Each validation result targets a specific member (Username or Bio) after async checks complete without blocking the server thread.
+</p>
+
+<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="profileForm">
+    <div class="mb-3">
+        <label class="form-label">Username</label>
+        <InputText class="form-control" @bind-Value="_profile.Username" />
+        <ValidationMessage For="@(() => _profile.Username)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Bio</label>
+        <InputTextArea class="form-control" @bind-Value="_profile.Bio" />
+        <ValidationMessage For="@(() => _profile.Bio)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Simulated I/O Delay (ms)</label>
+        <InputNumber class="form-control" @bind-Value="_profile.Delay" />
+        <ValidationMessage For="@(() => _profile.Delay)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
+        @(_isSubmitting ? "Validating asynchronously..." : "Submit")
+    </button>
+
+    <ValidationSummary class="mt-3" />
+</EditForm>
+
+@if (_message is not null)
+{
+    <div class="alert @_alertClass mt-3">@_message</div>
+}
+
+@code {
+    private readonly Profile _profile = new()
+    {
+        Username = "admin",
+        Bio = new string('x', 201),
+        Delay = 3000
+    };
+
+    private EditContext _editContext = null!;
+    private ValidationMessageStore _messageStore = null!;
+    private bool _isSubmitting;
+    private string? _message;
+    private string _alertClass = "alert-info";
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_profile);
+        _messageStore = new ValidationMessageStore(_editContext);
+    }
+
+    private async Task HandleSubmit(EditContext _)
+    {
+        _isSubmitting = true;
+        _messageStore.Clear();
+        _message = null;
+        _editContext.NotifyValidationStateChanged();
+        await InvokeAsync(StateHasChanged);
+
+        var results = new List<ValidationResult>();
+        var context = new ValidationContext(_profile);
+        bool isValid = await Validator.TryValidateObjectAsync(_profile, context, results, true);
+
+        AddResultsToMessageStore(_profile, results);
+        _message = isValid
+            ? "✅ Valid!"
+            : "❌ Validation failed — see property-scoped errors above.";
+        _alertClass = isValid ? "alert-success" : "alert-danger";
+        _isSubmitting = false;
+    }
+
+    private void AddResultsToMessageStore(object model, IEnumerable<ValidationResult> results)
+    {
+        foreach (var result in results)
+        {
+            foreach (var member in result.MemberNames)
+            {
+                _messageStore.Add(_editContext.Field(member), result.ErrorMessage!);
+            }
+
+            if (!result.MemberNames.Any())
+            {
+                _messageStore.Add(new FieldIdentifier(model, string.Empty), result.ErrorMessage!);
+            }
+        }
+
+        _editContext.NotifyValidationStateChanged();
+    }
+}

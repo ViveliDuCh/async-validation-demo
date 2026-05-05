@@ -2,8 +2,9 @@
 
 Demonstrates the async validation APIs (`AsyncValidationAttribute`,
 `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, etc.) across
-Console, WinForms, and WPF applications. All samples share a common set of
-entity, validation, and service classes via the `SharedModels` project.
+Console, WinForms, WPF, Blazor, Minimal API, and MVC applications. All samples
+share a common set of entity, validation, and service classes via the
+`SharedModels` project.
 
 ## Folder Structure
 
@@ -25,9 +26,22 @@ samples/
 │   ├── AsyncDesignerBasicSample/       ← Designer-generated controls + async validation
 │   └── AsyncDesignerValidationDemo/    ← Designer + DI + async validation
 │
-└── WPF/
-    ├── AsyncManualSample/              ← Manual INotifyDataErrorInfo async bridge (~50 LOC base)
-    └── AsyncToolkitSample/             ← CommunityToolkit.Mvvm ObservableValidator + async
+├── WPF/
+│   ├── AsyncManualSample/              ← Manual INotifyDataErrorInfo async bridge (~50 LOC base)
+│   └── AsyncToolkitSample/             ← CommunityToolkit.Mvvm ObservableValidator + async
+│
+├── Blazor/
+│   ├── AsyncBasicSample/               ← EditContext + ValidationMessageStore async bridge
+│   └── AsyncValidationDemo/            ← DI, two-phase, error handling, cancellation token
+│
+├── MinimalApi/
+│   ├── AsyncBasicSample/               ← Manual TryValidateObjectAsync in endpoint handlers
+│   ├── AsyncValidationDemo/            ← DI + real CancellationToken propagation
+│   └── AutoValidationSample/           ← Hybrid: AddValidation() + manual async for SharedModels
+│
+└── Mvc/
+    ├── AsyncBasicSample/               ← Cleared ModelValidatorProviders + async controllers
+    └── AsyncValidationDemo/            ← DI, async controllers, infrastructure error handling
 ```
 
 ---
@@ -95,6 +109,72 @@ Uses `CommunityToolkit.Mvvm` `ObservableValidator` for zero-boilerplate
 
 ---
 
+## Blazor Samples
+
+### AsyncBasicSample
+Blazor Server app with five validation pages (User, Event, Order, Profile).
+Since Blazor's built-in `DataAnnotationsValidator` only supports sync
+validation, this sample uses `EditContext` + `ValidationMessageStore` to bridge
+async validation into the Blazor form system. `<ValidationMessage>` and
+`<ValidationSummary>` tag helpers still display errors correctly.
+
+| # | Pattern | Page |
+|---|---------|------|
+| 1–2 | Reusable async property attributes | UserValidation |
+| 3 | Reusable async entity-level attribute | EventValidation |
+| 4 | `IAsyncValidatableObject` (cross-property) | OrderValidation |
+| 5 | `IAsyncValidatableObject` (property-scoped) | ProfileValidation |
+
+### AsyncValidationDemo
+DI-backed Blazor Server app demonstrating `UserService` resolution via
+`IServiceProvider` in `ValidationContext`, two-phase validation (sync attr
+fails → async attr skipped), `IAsyncValidatableObject` cross-property
+validation, infrastructure error handling, and `CancellationToken` propagation
+(not possible with sync validation).
+
+---
+
+## Minimal API Samples
+
+### AsyncBasicSample
+Minimal API with five POST endpoints, each validating request bodies using
+`Validator.TryValidateObjectAsync`. Mirrors the console `BasicAsyncSample`
+scenarios as HTTP endpoints.
+
+### AsyncValidationDemo
+DI-backed Minimal API with `UserService` registration, duplicate detection,
+`IAsyncValidatableObject` (MoneyTransfer), infrastructure error handling, and
+real `CancellationToken` propagation via `HttpContext.RequestAborted`.
+
+### AutoValidationSample (Hybrid)
+Demonstrates that .NET 10's `AddValidation()` automatic validation is **not**
+async validation. Local models (Customer, Address, DemoOrder, ContactFormModel)
+use `AddValidation()` with standard sync attributes. SharedModels endpoints
+use `.DisableValidation()` and manual `Validator.TryValidateObjectAsync` to
+show the async path. This hybrid approach explicitly illustrates when automatic
+validation suffices and when async validation is needed.
+
+---
+
+## MVC Samples
+
+### AsyncBasicSample
+MVC app with four entity controllers (User, Event, Order, Profile). Built-in
+`DataAnnotationsModelValidatorProvider` is cleared via
+`ModelValidatorProviders.Clear()` to prevent sync blocking during model
+binding. Controller POST actions are `async Task<IActionResult>` and manually
+call `Validator.TryValidateObjectAsync`, adding errors to `ModelState` so
+existing Razor tag helpers display them without view changes.
+
+### AsyncValidationDemo
+DI-backed MVC app with `UserService`, duplicate detection, `MoneyTransfer`
+validation, and infrastructure failure handling. Uses
+`HttpContext.RequestServices` as the `IServiceProvider` in `ValidationContext`.
+The `ErrorHandlingController` wraps async validation in try/catch and uses
+`UseExceptionHandler` for unhandled errors.
+
+---
+
 ## Building and Running
 
 ### Console Samples (build in-repo)
@@ -116,7 +196,7 @@ $testhost = "<repo-root>\artifacts\bin\testhost\net11.0-windows-Debug-x64"
     "<repo-root>\artifacts\bin\BasicAsyncSample\Debug\net11.0\BasicAsyncSample.dll"
 ```
 
-### WinForms / WPF Samples (build out-of-repo)
+### WinForms / WPF / Blazor / Minimal API / MVC Samples (build out-of-repo)
 
 > **Why can't these build inside the runtime repo?**
 >
@@ -251,6 +331,214 @@ $testhost = "<repo-root>\artifacts\bin\testhost\net11.0-windows-Debug-x64"
     <ProjectReference Include="..\..\SharedModels\SharedModels.csproj" />
   </ItemGroup>
 </Project>
+```
+
+#### Web samples (Blazor / Minimal API / MVC)
+
+The web samples use `Microsoft.NET.Sdk.Web` and reference `SharedModels` via
+a relative `ProjectReference`. The `Directory.Build.props` at the `src/` root
+provides both the runtime DLL (`System.ComponentModel.Annotations.dll`) and
+the aspnetcore DLLs (`Microsoft.Extensions.Validation.dll`,
+`Microsoft.AspNetCore.Components.Forms.dll`,
+`Microsoft.AspNetCore.Mvc.DataAnnotations.dll`) from `local-packages/`.
+
+```powershell
+# Build a Blazor sample
+cd src/Blazor/AsyncBasicSample
+dotnet build
+
+# Build a Minimal API sample
+cd src/MinimalApi/AsyncBasicSample
+dotnet build
+
+# Build an MVC sample
+cd src/Mvc/AsyncBasicSample
+dotnet build
+
+# Run any web sample
+dotnet run
+```
+
+---
+
+## Local Packages — Build Process
+
+The `local-packages/` directory contains locally-built DLLs from two repos
+that provide the async validation APIs. These DLLs are checked into the repo
+so samples can build without requiring a full runtime or aspnetcore build.
+
+### Directory Structure
+
+```
+local-packages/
+├── System.ComponentModel.Annotations.dll   ← Legacy flat copy (kept for compat)
+├── runtime/
+│   ├── System.ComponentModel.Annotations.dll       ← Implementation DLL
+│   └── ref/
+│       └── System.ComponentModel.Annotations.dll   ← Ref assembly (compiler type info)
+└── aspnetcore/
+    ├── Microsoft.Extensions.Validation.dll          ← Tier 7: async-aware leaf calls
+    ├── Microsoft.AspNetCore.Components.Forms.dll    ← Tier 4: EditContext.ValidateAsync()
+    ├── Microsoft.AspNetCore.Mvc.DataAnnotations.dll ← Tier 3: IAsyncModelValidator
+    ├── Microsoft.AspNetCore.Components.dll           ← Transitive dependency
+    ├── Microsoft.AspNetCore.Mvc.Core.dll              ← Transitive dependency
+    └── Microsoft.AspNetCore.Mvc.Abstractions.dll      ← Transitive dependency
+```
+
+### What Each DLL Provides
+
+| DLL | Source | Tier | Async APIs Added |
+|-----|--------|------|------------------|
+| `System.ComponentModel.Annotations.dll` | `dotnet/runtime` (`async-validation` branch) | Phase 1 | `AsyncValidationAttribute`, `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, `TryValidatePropertyAsync`, `TryValidateValueAsync` |
+| `Microsoft.Extensions.Validation.dll` | `dotnet/aspnetcore` (`async-validation` branch) | 7 | `ValidatablePropertyInfo`, `ValidatableTypeInfo`, `ValidatableParameterInfo` — `is AsyncValidationAttribute` branching to call `GetValidationResultAsync` + `IAsyncValidatableObject.ValidateAsync` support |
+| `Microsoft.AspNetCore.Components.Forms.dll` | `dotnet/aspnetcore` (`async-validation` branch) | 4 | `EditContext.ValidateAsync()`, `OnAsyncValidationRequested` event |
+| `Microsoft.AspNetCore.Mvc.DataAnnotations.dll` | `dotnet/aspnetcore` (`async-validation` branch) | 3 | `IAsyncModelValidator`, `DataAnnotationsModelValidator.ValidateAsync()` |
+
+### How to Rebuild Local Packages
+
+If you need to regenerate these DLLs (e.g., after making changes to the
+runtime or aspnetcore async-validation branches):
+
+#### Step 1: Build Runtime
+
+```powershell
+# Clone/checkout the runtime async-validation branch
+cd C:\REPOS\runtime    # branch: async-validation
+
+# Build the runtime libraries (produces impl + ref DLLs)
+.\build.cmd clr+libs -rc Debug
+
+# The DLLs we need:
+#   artifacts\bin\System.ComponentModel.Annotations\Debug\net11.0\System.ComponentModel.Annotations.dll  (impl)
+#   artifacts\bin\microsoft.netcore.app.ref\ref\net11.0\System.ComponentModel.Annotations.dll             (ref)
+```
+
+#### Step 2: Inject Runtime DLL into Aspnetcore SDK
+
+The aspnetcore build resolves `System.ComponentModel.Annotations` from its
+NuGet package cache. The stock version does not contain async types, so it
+must be replaced with the runtime-built version before building aspnetcore.
+
+```powershell
+cd C:\REPOS\aspnetcore    # branch: async-validation
+
+# 1. Restore to bootstrap the .NET 11 preview SDK
+.\restore.cmd
+
+# 2. Find where the SDK resolves System.ComponentModel.Annotations.dll
+#    (typically C:\Nuget\microsoft.netcore.app.ref\<version>\ref\net11.0\)
+$dotnet = ".\.dotnet\dotnet.exe"
+& $dotnet msbuild src\Validation\src\Microsoft.Extensions.Validation.csproj `
+    /t:ResolveAssemblyReferences /v:diag 2>&1 |
+    Select-String "System.ComponentModel.Annotations.dll" |
+    Select-Object -First 3
+
+# 3. Replace the stock DLL with the async-enabled one
+$nugetRefDir = "C:\Nuget\microsoft.netcore.app.ref\<version>\ref\net11.0"
+Copy-Item "$nugetRefDir\System.ComponentModel.Annotations.dll" `
+          "$nugetRefDir\System.ComponentModel.Annotations.dll.stock-backup"
+Copy-Item "C:\REPOS\runtime\artifacts\bin\microsoft.netcore.app.ref\ref\net11.0\System.ComponentModel.Annotations.dll" `
+          "$nugetRefDir\System.ComponentModel.Annotations.dll"
+```
+
+#### Step 3: Build Aspnetcore Projects
+
+```powershell
+$dotnet = "C:\REPOS\aspnetcore\.dotnet\dotnet.exe"
+
+# Tier 7: Microsoft.Extensions.Validation (async-aware leaf calls)
+& $dotnet build src\Validation\src\Microsoft.Extensions.Validation.csproj -c Release
+
+# Tier 4: Blazor Forms (EditContext.ValidateAsync)
+& $dotnet build src\Components\Forms\src\Microsoft.AspNetCore.Components.Forms.csproj -c Release
+
+# Tier 3: MVC DataAnnotations (IAsyncModelValidator)
+& $dotnet build src\Mvc\Mvc.DataAnnotations\src\Microsoft.AspNetCore.Mvc.DataAnnotations.csproj -c Release
+```
+
+#### Step 4: Copy DLLs to local-packages
+
+```powershell
+$localPkgs = "C:\REPOS\async-validation-demo\local-packages"
+$aspBin    = "C:\REPOS\aspnetcore\artifacts\bin"
+$rtBin     = "C:\REPOS\runtime\artifacts\bin"
+
+# Runtime
+Copy-Item "$rtBin\System.ComponentModel.Annotations\Debug\net11.0\System.ComponentModel.Annotations.dll" `
+          "$localPkgs\runtime\System.ComponentModel.Annotations.dll"
+Copy-Item "$rtBin\microsoft.netcore.app.ref\ref\net11.0\System.ComponentModel.Annotations.dll" `
+          "$localPkgs\runtime\ref\System.ComponentModel.Annotations.dll"
+
+# Aspnetcore
+Copy-Item "$aspBin\Microsoft.Extensions.Validation\Release\net11.0\Microsoft.Extensions.Validation.dll" `
+          "$localPkgs\aspnetcore\"
+Copy-Item "$aspBin\Microsoft.AspNetCore.Components.Forms\Release\net11.0\Microsoft.AspNetCore.Components.Forms.dll" `
+          "$localPkgs\aspnetcore\"
+Copy-Item "$aspBin\Microsoft.AspNetCore.Mvc.DataAnnotations\Release\net11.0\Microsoft.AspNetCore.Mvc.DataAnnotations.dll" `
+          "$localPkgs\aspnetcore\"
+```
+
+### How Directory.Build.props Wires It Up
+
+The `src/Directory.Build.props` references the local DLLs so all sample
+projects automatically get the async validation APIs:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <LocalPackagesDir>$(MSBuildThisFileDirectory)..\local-packages</LocalPackagesDir>
+  </PropertyGroup>
+
+  <!-- Runtime: async validation APIs — all projects -->
+  <ItemGroup>
+    <Reference Include="System.ComponentModel.Annotations"
+               HintPath="$(LocalPackagesDir)\runtime\System.ComponentModel.Annotations.dll"
+               Private="true" />
+  </ItemGroup>
+
+  <!-- Aspnetcore: async-aware validation infrastructure — web projects only -->
+  <ItemGroup Condition="'$(UsingMicrosoftNETSdkWeb)' == 'true'">
+    <Reference Include="Microsoft.Extensions.Validation"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.Extensions.Validation.dll"
+               Private="true" />
+    <Reference Include="Microsoft.AspNetCore.Components.Forms"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Components.Forms.dll"
+               Private="true" />
+    <Reference Include="Microsoft.AspNetCore.Mvc.DataAnnotations"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Mvc.DataAnnotations.dll"
+               Private="true" />
+  </ItemGroup>
+</Project>
+```
+
+### Dependency Chain
+
+```
+dotnet/runtime                          dotnet/aspnetcore
+(async-validation branch)               (async-validation branch)
+┌──────────────────────────────┐       ┌─────────────────────────────────────┐
+│ System.ComponentModel.       │       │ Microsoft.Extensions.Validation     │
+│   Annotations.dll            │──────▶│   (Tier 7: async leaf calls)       │
+│                              │       │                                     │
+│ Types:                       │       │ Microsoft.AspNetCore.Components     │
+│  • AsyncValidationAttribute  │       │   .Forms (Tier 4: ValidateAsync)   │
+│  • IAsyncValidatableObject   │       │                                     │
+│  • Validator.*Async()        │       │ Microsoft.AspNetCore.Mvc            │
+│  • GetValidationResultAsync  │       │   .DataAnnotations (Tier 3:        │
+│                              │       │    IAsyncModelValidator)            │
+└──────────────────────────────┘       └─────────────────────────────────────┘
+         │                                      │
+         ▼                                      ▼
+┌──────────────────────────────────────────────────────────────┐
+│                  async-validation-demo                        │
+│                                                              │
+│  local-packages/runtime/   ← Runtime DLLs                    │
+│  local-packages/aspnetcore/ ← Aspnetcore DLLs                │
+│  src/Directory.Build.props  ← Wires both into all projects   │
+│                                                              │
+│  Console, WinForms, WPF    → use runtime DLLs only           │
+│  Blazor, MinimalApi, MVC   → use runtime + aspnetcore DLLs   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---

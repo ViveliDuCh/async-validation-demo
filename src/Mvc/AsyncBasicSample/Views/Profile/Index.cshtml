@@ -1,0 +1,44 @@
+@model Profile
+@{ ViewData["Title"] = "Profile Validation"; }
+
+<h3>Scenario 5: IAsyncValidatableObject (Property-Scoped)</h3>
+<p>
+    <code>Profile</code> implements <code>IAsyncValidatableObject</code> with <strong>property-scoped</strong>
+    errors — each <code>ValidationResult</code> targets a specific member, so errors appear next to
+    the correct field. Two <code>Task.Delay</code> calls run asynchronously without blocking the
+    request thread.
+</p>
+
+@if (ViewBag.SuccessMessage is not null)
+{
+    <div class="alert alert-success">@ViewBag.SuccessMessage</div>
+}
+
+<form asp-action="Index" method="post" class="col-md-6">
+    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="Username" class="form-label"></label>
+        <input asp-for="Username" class="form-control" />
+        <span asp-validation-for="Username" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Bio" class="form-label"></label>
+        <textarea asp-for="Bio" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="Bio" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Delay" class="form-label">I/O Delay (ms)</label>
+        <input asp-for="Delay" class="form-control" />
+        <span asp-validation-for="Delay" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Validate</button>
+    <a asp-controller="Home" class="btn btn-outline-secondary ms-2">← Back</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

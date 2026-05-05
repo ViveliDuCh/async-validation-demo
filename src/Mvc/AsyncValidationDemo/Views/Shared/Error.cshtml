@@ -1,0 +1,12 @@
+@{ ViewData["Title"] = "Error"; }
+
+<h3 class="text-danger">Infrastructure Error</h3>
+<div class="alert alert-danger">
+    <strong>@ViewBag.ErrorType:</strong> @ViewBag.ErrorMessage
+</div>
+<p>
+    This error was thrown during async validation and handled by
+    <code>UseExceptionHandler</code> after propagating through the middleware pipeline.
+</p>
+<a asp-controller="ErrorHandling" class="btn btn-outline-primary">← Try Again</a>
+<a asp-controller="Home" class="btn btn-outline-secondary ms-2">Home</a>

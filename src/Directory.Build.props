@@ -1,10 +1,30 @@
 <Project>
+
+  <PropertyGroup>
+    <LocalPackagesDir>$(MSBuildThisFileDirectory)..\local-packages</LocalPackagesDir>
+  </PropertyGroup>
+
+  <!-- Runtime: async validation APIs (AsyncValidationAttribute, IAsyncValidatableObject, Validator.*Async) -->
   <ItemGroup>
     <Reference Include="System.ComponentModel.Annotations"
-               HintPath="$(MSBuildThisFileDirectory)..\local-packages\System.ComponentModel.Annotations.dll"
+               HintPath="$(LocalPackagesDir)\runtime\System.ComponentModel.Annotations.dll"
                Private="true" />
     <Reference Include="Microsoft.Extensions.Validation"
                HintPath="$(MSBuildThisFileDirectory)..\local-packages\Microsoft.Extensions.Validation.dll"
                Private="true" />
   </ItemGroup>
+
+  <!-- Aspnetcore: async-aware validation infrastructure (Tier 7/4/3) — web projects only -->
+  <ItemGroup Condition="'$(UsingMicrosoftNETSdkWeb)' == 'true'">
+    <Reference Include="Microsoft.Extensions.Validation"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.Extensions.Validation.dll"
+               Private="true" />
+    <Reference Include="Microsoft.AspNetCore.Components.Forms"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Components.Forms.dll"
+               Private="true" />
+    <Reference Include="Microsoft.AspNetCore.Mvc.DataAnnotations"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Mvc.DataAnnotations.dll"
+               Private="true" />
+  </ItemGroup>
+
 </Project>
