@@ -1,0 +1,31 @@
+@page "/"
+
+<h3>Async ValidationDemo — Blazor Web App</h3>
+<p>
+    This app mirrors <strong>AsyncValidationConsoleDemo</strong> from the console samples and uses
+    <strong>async</strong> validation with DI integration, two-phase execution, infrastructure error handling, and cancellation.
+</p>
+<p>
+    Each page manually runs <code>Validator.TryValidateObjectAsync</code>, pushes results into the current
+    <code>EditContext</code>, and lets Blazor await async I/O without blocking the server thread.
+</p>
+
+<div class="list-group">
+    <a href="/registration" class="list-group-item list-group-item-action">
+        <strong>Scenarios 1 &amp; 2:</strong> DI Service Resolution + Two-Phase Validation
+    </a>
+    <a href="/transfer" class="list-group-item list-group-item-action">
+        <strong>Scenario 3:</strong> IAsyncValidatableObject — MoneyTransfer (cross-property)
+    </a>
+    <a href="/error-handling" class="list-group-item list-group-item-action">
+        <strong>Scenario 4:</strong> Infrastructure Failure Handling
+    </a>
+    <a href="/cancellation" class="list-group-item list-group-item-action">
+        <strong>Scenario 5:</strong> CancellationToken propagation with cancelable in-flight validation
+    </a>
+</div>
+
+<div class="alert alert-success mt-3">
+    <strong>Scenario 5 (CancellationToken):</strong> Now possible with async
+    <code>Validator.TryValidateObjectAsync(..., cancellationToken)</code>.
+</div>

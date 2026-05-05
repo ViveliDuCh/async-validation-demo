@@ -1,0 +1,62 @@
+@{ ViewData["Title"] = "Home"; }
+
+<h2>MVC Async Validation Samples</h2>
+<p>
+    Each page demonstrates a validation scenario using the <strong>full MVC pattern</strong>:
+    Controller + Razor View + Tag Helper error display. Validation attributes from
+    <code>SharedModels</code> run <strong>asynchronously</strong> with <code>Task.Delay</code>
+    (async, non-blocking), and controllers manually call
+    <code>Validator.TryValidateObjectAsync</code>.
+</p>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">User Validation</h5>
+                <p class="card-text">
+                    Scenarios 1 &amp; 2: <code>[IsValidName]</code> + <code>[AsyncOnlyEmailDomain]</code>
+                    — reusable property-level async attributes with <code>Task.Delay</code>
+                    (async, non-blocking).
+                </p>
+                <a asp-controller="User" class="btn btn-primary">Open Form →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Event Validation</h5>
+                <p class="card-text">
+                    Scenario 3: <code>[AsyncDateRangeValid]</code> — class-level async attribute
+                    for cross-field date range validation.
+                </p>
+                <a asp-controller="Event" class="btn btn-primary">Open Form →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Order Validation</h5>
+                <p class="card-text">
+                    Scenario 4: <code>IAsyncValidatableObject</code> — cross-property total cost
+                    limit check with simulated inventory I/O.
+                </p>
+                <a asp-controller="Order" class="btn btn-primary">Open Form →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Profile Validation</h5>
+                <p class="card-text">
+                    Scenario 5: <code>IAsyncValidatableObject</code> — property-scoped errors
+                    (reserved username + bio length moderation).
+                </p>
+                <a asp-controller="Profile" class="btn btn-primary">Open Form →</a>
+            </div>
+        </div>
+    </div>
+</div>

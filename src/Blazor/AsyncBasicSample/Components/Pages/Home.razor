@@ -1,0 +1,27 @@
+@page "/"
+
+<h3>Async BasicSample — Blazor Web App</h3>
+<p>
+    This app mirrors <strong>BasicAsyncSample</strong> from the console samples and uses the
+    <strong>async</strong> validation APIs.
+</p>
+<p>
+    Each page manually calls <code>Validator.TryValidateObjectAsync</code> on submit and pushes the
+    results into the current <code>EditContext</code>. That keeps <code>ValidationMessage</code> and
+    <code>ValidationSummary</code> working while validation awaits async I/O without blocking the server thread.
+</p>
+
+<div class="list-group">
+    <a href="/user" class="list-group-item list-group-item-action">
+        <strong>Scenarios 1 &amp; 2:</strong> Reusable property attributes (IsValidName + EmailDomain)
+    </a>
+    <a href="/event" class="list-group-item list-group-item-action">
+        <strong>Scenario 3:</strong> Reusable entity-level attribute (DateRangeValid — cross-field)
+    </a>
+    <a href="/order" class="list-group-item list-group-item-action">
+        <strong>Scenario 4:</strong> IAsyncValidatableObject — cross-property (Order total limit)
+    </a>
+    <a href="/profile" class="list-group-item list-group-item-action">
+        <strong>Scenario 5:</strong> IAsyncValidatableObject — property-scoped (Profile username + bio)
+    </a>
+</div>

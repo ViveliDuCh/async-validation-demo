@@ -2,8 +2,9 @@
 
 Demonstrates the async validation APIs (`AsyncValidationAttribute`,
 `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, etc.) across
-Console, WinForms, and WPF applications. All samples share a common set of
-entity, validation, and service classes via the `SharedModels` project.
+Console, WinForms, WPF, Blazor, Minimal API, and MVC applications. All samples
+share a common set of entity, validation, and service classes via the
+`SharedModels` project.
 
 ## Folder Structure
 
@@ -25,9 +26,22 @@ samples/
 │   ├── AsyncDesignerBasicSample/       ← Designer-generated controls + async validation
 │   └── AsyncDesignerValidationDemo/    ← Designer + DI + async validation
 │
-└── WPF/
-    ├── AsyncManualSample/              ← Manual INotifyDataErrorInfo async bridge (~50 LOC base)
-    └── AsyncToolkitSample/             ← CommunityToolkit.Mvvm ObservableValidator + async
+├── WPF/
+│   ├── AsyncManualSample/              ← Manual INotifyDataErrorInfo async bridge (~50 LOC base)
+│   └── AsyncToolkitSample/             ← CommunityToolkit.Mvvm ObservableValidator + async
+│
+├── Blazor/
+│   ├── AsyncBasicSample/               ← EditContext + ValidationMessageStore async bridge
+│   └── AsyncValidationDemo/            ← DI, two-phase, error handling, cancellation token
+│
+├── MinimalApi/
+│   ├── AsyncBasicSample/               ← Manual TryValidateObjectAsync in endpoint handlers
+│   ├── AsyncValidationDemo/            ← DI + real CancellationToken propagation
+│   └── AutoValidationSample/           ← Hybrid: AddValidation() + manual async for SharedModels
+│
+└── Mvc/
+    ├── AsyncBasicSample/               ← Cleared ModelValidatorProviders + async controllers
+    └── AsyncValidationDemo/            ← DI, async controllers, infrastructure error handling
 ```
 
 ---
@@ -95,6 +109,72 @@ Uses `CommunityToolkit.Mvvm` `ObservableValidator` for zero-boilerplate
 
 ---
 
+## Blazor Samples
+
+### AsyncBasicSample
+Blazor Server app with five validation pages (User, Event, Order, Profile).
+Since Blazor's built-in `DataAnnotationsValidator` only supports sync
+validation, this sample uses `EditContext` + `ValidationMessageStore` to bridge
+async validation into the Blazor form system. `<ValidationMessage>` and
+`<ValidationSummary>` tag helpers still display errors correctly.
+
+| # | Pattern | Page |
+|---|---------|------|
+| 1–2 | Reusable async property attributes | UserValidation |
+| 3 | Reusable async entity-level attribute | EventValidation |
+| 4 | `IAsyncValidatableObject` (cross-property) | OrderValidation |
+| 5 | `IAsyncValidatableObject` (property-scoped) | ProfileValidation |
+
+### AsyncValidationDemo
+DI-backed Blazor Server app demonstrating `UserService` resolution via
+`IServiceProvider` in `ValidationContext`, two-phase validation (sync attr
+fails → async attr skipped), `IAsyncValidatableObject` cross-property
+validation, infrastructure error handling, and `CancellationToken` propagation
+(not possible with sync validation).
+
+---
+
+## Minimal API Samples
+
+### AsyncBasicSample
+Minimal API with five POST endpoints, each validating request bodies using
+`Validator.TryValidateObjectAsync`. Mirrors the console `BasicAsyncSample`
+scenarios as HTTP endpoints.
+
+### AsyncValidationDemo
+DI-backed Minimal API with `UserService` registration, duplicate detection,
+`IAsyncValidatableObject` (MoneyTransfer), infrastructure error handling, and
+real `CancellationToken` propagation via `HttpContext.RequestAborted`.
+
+### AutoValidationSample (Hybrid)
+Demonstrates that .NET 10's `AddValidation()` automatic validation is **not**
+async validation. Local models (Customer, Address, DemoOrder, ContactFormModel)
+use `AddValidation()` with standard sync attributes. SharedModels endpoints
+use `.DisableValidation()` and manual `Validator.TryValidateObjectAsync` to
+show the async path. This hybrid approach explicitly illustrates when automatic
+validation suffices and when async validation is needed.
+
+---
+
+## MVC Samples
+
+### AsyncBasicSample
+MVC app with four entity controllers (User, Event, Order, Profile). Built-in
+`DataAnnotationsModelValidatorProvider` is cleared via
+`ModelValidatorProviders.Clear()` to prevent sync blocking during model
+binding. Controller POST actions are `async Task<IActionResult>` and manually
+call `Validator.TryValidateObjectAsync`, adding errors to `ModelState` so
+existing Razor tag helpers display them without view changes.
+
+### AsyncValidationDemo
+DI-backed MVC app with `UserService`, duplicate detection, `MoneyTransfer`
+validation, and infrastructure failure handling. Uses
+`HttpContext.RequestServices` as the `IServiceProvider` in `ValidationContext`.
+The `ErrorHandlingController` wraps async validation in try/catch and uses
+`UseExceptionHandler` for unhandled errors.
+
+---
+
 ## Building and Running
 
 ### Console Samples (build in-repo)
@@ -116,7 +196,7 @@ $testhost = "<repo-root>\artifacts\bin\testhost\net11.0-windows-Debug-x64"
     "<repo-root>\artifacts\bin\BasicAsyncSample\Debug\net11.0\BasicAsyncSample.dll"
 ```
 
-### WinForms / WPF Samples (build out-of-repo)
+### WinForms / WPF / Blazor / Minimal API / MVC Samples (build out-of-repo)
 
 > **Why can't these build inside the runtime repo?**
 >
@@ -253,9 +333,31 @@ $testhost = "<repo-root>\artifacts\bin\testhost\net11.0-windows-Debug-x64"
 </Project>
 ```
 
----
+#### Web samples (Blazor / Minimal API / MVC)
 
-## Async API Surface
+The web samples follow the same out-of-repo build approach. They use
+`Microsoft.NET.Sdk.Web` and reference `SharedModels` via a relative
+`ProjectReference`. The `Directory.Build.props` at the `src/` root provides
+the locally-built `System.ComponentModel.Annotations.dll`.
+
+```powershell
+# Build a Blazor sample
+cd src/Blazor/AsyncBasicSample
+dotnet build
+
+# Build a Minimal API sample
+cd src/MinimalApi/AsyncBasicSample
+dotnet build
+
+# Build an MVC sample
+cd src/Mvc/AsyncBasicSample
+dotnet build
+
+# Run any web sample
+dotnet run
+```
+
+---
 
 - `AsyncValidationAttribute` — Abstract base for async validation attributes
 - `IAsyncValidatableObject` — Interface for object-level async validation

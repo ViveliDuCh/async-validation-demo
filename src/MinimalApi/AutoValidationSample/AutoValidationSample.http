@@ -1,0 +1,154 @@
+@host = http://localhost:5208
+
+### 📋 List all available endpoints
+GET {{host}}/
+Accept: application/json
+
+### ✅ Valid customer ID (route parameter validation)
+GET {{host}}/customers/42
+Accept: application/json
+
+### ❌ Invalid customer ID — must be >= 1 (auto-validated route param)
+GET {{host}}/customers/0
+Accept: application/json
+
+### ✅ Valid customer POST ([ValidatableType] + nested Address)
+POST {{host}}/customers
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "age": 30,
+  "homeAddress": {
+    "street": "123 Main St",
+    "city": "Anytown",
+    "zipCode": "12345"
+  }
+}
+
+### ❌ Invalid customer — missing required fields
+POST {{host}}/customers
+Content-Type: application/json
+
+{
+  "age": 15
+}
+
+### ❌ Invalid customer — invalid nested Address (zipCode too long)
+POST {{host}}/customers
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "age": 30,
+  "homeAddress": {
+    "street": "123 Main St",
+    "city": "Anytown",
+    "zipCode": "1234567"
+  }
+}
+
+### ✅ Valid order POST (IValidatableObject)
+POST {{host}}/orders
+Content-Type: application/json
+
+{
+  "orderId": 12345,
+  "productName": "Sample Product",
+  "quantity": 5
+}
+
+### ❌ Invalid order — quantity must be > 0 (IValidatableObject.Validate)
+POST {{host}}/orders
+Content-Type: application/json
+
+{
+  "orderId": 12345,
+  "productName": "Sample Product",
+  "quantity": 0
+}
+
+### ✅ Product with even ID (validation DISABLED — always accepted)
+POST {{host}}/products?productId=2&name=TestProduct
+
+### ✅ Product with odd ID (validation DISABLED — still accepted despite EvenNumber attr)
+POST {{host}}/products?productId=3&name=TestProduct
+
+### ✅ Valid contact form
+POST {{host}}/contact
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+1-555-555-5555",
+  "message": "Hello, this is a test message.",
+  "age": 30
+}
+
+### ❌ Invalid contact form — missing fields (ErrorMessage keys shown without localization)
+POST {{host}}/contact
+Content-Type: application/json
+
+{
+  "email": "not-an-email"
+}
+
+### ═══════════════════════════════════════════
+### SharedModels entities — automatic validation DISABLED, manual async validation used
+### This demonstrates: automatic validation ≠ async validation
+### ═══════════════════════════════════════════
+
+### ✅ Valid SharedModels User
+POST {{host}}/api/user/valid
+Content-Type: application/json
+
+{
+  "name": "Alice",
+  "email": "alice@contoso.com",
+  "delay": 100
+}
+
+### ❌ Invalid SharedModels User — bad email domain
+POST {{host}}/api/user/valid
+Content-Type: application/json
+
+{
+  "name": "Bob",
+  "email": "bob@gmail.com",
+  "delay": 100
+}
+
+### ❌ Invalid SharedModels Event — StartDate after EndDate
+POST {{host}}/api/event/invalid
+Content-Type: application/json
+
+{
+  "title": "Launch Party",
+  "startDate": "2026-12-25",
+  "endDate": "2026-12-20",
+  "delay": 100
+}
+
+### ❌ Invalid SharedModels Order — total > $50k
+POST {{host}}/api/order/over-limit
+Content-Type: application/json
+
+{
+  "productName": "Widget",
+  "quantity": 10000,
+  "unitPrice": 10,
+  "delay": 100
+}
+
+### ❌ Invalid SharedModels Profile — "admin" reserved + bio too long
+POST {{host}}/api/profile/invalid
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "bio": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "delay": 100
+}

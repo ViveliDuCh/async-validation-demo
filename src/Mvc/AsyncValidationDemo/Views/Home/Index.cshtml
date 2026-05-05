@@ -1,0 +1,49 @@
+@{ ViewData["Title"] = "Home"; }
+
+<h2>MVC Async Validation Demo</h2>
+<p>
+    Demonstrates DI integration, <code>IAsyncValidatableObject</code> cross-property validation,
+    and infrastructure failure handling — all using <strong>asynchronous</strong> validation
+    with <code>Task.Delay</code> and <code>Validator.TryValidateObjectAsync</code> instead of
+    blocking the server thread.
+</p>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">User Registration</h5>
+                <p class="card-text">
+                    DI-backed <code>[UniqueUsername]</code> + <code>[UniqueEmail]</code>.
+                    Controllers pass <code>HttpContext.RequestServices</code> into the
+                    async validation context.
+                </p>
+                <a asp-controller="Registration" class="btn btn-primary">Open Form →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Money Transfer</h5>
+                <p class="card-text">
+                    <code>IAsyncValidatableObject</code> — same-account check + async balance check
+                    with <code>Task.Delay</code>.
+                </p>
+                <a asp-controller="Transfer" class="btn btn-primary">Open Form →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Error Handling</h5>
+                <p class="card-text">
+                    Infrastructure failure propagation — <code>[UniqueUsername]</code> throws
+                    when username is "error-trigger" during async validation.
+                </p>
+                <a asp-controller="ErrorHandling" class="btn btn-danger">Open Form →</a>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,122 @@
+@page "/error-handling"
+@inject IServiceProvider ServiceProvider
+
+<h3>Scenario 4: Infrastructure Failure Handling</h3>
+<p>
+    The username <code>error-trigger</code> simulates a database connection failure.
+    This page wraps <code>Validator.TryValidateObjectAsync</code> in <code>try</code>/<code>catch</code>
+    so infrastructure errors can be shown separately from validation results.
+</p>
+
+<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="errorForm">
+    <div class="mb-3">
+        <label class="form-label">Username</label>
+        <InputText class="form-control" @bind-Value="_registration.Username" />
+        <ValidationMessage For="@(() => _registration.Username)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <InputText class="form-control" @bind-Value="_registration.Email" />
+        <ValidationMessage For="@(() => _registration.Email)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <InputText class="form-control" type="password" @bind-Value="_registration.Password" />
+        <ValidationMessage For="@(() => _registration.Password)" />
+    </div>
+
+    <button type="submit" class="btn btn-danger" disabled="@_isSubmitting">
+        @(_isSubmitting ? "Validating asynchronously..." : "Submit (will trigger error)")
+    </button>
+
+    <ValidationSummary class="mt-3" />
+</EditForm>
+
+@if (_message is not null)
+{
+    <div class="alert @_alertClass mt-3">@_message</div>
+}
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger mt-3">
+        <strong>Infrastructure Error:</strong> @_errorMessage
+    </div>
+}
+
+@code {
+    private readonly UserRegistration _registration = new()
+    {
+        Username = "error-trigger",
+        Email = "new@example.com",
+        Password = "SecureP@ss123"
+    };
+
+    private EditContext _editContext = null!;
+    private ValidationMessageStore _messageStore = null!;
+    private bool _isSubmitting;
+    private string? _message;
+    private string _alertClass = "alert-info";
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_registration);
+        _messageStore = new ValidationMessageStore(_editContext);
+    }
+
+    private async Task HandleSubmit(EditContext _)
+    {
+        _isSubmitting = true;
+        _messageStore.Clear();
+        _message = null;
+        _errorMessage = null;
+        _editContext.NotifyValidationStateChanged();
+        await InvokeAsync(StateHasChanged);
+
+        var results = new List<ValidationResult>();
+        var context = new ValidationContext(_registration, ServiceProvider, null);
+
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(_registration, context, results, true);
+            AddResultsToMessageStore(_registration, results);
+            _message = isValid
+                ? "✅ Valid!"
+                : "❌ Validation failed — see errors above.";
+            _alertClass = isValid ? "alert-success" : "alert-danger";
+        }
+        catch (InvalidOperationException ex)
+        {
+            _messageStore.Clear();
+            _editContext.NotifyValidationStateChanged();
+            _message = "⚠️ Validation could not complete because the infrastructure dependency failed.";
+            _alertClass = "alert-warning";
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void AddResultsToMessageStore(object model, IEnumerable<ValidationResult> results)
+    {
+        foreach (var result in results)
+        {
+            foreach (var member in result.MemberNames)
+            {
+                _messageStore.Add(_editContext.Field(member), result.ErrorMessage!);
+            }
+
+            if (!result.MemberNames.Any())
+            {
+                _messageStore.Add(new FieldIdentifier(model, string.Empty), result.ErrorMessage!);
+            }
+        }
+
+        _editContext.NotifyValidationStateChanged();
+    }
+}

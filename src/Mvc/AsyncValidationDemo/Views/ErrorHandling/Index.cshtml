@@ -1,0 +1,39 @@
+@model UserRegistration
+@{ ViewData["Title"] = "Infrastructure Error"; }
+
+<h3>Infrastructure Failure Propagation</h3>
+<p>
+    When username is <code>"error-trigger"</code>, <code>[UniqueUsername]</code> throws
+    <code>InvalidOperationException</code> during <code>Validator.TryValidateObjectAsync</code>.
+    The exception propagates as a <strong>500 Internal Server Error</strong> handled by
+    <code>UseExceptionHandler</code>.
+</p>
+
+<form asp-action="Index" method="post" class="col-md-6">
+    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="Username" class="form-label"></label>
+        <input asp-for="Username" class="form-control" />
+        <span asp-validation-for="Username" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" type="password" class="form-control" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-danger">Submit (will throw)</button>
+    <a asp-controller="Home" class="btn btn-outline-secondary ms-2">← Back</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,95 @@
+@page "/user"
+@using System.Diagnostics
+
+<h3>Scenarios 1 &amp; 2: Reusable Property Attributes</h3>
+<p>
+    <strong>IsValidName</strong> and <strong>AsyncOnlyEmailDomain</strong> perform async work.
+    This page uses <code>EditContext</code> + <code>ValidationMessageStore</code> so Blazor can await
+    async I/O without blocking the server thread.
+</p>
+
+<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="userForm">
+    <div class="mb-3">
+        <label class="form-label">Name</label>
+        <InputText class="form-control" @bind-Value="_user.Name" />
+        <ValidationMessage For="@(() => _user.Name)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <InputText class="form-control" @bind-Value="_user.Email" />
+        <ValidationMessage For="@(() => _user.Email)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Simulated I/O Delay (ms)</label>
+        <InputNumber class="form-control" @bind-Value="_user.Delay" />
+        <ValidationMessage For="@(() => _user.Delay)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
+        @(_isSubmitting ? "Validating asynchronously..." : "Submit")
+    </button>
+
+    <ValidationSummary class="mt-3" />
+</EditForm>
+
+@if (_message is not null)
+{
+    <div class="alert @_alertClass mt-3">@_message</div>
+}
+
+@code {
+    private readonly User _user = new() { Name = "Bob", Email = "bob@gmail.com", Delay = 3000 };
+    private EditContext _editContext = null!;
+    private ValidationMessageStore _messageStore = null!;
+    private bool _isSubmitting;
+    private string? _message;
+    private string _alertClass = "alert-info";
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_user);
+        _messageStore = new ValidationMessageStore(_editContext);
+    }
+
+    private async Task HandleSubmit(EditContext _)
+    {
+        _isSubmitting = true;
+        _messageStore.Clear();
+        _message = null;
+        _editContext.NotifyValidationStateChanged();
+        await InvokeAsync(StateHasChanged);
+
+        var sw = Stopwatch.StartNew();
+        var results = new List<ValidationResult>();
+        var context = new ValidationContext(_user);
+        bool isValid = await Validator.TryValidateObjectAsync(_user, context, results, true);
+        sw.Stop();
+
+        AddResultsToMessageStore(_user, results);
+        _message = isValid
+            ? $"✅ Valid! Validation took {sw.ElapsedMilliseconds}ms while awaiting async I/O without blocking the server thread."
+            : $"❌ Validation failed after {sw.ElapsedMilliseconds}ms — see errors above.";
+        _alertClass = isValid ? "alert-success" : "alert-danger";
+        _isSubmitting = false;
+    }
+
+    private void AddResultsToMessageStore(object model, IEnumerable<ValidationResult> results)
+    {
+        foreach (var result in results)
+        {
+            foreach (var member in result.MemberNames)
+            {
+                _messageStore.Add(_editContext.Field(member), result.ErrorMessage!);
+            }
+
+            if (!result.MemberNames.Any())
+            {
+                _messageStore.Add(new FieldIdentifier(model, string.Empty), result.ErrorMessage!);
+            }
+        }
+
+        _editContext.NotifyValidationStateChanged();
+    }
+}
