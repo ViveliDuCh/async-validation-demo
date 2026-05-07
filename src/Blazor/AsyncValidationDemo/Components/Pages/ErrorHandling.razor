@@ -1,5 +1,6 @@
 @page "/error-handling"
 @inject IServiceProvider ServiceProvider
+@implements IDisposable
 
 <h3>Scenario 4: Infrastructure Failure Handling</h3>
 <p>
@@ -27,7 +28,7 @@
         <ValidationMessage For="@(() => _registration.Password)" />
     </div>
 
-    <button type="submit" class="btn btn-danger" disabled="@_isSubmitting">
+    <button type="submit" class="btn btn-danger">
         @(_isSubmitting ? "Validating asynchronously..." : "Submit (will trigger error)")
     </button>
 
@@ -56,6 +57,7 @@
 
     private EditContext _editContext = null!;
     private ValidationMessageStore _messageStore = null!;
+    private CancellationTokenSource? _cts;
     private bool _isSubmitting;
     private string? _message;
     private string _alertClass = "alert-info";
@@ -65,10 +67,23 @@
     {
         _editContext = new EditContext(_registration);
         _messageStore = new ValidationMessageStore(_editContext);
+        _editContext.OnFieldChanged += OnFieldChanged;
+    }
+
+    private void OnFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        if (_cts is not null && !_cts.IsCancellationRequested)
+        {
+            _cts.Cancel();
+        }
     }
 
     private async Task HandleSubmit(EditContext _)
     {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+
         _isSubmitting = true;
         _messageStore.Clear();
         _message = null;
@@ -81,12 +96,19 @@
 
         try
         {
-            bool isValid = await Validator.TryValidateObjectAsync(_registration, context, results, true);
+            bool isValid = await Validator.TryValidateObjectAsync(_registration, context, results, true, _cts.Token);
             AddResultsToMessageStore(_registration, results);
             _message = isValid
                 ? "✅ Valid!"
                 : "❌ Validation failed — see errors above.";
             _alertClass = isValid ? "alert-success" : "alert-danger";
+        }
+        catch (OperationCanceledException)
+        {
+            _messageStore.Clear();
+            _editContext.NotifyValidationStateChanged();
+            _message = "⚠️ Validation cancelled — a field value changed.";
+            _alertClass = "alert-warning";
         }
         catch (InvalidOperationException ex)
         {
@@ -118,5 +140,12 @@
         }
 
         _editContext.NotifyValidationStateChanged();
+    }
+
+    public void Dispose()
+    {
+        _editContext.OnFieldChanged -= OnFieldChanged;
+        _cts?.Cancel();
+        _cts?.Dispose();
     }
 }

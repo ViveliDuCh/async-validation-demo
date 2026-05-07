@@ -1,0 +1,44 @@
+<Solution>
+  <Folder Name="/Console/">
+    <Project Path="Console/BasicAsyncSample/BasicAsyncSample.csproj" />
+    <Project Path="Console/AsyncValidationConsoleDemo/AsyncValidationConsoleDemo.csproj" />
+  </Folder>
+  <Folder Name="/Blazor/">
+    <Project Path="Blazor/AsyncBasicSample/AsyncBasicSample.csproj" />
+    <Project Path="Blazor/AsyncValidationDemo/AsyncValidationDemo.csproj" />
+  </Folder>
+  <Folder Name="/MinimalApi/">
+    <Project Path="MinimalApi/AsyncBasicSample/AsyncBasicSample.csproj" />
+    <Project Path="MinimalApi/AsyncValidationDemo/AsyncValidationDemo.csproj" />
+    <Project Path="MinimalApi/AutoValidationSample/AutoValidationSample.csproj" />
+  </Folder>
+  <Folder Name="/Mvc/">
+    <Project Path="Mvc/AsyncBasicSample/AsyncBasicSample.csproj" />
+    <Project Path="Mvc/AsyncValidationDemo/AsyncValidationDemo.csproj" />
+  </Folder>
+  <Folder Name="/WPF/">
+    <Project Path="WPF/AsyncManualSample/AsyncManualSample.csproj" />
+    <Project Path="WPF/AsyncToolkitSample/AsyncToolkitSample.csproj" />
+  </Folder>
+  <Folder Name="/WinForms/">
+    <Project Path="WinForms/AsyncBasicSample/AsyncBasicSample.csproj" />
+    <Project Path="WinForms/AsyncValidationDemo/AsyncValidationDemo.csproj" />
+    <Project Path="WinForms/AsyncDesignerBasicSample/AsyncDesignerBasicSample.csproj" />
+    <Project Path="WinForms/AsyncDesignerValidationDemo/AsyncDesignerValidationDemo.csproj" />
+  </Folder>
+  <Folder Name="/EfCore/">
+    <Project Path="EfCore/PropertyAttributeConventionDemo/PropertyAttributeConventionDemo.csproj" />
+    <Project Path="EfCore/ModelFinalizingConventionDemo/ModelFinalizingConventionDemo.csproj" />
+  </Folder>
+  <Folder Name="/OpenApi/">
+    <Project Path="OpenApi/OpenApiSimulation.PreAttribute/OpenApiSimulation.PreAttribute.csproj" />
+    <Project Path="OpenApi/OpenApiSimulation.SchemaDescriptor/OpenApiSimulation.SchemaDescriptor.csproj" />
+  </Folder>
+  <Folder Name="/Options/">
+    <Project Path="Options/Options.Shared/Options.Shared.csproj" />
+    <Project Path="Options/AsyncLambdaConsole/AsyncLambdaConsole.csproj" />
+    <Project Path="Options/Tier2.OptionsBlazor/Tier2.OptionsBlazor.csproj" />
+    <Project Path="Options/Tier2b.OptionsGeneratorBlazor/Tier2b.OptionsGeneratorBlazor.csproj" />
+  </Folder>
+  <Project Path="SharedModels/SharedModels.csproj" />
+</Solution>

@@ -2,46 +2,64 @@
 
 Demonstrates the async validation APIs (`AsyncValidationAttribute`,
 `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, etc.) across
-Console, WinForms, WPF, Blazor, Minimal API, and MVC applications. All samples
-share a common set of entity, validation, and service classes via the
-`SharedModels` project.
+Console, WinForms, WPF, Blazor, Minimal API, MVC, EF Core, OpenAPI, and
+Options applications. All form/endpoint samples share a common set of entity,
+validation, and service classes via the `SharedModels` project. The Options
+samples use a standalone `Options.Shared` library to demonstrate `IOptions<T>`
+async validation at startup.
 
 ## Folder Structure
 
 ```
-samples/
-├── SharedModels/                       ← Class library shared by ALL samples
-│   ├── EntityClasses/                  ← User, Event, Order, Profile, UserRegistration, MoneyTransfer
-│   ├── ValidationClasses/              ← IsValidName, AsyncOnlyEmailDomain, AsyncDateRangeValid,
-│   │                                     UniqueEmail, UniqueUsername
-│   └── ServiceClasses/                 ← UserService, SimpleServiceProvider
+src/
+├── AsyncValidationDemo.slnx            ← Single solution for all projects
+├── Directory.Build.props                ← Wires local-packages DLLs into all projects
+├── SharedModels/                        ← Class library shared by ALL samples
+│   ├── EntityClasses/                   ← User, Event, Order, Profile, UserRegistration, MoneyTransfer
+│   ├── ValidationClasses/               ← IsValidName, AsyncOnlyEmailDomain, AsyncDateRangeValid,
+│   │                                      UniqueEmail, UniqueUsername
+│   └── ServiceClasses/                  ← UserService, SimpleServiceProvider
 │
 ├── Console/
-│   ├── BasicAsyncSample/               ← 5 async validation scenarios + timing comparison
-│   └── AsyncValidationConsoleDemo/     ← DI, two-phase, error handling, cancellation
+│   ├── BasicAsyncSample/                ← 5 async validation scenarios + timing comparison
+│   └── AsyncValidationConsoleDemo/      ← DI, two-phase, error handling, cancellation
 │
 ├── WinForms/
-│   ├── AsyncBasicSample/               ← Programmatic controls + async ErrorProvider bridge
-│   ├── AsyncValidationDemo/            ← DI-backed async validation (Registration, Transfer, Errors)
-│   ├── AsyncDesignerBasicSample/       ← Designer-generated controls + async validation
-│   └── AsyncDesignerValidationDemo/    ← Designer + DI + async validation
+│   ├── AsyncBasicSample/                ← Programmatic controls + async ErrorProvider bridge
+│   ├── AsyncValidationDemo/             ← DI-backed async validation (Registration, Transfer, Errors)
+│   ├── AsyncDesignerBasicSample/        ← Designer-generated controls + async validation
+│   └── AsyncDesignerValidationDemo/     ← Designer + DI + async validation
 │
 ├── WPF/
-│   ├── AsyncManualSample/              ← Manual INotifyDataErrorInfo async bridge (~50 LOC base)
-│   └── AsyncToolkitSample/             ← CommunityToolkit.Mvvm ObservableValidator + async
+│   ├── AsyncManualSample/               ← Manual INotifyDataErrorInfo async bridge (~50 LOC base)
+│   └── AsyncToolkitSample/              ← CommunityToolkit.Mvvm ObservableValidator + async
 │
 ├── Blazor/
-│   ├── AsyncBasicSample/               ← EditContext + ValidationMessageStore async bridge
-│   └── AsyncValidationDemo/            ← DI, two-phase, error handling, cancellation token
+│   ├── AsyncBasicSample/                ← EditContext + ValidationMessageStore async bridge
+│   └── AsyncValidationDemo/             ← DI, two-phase, error handling, cancellation token
 │
 ├── MinimalApi/
-│   ├── AsyncBasicSample/               ← Manual TryValidateObjectAsync in endpoint handlers
-│   ├── AsyncValidationDemo/            ← DI + real CancellationToken propagation
-│   └── AutoValidationSample/           ← Hybrid: AddValidation() + manual async for SharedModels
+│   ├── AsyncBasicSample/                ← Manual TryValidateObjectAsync in endpoint handlers
+│   ├── AsyncValidationDemo/             ← DI + real CancellationToken propagation
+│   └── AutoValidationSample/            ← Hybrid: AddValidation() + manual async for SharedModels
 │
-└── Mvc/
-    ├── AsyncBasicSample/               ← Cleared ModelValidatorProviders + async controllers
-    └── AsyncValidationDemo/            ← DI, async controllers, infrastructure error handling
+├── Mvc/
+│   ├── AsyncBasicSample/                ← Cleared ModelValidatorProviders + async controllers
+│   └── AsyncValidationDemo/             ← DI, async controllers, infrastructure error handling
+│
+├── EfCore/
+│   ├── PropertyAttributeConventionDemo/ ← Path A: PropertyAttributeConventionBase<T> (self-contained)
+│   └── ModelFinalizingConventionDemo/   ← Path B: IModelFinalizingConvention (SharedModels scan)
+│
+├── OpenApi/
+│   ├── OpenApiSimulation.PreAttribute/  ← Zero-modification: reflection-based schema extraction
+│   └── OpenApiSimulation.SchemaDescriptor/ ← ISchemaDescriptor interface for self-describing attrs
+│
+└── Options/
+    ├── Options.Shared/                  ← CloudInfoOptions POCO + AsyncStorageExistsAttribute
+    ├── AsyncLambdaConsole/              ← Inline async lambda validation at startup
+    ├── Tier2.OptionsBlazor/             ← Bypass approach (reflection-based)
+    └── Tier2b.OptionsGeneratorBlazor/   ← Source generator approach (AOT-friendly)
 ```
 
 ---
@@ -118,6 +136,13 @@ validation, this sample uses `EditContext` + `ValidationMessageStore` to bridge
 async validation into the Blazor form system. `<ValidationMessage>` and
 `<ValidationSummary>` tag helpers still display errors correctly.
 
+All pages pass a `CancellationToken` to `TryValidateObjectAsync` and subscribe
+to `EditContext.OnFieldChanged` — editing any field while validation is in
+flight automatically cancels the running async check via
+`CancellationTokenSource`. The submit button stays enabled so re-clicking
+cancels and restarts validation. Each page implements `IDisposable` to clean up
+the event subscription and `CancellationTokenSource`.
+
 | # | Pattern | Page |
 |---|---------|------|
 | 1–2 | Reusable async property attributes | UserValidation |
@@ -130,7 +155,8 @@ DI-backed Blazor Server app demonstrating `UserService` resolution via
 `IServiceProvider` in `ValidationContext`, two-phase validation (sync attr
 fails → async attr skipped), `IAsyncValidatableObject` cross-property
 validation, infrastructure error handling, and `CancellationToken` propagation
-(not possible with sync validation).
+(not possible with sync validation). All pages support cancel-on-field-change
+via `EditContext.OnFieldChanged` — the same pattern as AsyncBasicSample.
 
 ---
 
@@ -175,189 +201,427 @@ The `ErrorHandlingController` wraps async validation in try/catch and uses
 
 ---
 
+## EF Core Samples
+
+Proves that EF Core's convention system can detect `AsyncValidationAttribute`
+subclasses via reflection and apply schema-relevant metadata — two projects,
+one per registration mechanism.
+
+### PropertyAttributeConventionDemo (Path A)
+Self-contained sample using `PropertyAttributeConventionBase<UniqueUsernameAttribute>`
+— typed to a specific attribute. Mirrors how EF Core's built-in conventions
+work (e.g., `[Required]` → NOT NULL). Demonstrates: convention detection,
+UNIQUE INDEX creation, annotation storage, generated SQL.
+
+### ModelFinalizingConventionDemo (Path B)
+References SharedModels and uses `IModelFinalizingConvention` to scan ALL
+6 entities for ANY `AsyncValidationAttribute` subclass. Detects 5 async
+attributes (4 property-level, 1 class-level), creates 2 UNIQUE indexes,
+stores 5 annotations, and correctly ignores 3 `IAsyncValidatableObject`-only
+entities (Order, Profile, MoneyTransfer).
+
+---
+
+## OpenAPI Samples
+
+Proves that async validation attributes can produce OpenAPI-compatible JSON
+Schema metadata via a simulated `IOpenApiSchemaTransformer`. Two console
+projects, one per schema-extraction approach.
+
+### OpenApiSimulation.PreAttribute (Approach A)
+**Zero attribute modification** — discovers `AsyncValidationAttribute`
+subclasses via pure reflection and extracts metadata by convention to produce
+`x-async-validation` and `x-requires-server-check` schema extensions.
+
+### OpenApiSimulation.SchemaDescriptor (Approach B)
+Attributes implement `ISchemaDescriptor` to self-describe their schema
+contributions (description, format, pattern, extensions). Produces richer
+metadata than Approach A.
+
+---
+
+## Options Samples
+
+Demonstrates async validation of `IOptions<T>` configuration at application
+startup.
+
+### Options.Shared
+Standalone class library containing the shared POCO (`CloudInfoOptions`) and
+async attribute (`AsyncStorageExistsAttribute`).
+
+### AsyncLambdaConsole
+Console app demonstrating inline async lambda validation with
+`.ValidateAsync<TDep>()` — validates options at startup without implementing
+`IAsyncValidateOptions<T>` as a separate class.
+
+### Tier2.OptionsBlazor (Bypass Approach)
+Uses `.ValidateDataAnnotationsAsync().ValidateOnStartAsync()` extension methods.
+
+### Tier2b.OptionsGeneratorBlazor (Source Generator)
+Uses `[OptionsValidator]` source generator to emit both `Validate()` and
+`ValidateAsync()` at compile time — no reflection at runtime.
+
+---
+
 ## Building and Running
 
-### Console Samples (build in-repo)
+> **Before building**, ensure the DLLs in `local-packages/` are up to date with
+> the latest changes from both `async-validation` branches. If any changes have
+> been made to either repo, follow the steps in
+> [How to Rebuild Local Packages](#how-to-rebuild-local-packages) to regenerate
+> and copy the DLLs, then return here to build and run.
 
-Console samples and SharedModels build directly within the `dotnet/runtime`
-repo because they only need `Microsoft.NETCore.App` framework types.
-
-```powershell
-# 1. Configure the locally-built SDK
-$env:PATH = "<repo-root>\.dotnet;$env:PATH"
-
-# 2. Build SharedModels + a specific console sample
-cd src/libraries/System.ComponentModel.Annotations/samples/Console/BasicAsyncSample
-dotnet build
-
-# 3. Run (requires the locally-built testhost with the new async APIs)
-$testhost = "<repo-root>\artifacts\bin\testhost\net11.0-windows-Debug-x64"
-& "$testhost\dotnet.exe" exec `
-    "<repo-root>\artifacts\bin\BasicAsyncSample\Debug\net11.0\BasicAsyncSample.dll"
-```
-
-### WinForms / WPF / Blazor / Minimal API / MVC Samples (build out-of-repo)
-
-> **Why can't these build inside the runtime repo?**
->
-> The `dotnet/runtime` build system uses a *local targeting pack* that
-> replaces the installed SDK's framework references. This local pack only
-> provides `Microsoft.NETCore.App` assemblies (the runtime libraries being
-> built). It does **not** provide the `Microsoft.WindowsDesktop.App` framework
-> (`System.Windows.Forms`, `System.Windows`, PresentationFramework, etc.)
-> because those assemblies live in separate repositories (`dotnet/winforms`,
-> `dotnet/wpf`).
->
-> Specifically, the repo's build infrastructure:
->
-> 1. Sets `DisableImplicitFrameworkReferences=true` for projects targeting
->    `$(NetCoreAppCurrent)`, which suppresses all SDK-provided framework
->    references — including `Microsoft.WindowsDesktop.App.WindowsForms` and
->    `Microsoft.WindowsDesktop.App.WPF`.
-> 2. Overrides `KnownFrameworkReference` to point to the locally-built
->    `Microsoft.NETCore.App.Ref` targeting pack.
-> 3. Sets `EnableTargetingPackDownload=false`, preventing the SDK from
->    downloading any additional framework packs at restore time.
->
-> Console samples work because they only depend on types from
-> `Microsoft.NETCore.App` (provided by the local targeting pack) plus the
-> locally-built `System.ComponentModel.Annotations` (via project reference).
-> WinForms/WPF samples additionally need Windows Desktop types that are not
-> available in the local targeting pack.
-
-To build and test the WinForms / WPF samples, copy them out of the repo and
-point them at the locally-built `System.ComponentModel.Annotations` DLL via a
-local NuGet feed or direct DLL reference.
-
-#### Step-by-step: Build WinForms / WPF samples outside the repo
+All commands below are run from `C:\REPOS\async-validation-demo\src`. The
+.NET 11 preview SDK pinned in `global.json` is typically not installed
+system-wide, so every shell session must set these variables first:
 
 ```powershell
-# ─── Prerequisites ───────────────────────────────────────────────────
-# 1. Build the runtime repo first (from the repo root):
-#    .\build.cmd clr+libs -rc release
-#    This produces the locally-built System.ComponentModel.Annotations.dll
-#    with the new async validation APIs.
-
-# ─── Step 1: Create a working directory outside the repo ─────────────
-$workDir = "C:\temp\async-validation-samples"
-New-Item -ItemType Directory -Force -Path $workDir
-
-# ─── Step 2: Copy the sample projects ────────────────────────────────
-$samplesRoot = "<repo-root>\src\libraries\System.ComponentModel.Annotations\samples"
-Copy-Item -Recurse "$samplesRoot\SharedModels" "$workDir\SharedModels"
-Copy-Item -Recurse "$samplesRoot\WinForms"     "$workDir\WinForms"
-Copy-Item -Recurse "$samplesRoot\WPF"          "$workDir\WPF"
-
-# ─── Step 3: Create a local NuGet feed with the built assembly ───────
-$feedDir = "$workDir\local-feed"
-New-Item -ItemType Directory -Force -Path $feedDir
-
-# Find the locally-built DLL
-$annotationsDll = "<repo-root>\artifacts\bin\System.ComponentModel.Annotations\Debug\net11.0\System.ComponentModel.Annotations.dll"
-
-# Create a minimal .nupkg (or use the ref assembly directly)
-# The simplest approach: reference the DLL directly instead of NuGet.
-
-# ─── Step 4: Update SharedModels.csproj ──────────────────────────────
-# Replace the project references with a direct DLL reference.
-# Change SharedModels.csproj from:
-#
-#   <ProjectReference Include="$(LibrariesProjectRoot)..." />
-#
-# To:
-#
-#   <Reference Include="System.ComponentModel.Annotations"
-#              HintPath="<repo-root>\artifacts\bin\System.ComponentModel.Annotations\Debug\net11.0\System.ComponentModel.Annotations.dll" />
-#
-# Also change the TargetFramework from $(NetCoreAppCurrent) to a concrete
-# value like net11.0, and remove the runtime-specific suppressions.
-
-# ─── Step 5: Update all .csproj files ────────────────────────────────
-# For each WinForms/WPF project csproj:
-#   a. Change <TargetFramework>$(NetCoreAppCurrent)-windows</TargetFramework>
-#      to    <TargetFramework>net11.0-windows</TargetFramework>
-#   b. Remove EnableDefaultItems, EnableTrimAnalyzer, EnableAotAnalyzer,
-#      and the NoWarn suppressions (they are repo-specific).
-#   c. Ensure UseWindowsForms / UseWPF is set.
-#   d. Add <ImplicitUsings>enable</ImplicitUsings> for convenience.
-
-# ─── Step 6: Remove the Directory.Build.props ────────────────────────
-# The copied Directory.Build.props has an <Import> pointing back into the
-# repo. Delete it — the SDK defaults are sufficient for standalone builds.
-Remove-Item "$workDir\SharedModels\..\Directory.Build.props" -ErrorAction Ignore
-
-# ─── Step 7: Build ───────────────────────────────────────────────────
-cd $workDir\WinForms\AsyncBasicSample
-dotnet build
-
-# ─── Step 8: Run ─────────────────────────────────────────────────────
-# Option A: run directly (if using the installed .NET 11 SDK)
-dotnet run
-
-# Option B: run against the locally-built testhost
-$testhost = "<repo-root>\artifacts\bin\testhost\net11.0-windows-Debug-x64"
-& "$testhost\dotnet.exe" exec `
-    "$workDir\WinForms\AsyncBasicSample\bin\Debug\net11.0-windows\AsyncBasicSample.dll"
+# Run this ONCE per shell session before any build/run commands
+$env:PATH = "$env:LOCALAPPDATA\Microsoft\dotnet;$env:PATH"
+$env:DOTNET_MULTILEVEL_LOOKUP = "0"
+cd C:\REPOS\async-validation-demo\src
 ```
 
-#### Quick reference: standalone SharedModels.csproj
+This ensures `dotnet` resolves to the locally-installed .NET 11 SDK instead of
+the system-wide .NET 10. Verify with `dotnet --version` — it should print the
+version from `global.json`.
 
-```xml
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net11.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="System.ComponentModel.Annotations"
-               HintPath="<repo-root>\artifacts\bin\System.ComponentModel.Annotations\Debug\net11.0\System.ComponentModel.Annotations.dll" />
-  </ItemGroup>
-</Project>
-```
+### Console
 
-#### Quick reference: standalone WinForms .csproj
-
-```xml
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net11.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWindowsForms>true</UseWindowsForms>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\SharedModels\SharedModels.csproj" />
-  </ItemGroup>
-</Project>
-```
-
-#### Web samples (Blazor / Minimal API / MVC)
-
-The web samples use `Microsoft.NET.Sdk.Web` and reference `SharedModels` via
-a relative `ProjectReference`. The `Directory.Build.props` at the `src/` root
-provides both the runtime DLL (`System.ComponentModel.Annotations.dll`) and
-the aspnetcore DLLs (`Microsoft.Extensions.Validation.dll`,
-`Microsoft.AspNetCore.Components.Forms.dll`,
-`Microsoft.AspNetCore.Mvc.DataAnnotations.dll`) from `local-packages/`.
+#### BasicAsyncSample
 
 ```powershell
-# Build a Blazor sample
-cd src/Blazor/AsyncBasicSample
-dotnet build
-
-# Build a Minimal API sample
-cd src/MinimalApi/AsyncBasicSample
-dotnet build
-
-# Build an MVC sample
-cd src/Mvc/AsyncBasicSample
-dotnet build
-
-# Run any web sample
-dotnet run
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Console\BasicAsyncSample\BasicAsyncSample.csproj
+dotnet run --no-build --project Console\BasicAsyncSample\BasicAsyncSample.csproj
 ```
+
+Expected output: 5 scenarios print to stdout — valid user, async vs sync timing
+comparison, invalid email domain, invalid date range, IAsyncValidatableObject
+cross-property (Order) and property-scoped (Profile).
+
+#### AsyncValidationConsoleDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Console\AsyncValidationConsoleDemo\AsyncValidationConsoleDemo.csproj
+dotnet run --no-build --project Console\AsyncValidationConsoleDemo\AsyncValidationConsoleDemo.csproj
+```
+
+Expected output: 5 scenarios — DI duplicate detection, two-phase validation,
+IAsyncValidatableObject (MoneyTransfer), infrastructure failure (`InvalidOperationException`
+caught), and cancellation (`OperationCanceledException` caught).
+
+### WinForms
+
+#### AsyncBasicSample
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build WinForms\AsyncBasicSample\AsyncBasicSample.csproj
+dotnet run --no-build --project WinForms\AsyncBasicSample\AsyncBasicSample.csproj
+```
+
+Launches a tabbed WinForms window (User, Event, Order, Profile). Click
+"Validate All (Async)" on each tab to trigger async validation.
+
+#### AsyncValidationDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build WinForms\AsyncValidationDemo\AsyncValidationDemo.csproj
+dotnet run --no-build --project WinForms\AsyncValidationDemo\AsyncValidationDemo.csproj
+```
+
+Launches a tabbed window (Registration, Transfer, Error Handling, Two-Phase)
+with DI-backed async validation.
+
+#### AsyncDesignerBasicSample
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build WinForms\AsyncDesignerBasicSample\AsyncDesignerBasicSample.csproj
+dotnet run --no-build --project WinForms\AsyncDesignerBasicSample\AsyncDesignerBasicSample.csproj
+```
+
+#### AsyncDesignerValidationDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build WinForms\AsyncDesignerValidationDemo\AsyncDesignerValidationDemo.csproj
+dotnet run --no-build --project WinForms\AsyncDesignerValidationDemo\AsyncDesignerValidationDemo.csproj
+```
+
+### WPF
+
+#### AsyncManualSample
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build WPF\AsyncManualSample\AsyncManualSample.csproj
+dotnet run --no-build --project WPF\AsyncManualSample\AsyncManualSample.csproj
+```
+
+Launches a WPF window with four entity panels. Validation errors appear as red
+borders + tooltips via `INotifyDataErrorInfo`.
+
+#### AsyncToolkitSample
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build WPF\AsyncToolkitSample\AsyncToolkitSample.csproj
+dotnet run --no-build --project WPF\AsyncToolkitSample\AsyncToolkitSample.csproj
+```
+
+Uses CommunityToolkit.Mvvm `ObservableValidator` with async validation.
+
+### Blazor
+
+#### AsyncBasicSample
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Blazor\AsyncBasicSample\AsyncBasicSample.csproj
+dotnet run --no-build --project Blazor\AsyncBasicSample\AsyncBasicSample.csproj
+```
+
+Starts Kestrel on `http://localhost:5200`. Browse to `/user`, `/event`,
+`/order`, `/profile` to test async validation in Blazor forms.
+
+#### AsyncValidationDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Blazor\AsyncValidationDemo\AsyncValidationDemo.csproj
+dotnet run --no-build --project Blazor\AsyncValidationDemo\AsyncValidationDemo.csproj
+```
+
+Starts Kestrel on `http://localhost:5202`. Browse to `/registration`,
+`/transfer`, `/error-handling`, `/cancellation` to test DI-backed async
+validation in Blazor forms. Try editing a field while validation is in progress
+to see `CancellationToken` cancel the in-flight check.
+
+### Minimal API
+
+#### AsyncBasicSample
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build MinimalApi\AsyncBasicSample\AsyncBasicSample.csproj
+dotnet run --no-build --project MinimalApi\AsyncBasicSample\AsyncBasicSample.csproj
+```
+
+Starts Kestrel on `http://localhost:5204`. Test via:
+
+```powershell
+# Valid user → 200
+Invoke-RestMethod -Uri http://localhost:5204/api/user/valid -Method POST `
+    -Body '{"name":"Alice","email":"alice@contoso.com","delay":100}' -ContentType "application/json"
+
+# Invalid email domain → 400
+Invoke-RestMethod -Uri http://localhost:5204/api/user/invalid-email -Method POST `
+    -Body '{"name":"Bob","email":"bob@gmail.com","delay":100}' -ContentType "application/json"
+```
+
+#### AsyncValidationDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build MinimalApi\AsyncValidationDemo\AsyncValidationDemo.csproj
+dotnet run --no-build --project MinimalApi\AsyncValidationDemo\AsyncValidationDemo.csproj
+```
+
+Starts Kestrel on `http://localhost:5206`. Endpoints: `/api/register/duplicate`,
+`/api/register/bad-email`, `/api/transfer/invalid`, `/api/register/error`,
+`/api/register/cancellation`.
+
+#### AutoValidationSample
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build MinimalApi\AutoValidationSample\AutoValidationSample.csproj
+dotnet run --no-build --project MinimalApi\AutoValidationSample\AutoValidationSample.csproj
+```
+
+Starts Kestrel on `http://localhost:5208`. Hybrid sample: local models use
+`AddValidation()`, SharedModels endpoints use manual async validation.
+
+### MVC
+
+#### AsyncBasicSample
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Mvc\AsyncBasicSample\AsyncBasicSample.csproj
+dotnet run --no-build --project Mvc\AsyncBasicSample\AsyncBasicSample.csproj
+```
+
+Starts Kestrel on `http://localhost:5210`. Browse to `/User`, `/Event`,
+`/Order`, `/Profile` to test async validation in MVC controllers.
+
+#### AsyncValidationDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Mvc\AsyncValidationDemo\AsyncValidationDemo.csproj
+dotnet run --no-build --project Mvc\AsyncValidationDemo\AsyncValidationDemo.csproj
+```
+
+Starts Kestrel on `http://localhost:5212`. Browse to `/Registration`,
+`/Transfer` for DI-backed async validation.
+
+### EfCore
+
+#### PropertyAttributeConventionDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build EfCore\PropertyAttributeConventionDemo\PropertyAttributeConventionDemo.csproj
+dotnet run --no-build --project EfCore\PropertyAttributeConventionDemo\PropertyAttributeConventionDemo.csproj
+```
+
+Console app. Expected output: convention detection of `[UniqueUsername]`,
+UNIQUE INDEX creation, annotation storage, and generated SQL.
+
+#### ModelFinalizingConventionDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build EfCore\ModelFinalizingConventionDemo\ModelFinalizingConventionDemo.csproj
+dotnet run --no-build --project EfCore\ModelFinalizingConventionDemo\ModelFinalizingConventionDemo.csproj
+```
+
+Console app. Expected output: full attribute scan across all 6 SharedModels
+entities, detecting 5 async attributes, creating 2 UNIQUE indexes.
+
+### OpenApi
+
+#### OpenApiSimulation.PreAttribute
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build OpenApi\OpenApiSimulation.PreAttribute\OpenApiSimulation.PreAttribute.csproj
+dotnet run --no-build --project OpenApi\OpenApiSimulation.PreAttribute\OpenApiSimulation.PreAttribute.csproj
+```
+
+Console app. Expected output: JSON Schema with and without the async
+validation transformer, showing `x-async-validation` extensions.
+
+#### OpenApiSimulation.SchemaDescriptor
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build OpenApi\OpenApiSimulation.SchemaDescriptor\OpenApiSimulation.SchemaDescriptor.csproj
+dotnet run --no-build --project OpenApi\OpenApiSimulation.SchemaDescriptor\OpenApiSimulation.SchemaDescriptor.csproj
+```
+
+Console app. Expected output: comparison of original vs `ISchemaDescriptor`-
+enabled schemas with richer metadata.
+
+### Options
+
+#### AsyncLambdaConsole
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\AsyncLambdaConsole
+cd C:\REPOS\async-validation-demo\src\Options\AsyncLambdaConsole
+dotnet build
+dotnet run --no-build
+```
+
+Console app. Must be run from its project directory (requires `appsettings.json`).
+Expected output: 3 scenarios — valid config, invalid endpoint caught, multiple
+chained async lambdas.
+
+#### Options.Shared (library — no run)
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Options\Options.Shared\Options.Shared.csproj
+```
+
+Class library only — referenced by the Tier2 and Tier2b Blazor samples.
+
+#### Tier2.OptionsBlazor
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\Tier2.OptionsBlazor
+cd C:\REPOS\async-validation-demo\src\Options\Tier2.OptionsBlazor
+dotnet build
+dotnet run --no-build
+```
+
+Blazor Server app. Must be run from its project directory (requires
+`appsettings.json`). Browse to the displayed URL to verify startup validation
+passed.
+
+#### Tier2b.OptionsGeneratorBlazor
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\Tier2b.OptionsGeneratorBlazor
+cd C:\REPOS\async-validation-demo\src\Options\Tier2b.OptionsGeneratorBlazor
+dotnet build
+dotnet run --no-build
+```
+
+Blazor Server app using `[OptionsValidator]` source generator. Must be run
+from its project directory.
+
+---
+
+## Known Limitations
+
+### Blazor
+
+- **Interactive validation requires a browser.** Blazor uses SignalR circuits
+  for interactive server rendering. SSR page rendering can be verified via HTTP,
+  but full async form validation (submit → validate → re-render) requires a
+  browser session. Automated HTTP testing only confirms that pages serve and
+  contain the expected form elements.
+
+### WPF
+
+- **Fire-and-forget per-property validation has no exception handling.** The
+  `ValidatableViewModelBase.SetAndValidateAsync()` method uses
+  `_ = ValidatePropertyAsync(...)` which is fire-and-forget. If a
+  property-level async validator throws, the exception goes to
+  `TaskScheduler.UnobservedTaskException` rather than surfacing in the UI.
+  Full-object validation via `ValidateAllAsync()` is properly wrapped in
+  `try/catch` at the button handler level.
+
+- **GUI testing is manual.** WPF samples launch successfully and respond to
+  user interaction, but automated validation flow testing requires UI
+  automation tooling (e.g., `Microsoft.Windows.Apps.Test`).
+
+### WinForms
+
+- **GUI testing is manual.** Same as WPF — WinForms samples launch and respond
+  to interaction, but full validation flow testing requires manual clicks or UI
+  automation.
+
+### EfCore
+
+- **No runtime validation.** EF Core never calls `IsValidAsync()` — conventions
+  only use reflection for attribute detection and schema generation.
+- **EF Core 11 API changes.** `GetIdentifyingMemberInfo()` was removed;
+  `IConventionTypeBaseBuilder` no longer exposes `HasIndex` — must cast to
+  `IConventionEntityType`.
+
+### Options
+
+- **`AsyncLambdaConsole` must run from its project directory.** It requires
+  `appsettings.json` which is only found when the working directory is the
+  project folder.
+- **Tier2/Tier2b Blazor apps must run from their project directories.** Same
+  reason — they depend on `appsettings.json` at the working directory level.
+- **Hosting layer does not call `IAsyncStartupValidator` automatically.** The
+  stock .NET 11 preview SDK hosting infrastructure does not yet know about
+  `IAsyncStartupValidator`. Both Tier2 and Tier2b `Program.cs` files manually
+  call `await app.Services.GetService<IAsyncStartupValidator>()?.ValidateAsync()`
+  as a workaround.
+- **Tier 2b: no two-phase short-circuit.** The source generator validates each
+  property independently via `TryValidateValueAsync()`, so sync failures on one
+  property do not prevent async checks on other properties.
 
 ---
 
@@ -377,9 +641,9 @@ local-packages/
 │   └── ref/
 │       └── System.ComponentModel.Annotations.dll   ← Ref assembly (compiler type info)
 └── aspnetcore/
-    ├── Microsoft.Extensions.Validation.dll          ← Tier 7: async-aware leaf calls
-    ├── Microsoft.AspNetCore.Components.Forms.dll    ← Tier 4: EditContext.ValidateAsync()
-    ├── Microsoft.AspNetCore.Mvc.DataAnnotations.dll ← Tier 3: IAsyncModelValidator
+    ├── Microsoft.Extensions.Validation.dll          ← Async-aware leaf calls
+    ├── Microsoft.AspNetCore.Components.Forms.dll    ← EditContext.ValidateAsync()
+    ├── Microsoft.AspNetCore.Mvc.DataAnnotations.dll ← IAsyncModelValidator
     ├── Microsoft.AspNetCore.Components.dll           ← Transitive dependency
     ├── Microsoft.AspNetCore.Mvc.Core.dll              ← Transitive dependency
     └── Microsoft.AspNetCore.Mvc.Abstractions.dll      ← Transitive dependency
@@ -387,12 +651,12 @@ local-packages/
 
 ### What Each DLL Provides
 
-| DLL | Source | Tier | Async APIs Added |
-|-----|--------|------|------------------|
-| `System.ComponentModel.Annotations.dll` | `dotnet/runtime` (`async-validation` branch) | Phase 1 | `AsyncValidationAttribute`, `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, `TryValidatePropertyAsync`, `TryValidateValueAsync` |
-| `Microsoft.Extensions.Validation.dll` | `dotnet/aspnetcore` (`async-validation` branch) | 7 | `ValidatablePropertyInfo`, `ValidatableTypeInfo`, `ValidatableParameterInfo` — `is AsyncValidationAttribute` branching to call `GetValidationResultAsync` + `IAsyncValidatableObject.ValidateAsync` support |
-| `Microsoft.AspNetCore.Components.Forms.dll` | `dotnet/aspnetcore` (`async-validation` branch) | 4 | `EditContext.ValidateAsync()`, `OnAsyncValidationRequested` event |
-| `Microsoft.AspNetCore.Mvc.DataAnnotations.dll` | `dotnet/aspnetcore` (`async-validation` branch) | 3 | `IAsyncModelValidator`, `DataAnnotationsModelValidator.ValidateAsync()` |
+| DLL | Source | Async APIs Added |
+|-----|--------|------------------|
+| `System.ComponentModel.Annotations.dll` | `dotnet/runtime` (`async-validation` branch) | `AsyncValidationAttribute`, `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, `TryValidatePropertyAsync`, `TryValidateValueAsync` |
+| `Microsoft.Extensions.Validation.dll` | `dotnet/aspnetcore` (`async-validation` branch) | `ValidatablePropertyInfo`, `ValidatableTypeInfo` — `is AsyncValidationAttribute` branching + `IAsyncValidatableObject.ValidateAsync` support |
+| `Microsoft.AspNetCore.Components.Forms.dll` | `dotnet/aspnetcore` (`async-validation` branch) | `EditContext.ValidateAsync()`, `OnAsyncValidationRequested` event |
+| `Microsoft.AspNetCore.Mvc.DataAnnotations.dll` | `dotnet/aspnetcore` (`async-validation` branch) | `IAsyncModelValidator`, `DataAnnotationsModelValidator.ValidateAsync()` |
 
 ### How to Rebuild Local Packages
 
@@ -508,6 +772,7 @@ projects automatically get the async validation APIs:
                HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Mvc.DataAnnotations.dll"
                Private="true" />
   </ItemGroup>
+
 </Project>
 ```
 
@@ -518,26 +783,26 @@ dotnet/runtime                          dotnet/aspnetcore
 (async-validation branch)               (async-validation branch)
 ┌──────────────────────────────┐       ┌─────────────────────────────────────┐
 │ System.ComponentModel.       │       │ Microsoft.Extensions.Validation     │
-│   Annotations.dll            │──────▶│   (Tier 7: async leaf calls)       │
+│   Annotations.dll            │──────▶│   (async leaf calls)               │
 │                              │       │                                     │
 │ Types:                       │       │ Microsoft.AspNetCore.Components     │
-│  • AsyncValidationAttribute  │       │   .Forms (Tier 4: ValidateAsync)   │
+│  • AsyncValidationAttribute  │       │   .Forms (ValidateAsync)           │
 │  • IAsyncValidatableObject   │       │                                     │
 │  • Validator.*Async()        │       │ Microsoft.AspNetCore.Mvc            │
-│  • GetValidationResultAsync  │       │   .DataAnnotations (Tier 3:        │
-│                              │       │    IAsyncModelValidator)            │
+│  • GetValidationResultAsync  │       │   .DataAnnotations                 │
+│                              │       │    (IAsyncModelValidator)           │
 └──────────────────────────────┘       └─────────────────────────────────────┘
-         │                                      │
-         ▼                                      ▼
+         │                                           │
+         ▼                                           ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                  async-validation-demo                        │
 │                                                              │
-│  local-packages/runtime/   ← Runtime DLLs                    │
+│  local-packages/runtime/    ← Runtime DLLs                   │
 │  local-packages/aspnetcore/ ← Aspnetcore DLLs                │
-│  src/Directory.Build.props  ← Wires both into all projects   │
+│  src/Directory.Build.props  ← Wires all into all projects    │
 │                                                              │
-│  Console, WinForms, WPF    → use runtime DLLs only           │
-│  Blazor, MinimalApi, MVC   → use runtime + aspnetcore DLLs   │
+│  Console, WinForms, WPF              → runtime DLLs only     │
+│  Blazor, MinimalApi, MVC             → runtime + aspnetcore   │
 └──────────────────────────────────────────────────────────────┘
 ```
 

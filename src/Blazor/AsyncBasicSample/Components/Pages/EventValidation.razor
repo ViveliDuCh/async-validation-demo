@@ -1,4 +1,5 @@
 @page "/event"
+@implements IDisposable
 
 <h3>Scenario 3: Reusable Entity-Level Attribute (Cross-Field)</h3>
 <p>
@@ -31,7 +32,7 @@
         <ValidationMessage For="@(() => _event.Delay)" />
     </div>
 
-    <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
+    <button type="submit" class="btn btn-primary">
         @(_isSubmitting ? "Validating asynchronously..." : "Submit")
     </button>
 
@@ -54,6 +55,7 @@
 
     private EditContext _editContext = null!;
     private ValidationMessageStore _messageStore = null!;
+    private CancellationTokenSource? _cts;
     private bool _isSubmitting;
     private string? _message;
     private string _alertClass = "alert-info";
@@ -62,10 +64,23 @@
     {
         _editContext = new EditContext(_event);
         _messageStore = new ValidationMessageStore(_editContext);
+        _editContext.OnFieldChanged += OnFieldChanged;
+    }
+
+    private void OnFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        if (_cts is not null && !_cts.IsCancellationRequested)
+        {
+            _cts.Cancel();
+        }
     }
 
     private async Task HandleSubmit(EditContext _)
     {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+
         _isSubmitting = true;
         _messageStore.Clear();
         _message = null;
@@ -74,14 +89,28 @@
 
         var results = new List<ValidationResult>();
         var context = new ValidationContext(_event);
-        bool isValid = await Validator.TryValidateObjectAsync(_event, context, results, true);
 
-        AddResultsToMessageStore(_event, results);
-        _message = isValid
-            ? "✅ Valid! Async validation completed without blocking the server thread."
-            : "❌ Validation failed — see errors above.";
-        _alertClass = isValid ? "alert-success" : "alert-danger";
-        _isSubmitting = false;
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(_event, context, results, true, _cts.Token);
+
+            AddResultsToMessageStore(_event, results);
+            _message = isValid
+                ? "✅ Valid! Async validation completed without blocking the server thread."
+                : "❌ Validation failed — see errors above.";
+            _alertClass = isValid ? "alert-success" : "alert-danger";
+        }
+        catch (OperationCanceledException)
+        {
+            _messageStore.Clear();
+            _editContext.NotifyValidationStateChanged();
+            _message = "⚠️ Validation cancelled — a field value changed.";
+            _alertClass = "alert-warning";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
     }
 
     private void AddResultsToMessageStore(object model, IEnumerable<ValidationResult> results)
@@ -100,5 +129,12 @@
         }
 
         _editContext.NotifyValidationStateChanged();
+    }
+
+    public void Dispose()
+    {
+        _editContext.OnFieldChanged -= OnFieldChanged;
+        _cts?.Cancel();
+        _cts?.Dispose();
     }
 }

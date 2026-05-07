@@ -20,20 +20,47 @@ public static class ValidationHelper
         var context = new ValidationContext(model) { MemberName = propertyName };
         var results = new List<ValidationResult>();
 
-        bool isValid = await Validator.TryValidatePropertyAsync(value, context, results);
+        try
+        {
+            bool isValid = await Validator.TryValidatePropertyAsync(value, context, results);
 
-        errorProvider.SetError(control, isValid
-            ? string.Empty
-            : string.Join("; ", results.Select(r => r.ErrorMessage)));
+            errorProvider.SetError(control, isValid
+                ? string.Empty
+                : string.Join("; ", results.Select(r => r.ErrorMessage)));
 
-        return isValid;
+            return isValid;
+        }
+        catch (OperationCanceledException)
+        {
+            // Validation was cancelled — leave current error state unchanged
+            return false;
+        }
+        catch (Exception ex)
+        {
+            errorProvider.SetError(control, $"Validation error: {ex.Message}");
+            return false;
+        }
     }
 
     public static async Task<(bool IsValid, List<ValidationResult> Results)> ValidateObjectAsync(object model)
     {
         var context = new ValidationContext(model);
         var results = new List<ValidationResult>();
-        bool isValid = await Validator.TryValidateObjectAsync(model, context, results, validateAllProperties: true);
-        return (isValid, results);
+
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(model, context, results, validateAllProperties: true);
+            return (isValid, results);
+        }
+        catch (OperationCanceledException)
+        {
+            results.Add(new ValidationResult("Validation was cancelled."));
+            return (false, results);
+        }
+        catch (Exception ex)
+        {
+            results.Add(new ValidationResult($"Validation error: {ex.Message}"));
+            return (false, results);
+        }
     }
 }

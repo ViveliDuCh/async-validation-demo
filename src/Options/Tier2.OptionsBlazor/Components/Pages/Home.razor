@@ -1,0 +1,45 @@
+@page "/"
+@using Microsoft.Extensions.Options
+@using Options.Shared
+@inject IOptions<CloudInfoOptions> CloudInfoOptions
+
+<h3>Tier 2 — Options Async Validation Demo</h3>
+<p>
+    This page displays <code>CloudInfoOptions</code> bound from
+    <code>appsettings.json</code>. The options were validated
+    <strong>asynchronously</strong> at startup via the bypass pipeline
+    (<code>ValidateDataAnnotationsAsync</code> +
+    <code>ValidateOnStartAsync</code>).
+</p>
+<p>
+    If validation failed (e.g., <code>Endpoint</code> contained "invalid"),
+    the app would have crashed at startup with an
+    <code>OptionsValidationException</code> — you would never see this page.
+</p>
+
+@if (cloudInfo is not null)
+{
+    <div class="card mt-3">
+        <div class="card-header">CloudInfoOptions (validated at startup)</div>
+        <div class="card-body">
+            <ul class="list-unstyled mb-0">
+                <li><strong>Storage:</strong> @cloudInfo.Storage</li>
+                <li><strong>Region:</strong> @cloudInfo.Region</li>
+                <li><strong>Endpoint:</strong> @cloudInfo.Endpoint</li>
+            </ul>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-warning">CloudInfoOptions is null — this should not happen.</div>
+}
+
+@code {
+    private CloudInfoOptions? cloudInfo;
+
+    protected override void OnInitialized()
+    {
+        cloudInfo = CloudInfoOptions.Value;
+    }
+}

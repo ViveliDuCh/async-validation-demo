@@ -1,5 +1,6 @@
 @page "/registration"
 @inject IServiceProvider ServiceProvider
+@implements IDisposable
 
 <h3>Scenarios 1 &amp; 2: DI Service Resolution + Two-Phase Validation</h3>
 <p>
@@ -31,7 +32,7 @@
         <ValidationMessage For="@(() => _registration1.Password)" />
     </div>
 
-    <button type="submit" class="btn btn-primary" disabled="@_isSubmitting1">
+    <button type="submit" class="btn btn-primary">
         @(_isSubmitting1 ? "Validating asynchronously..." : "Submit")
     </button>
     <ValidationSummary class="mt-3" />
@@ -64,7 +65,7 @@
         <ValidationMessage For="@(() => _registration2.Password)" />
     </div>
 
-    <button type="submit" class="btn btn-primary" disabled="@_isSubmitting2">
+    <button type="submit" class="btn btn-primary">
         @(_isSubmitting2 ? "Validating asynchronously..." : "Submit")
     </button>
     <ValidationSummary class="mt-3" />
@@ -92,8 +93,10 @@
 
     private EditContext _editContext1 = null!;
     private ValidationMessageStore _messageStore1 = null!;
+    private CancellationTokenSource? _cts1;
     private EditContext _editContext2 = null!;
     private ValidationMessageStore _messageStore2 = null!;
+    private CancellationTokenSource? _cts2;
     private bool _isSubmitting1;
     private bool _isSubmitting2;
     private string? _message1;
@@ -105,12 +108,34 @@
     {
         _editContext1 = new EditContext(_registration1);
         _messageStore1 = new ValidationMessageStore(_editContext1);
+        _editContext1.OnFieldChanged += OnFieldChanged1;
         _editContext2 = new EditContext(_registration2);
         _messageStore2 = new ValidationMessageStore(_editContext2);
+        _editContext2.OnFieldChanged += OnFieldChanged2;
+    }
+
+    private void OnFieldChanged1(object? sender, FieldChangedEventArgs e)
+    {
+        if (_cts1 is not null && !_cts1.IsCancellationRequested)
+        {
+            _cts1.Cancel();
+        }
+    }
+
+    private void OnFieldChanged2(object? sender, FieldChangedEventArgs e)
+    {
+        if (_cts2 is not null && !_cts2.IsCancellationRequested)
+        {
+            _cts2.Cancel();
+        }
     }
 
     private async Task HandleSubmit1(EditContext _)
     {
+        _cts1?.Cancel();
+        _cts1?.Dispose();
+        _cts1 = new CancellationTokenSource();
+
         _isSubmitting1 = true;
         _messageStore1.Clear();
         _message1 = null;
@@ -119,16 +144,34 @@
 
         var results = new List<ValidationResult>();
         var context = new ValidationContext(_registration1, ServiceProvider, null);
-        bool isValid = await Validator.TryValidateObjectAsync(_registration1, context, results, true);
 
-        AddResultsToMessageStore(_editContext1, _messageStore1, _registration1, results);
-        _message1 = isValid ? "✅ Valid!" : "❌ Validation failed — see duplicate detection errors above.";
-        _alertClass1 = isValid ? "alert-success" : "alert-danger";
-        _isSubmitting1 = false;
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(_registration1, context, results, true, _cts1.Token);
+
+            AddResultsToMessageStore(_editContext1, _messageStore1, _registration1, results);
+            _message1 = isValid ? "✅ Valid!" : "❌ Validation failed — see duplicate detection errors above.";
+            _alertClass1 = isValid ? "alert-success" : "alert-danger";
+        }
+        catch (OperationCanceledException)
+        {
+            _messageStore1.Clear();
+            _editContext1.NotifyValidationStateChanged();
+            _message1 = "⚠️ Validation cancelled — a field value changed.";
+            _alertClass1 = "alert-warning";
+        }
+        finally
+        {
+            _isSubmitting1 = false;
+        }
     }
 
     private async Task HandleSubmit2(EditContext _)
     {
+        _cts2?.Cancel();
+        _cts2?.Dispose();
+        _cts2 = new CancellationTokenSource();
+
         _isSubmitting2 = true;
         _messageStore2.Clear();
         _message2 = null;
@@ -140,14 +183,27 @@
 
         // Two-phase behavior: sync [EmailAddress] runs before async [UniqueEmail].
         // Because "not-an-email" fails the sync phase, the async uniqueness check is skipped.
-        bool isValid = await Validator.TryValidateObjectAsync(_registration2, context, results, true);
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(_registration2, context, results, true, _cts2.Token);
 
-        AddResultsToMessageStore(_editContext2, _messageStore2, _registration2, results);
-        _message2 = isValid
-            ? "✅ Valid!"
-            : "❌ Validation failed. The sync email-format check ran first, so the async UniqueEmail lookup was skipped.";
-        _alertClass2 = isValid ? "alert-success" : "alert-danger";
-        _isSubmitting2 = false;
+            AddResultsToMessageStore(_editContext2, _messageStore2, _registration2, results);
+            _message2 = isValid
+                ? "✅ Valid!"
+                : "❌ Validation failed. The sync email-format check ran first, so the async UniqueEmail lookup was skipped.";
+            _alertClass2 = isValid ? "alert-success" : "alert-danger";
+        }
+        catch (OperationCanceledException)
+        {
+            _messageStore2.Clear();
+            _editContext2.NotifyValidationStateChanged();
+            _message2 = "⚠️ Validation cancelled — a field value changed.";
+            _alertClass2 = "alert-warning";
+        }
+        finally
+        {
+            _isSubmitting2 = false;
+        }
     }
 
     private static void AddResultsToMessageStore(EditContext editContext, ValidationMessageStore messageStore, object model, IEnumerable<ValidationResult> results)
@@ -166,5 +222,15 @@
         }
 
         editContext.NotifyValidationStateChanged();
+    }
+
+    public void Dispose()
+    {
+        _editContext1.OnFieldChanged -= OnFieldChanged1;
+        _cts1?.Cancel();
+        _cts1?.Dispose();
+        _editContext2.OnFieldChanged -= OnFieldChanged2;
+        _cts2?.Cancel();
+        _cts2?.Dispose();
     }
 }

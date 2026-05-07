@@ -1,5 +1,6 @@
 @page "/user"
 @using System.Diagnostics
+@implements IDisposable
 
 <h3>Scenarios 1 &amp; 2: Reusable Property Attributes</h3>
 <p>
@@ -27,7 +28,7 @@
         <ValidationMessage For="@(() => _user.Delay)" />
     </div>
 
-    <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
+    <button type="submit" class="btn btn-primary">
         @(_isSubmitting ? "Validating asynchronously..." : "Submit")
     </button>
 
@@ -43,6 +44,7 @@
     private readonly User _user = new() { Name = "Bob", Email = "bob@gmail.com", Delay = 3000 };
     private EditContext _editContext = null!;
     private ValidationMessageStore _messageStore = null!;
+    private CancellationTokenSource? _cts;
     private bool _isSubmitting;
     private string? _message;
     private string _alertClass = "alert-info";
@@ -51,10 +53,23 @@
     {
         _editContext = new EditContext(_user);
         _messageStore = new ValidationMessageStore(_editContext);
+        _editContext.OnFieldChanged += OnFieldChanged;
+    }
+
+    private void OnFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        if (_cts is not null && !_cts.IsCancellationRequested)
+        {
+            _cts.Cancel();
+        }
     }
 
     private async Task HandleSubmit(EditContext _)
     {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+
         _isSubmitting = true;
         _messageStore.Clear();
         _message = null;
@@ -64,15 +79,30 @@
         var sw = Stopwatch.StartNew();
         var results = new List<ValidationResult>();
         var context = new ValidationContext(_user);
-        bool isValid = await Validator.TryValidateObjectAsync(_user, context, results, true);
-        sw.Stop();
 
-        AddResultsToMessageStore(_user, results);
-        _message = isValid
-            ? $"✅ Valid! Validation took {sw.ElapsedMilliseconds}ms while awaiting async I/O without blocking the server thread."
-            : $"❌ Validation failed after {sw.ElapsedMilliseconds}ms — see errors above.";
-        _alertClass = isValid ? "alert-success" : "alert-danger";
-        _isSubmitting = false;
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(_user, context, results, true, _cts.Token);
+            sw.Stop();
+
+            AddResultsToMessageStore(_user, results);
+            _message = isValid
+                ? $"✅ Valid! Validation took {sw.ElapsedMilliseconds}ms while awaiting async I/O without blocking the server thread."
+                : $"❌ Validation failed after {sw.ElapsedMilliseconds}ms — see errors above.";
+            _alertClass = isValid ? "alert-success" : "alert-danger";
+        }
+        catch (OperationCanceledException)
+        {
+            sw.Stop();
+            _messageStore.Clear();
+            _editContext.NotifyValidationStateChanged();
+            _message = $"⚠️ Validation cancelled after {sw.ElapsedMilliseconds}ms — a field value changed.";
+            _alertClass = "alert-warning";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
     }
 
     private void AddResultsToMessageStore(object model, IEnumerable<ValidationResult> results)
@@ -91,5 +121,12 @@
         }
 
         _editContext.NotifyValidationStateChanged();
+    }
+
+    public void Dispose()
+    {
+        _editContext.OnFieldChanged -= OnFieldChanged;
+        _cts?.Cancel();
+        _cts?.Dispose();
     }
 }

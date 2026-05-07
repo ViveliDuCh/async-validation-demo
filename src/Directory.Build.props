@@ -24,4 +24,19 @@
                Private="true" />
   </ItemGroup>
 
+  <!-- Options pipeline: async bypass APIs (Tier 2) -->
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.Options"
+               HintPath="$(LocalPackagesDir)\options\Microsoft.Extensions.Options.dll"
+               Private="true" />
+    <Reference Include="Microsoft.Extensions.Options.DataAnnotations"
+               HintPath="$(LocalPackagesDir)\options\Microsoft.Extensions.Options.DataAnnotations.dll"
+               Private="true" />
+  </ItemGroup>
+
+  <!-- Options source generator: [OptionsValidator] async emission (Tier 2b) -->
+  <ItemGroup>
+    <Analyzer Include="$(LocalPackagesDir)\options\Microsoft.Extensions.Options.SourceGeneration.dll" />
+  </ItemGroup>
+
 </Project>

@@ -58,11 +58,25 @@ public partial class MainForm : Form
 
             var context = new ValidationContext(registration, _serviceProvider, null);
             var results = new List<ValidationResult>();
-            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
-
-            lblResult.Text = isValid
-                ? "✅ Valid!"
-                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+            try
+            {
+                bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
+                lblResult.Text = isValid
+                    ? "✅ Valid!"
+                    : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+            }
+            catch (OperationCanceledException)
+            {
+                lblResult.Text = "⏹️ Validation was cancelled.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                lblResult.Text = $"⚠️ Infrastructure error: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                lblResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
+            }
         };
         panel.Controls.Add(btnValidate);
         panel.Controls.Add(lblResult);
@@ -95,11 +109,21 @@ public partial class MainForm : Form
 
             var context = new ValidationContext(transfer, _serviceProvider, null);
             var results = new List<ValidationResult>();
-            bool isValid = await Validator.TryValidateObjectAsync(transfer, context, results, true);
-
-            lblResult.Text = isValid
-                ? "✅ Valid!"
-                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+            try
+            {
+                bool isValid = await Validator.TryValidateObjectAsync(transfer, context, results, true);
+                lblResult.Text = isValid
+                    ? "✅ Valid!"
+                    : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+            }
+            catch (OperationCanceledException)
+            {
+                lblResult.Text = "⏹️ Validation was cancelled.";
+            }
+            catch (Exception ex)
+            {
+                lblResult.Text = $"⚠️ Validation error: {ex.Message}";
+            }
         };
         panel.Controls.Add(btnValidate);
         panel.Controls.Add(lblResult);
@@ -143,6 +167,14 @@ public partial class MainForm : Form
             {
                 lblResult.Text = $"⚠️ Infrastructure error caught: {ex.Message}";
             }
+            catch (OperationCanceledException)
+            {
+                lblResult.Text = "⏹️ Validation was cancelled.";
+            }
+            catch (Exception ex)
+            {
+                lblResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
+            }
         };
         panel.Controls.Add(btnValidate);
         panel.Controls.Add(lblResult);
@@ -175,13 +207,28 @@ public partial class MainForm : Form
 
             var context = new ValidationContext(registration, _serviceProvider, null);
             var results = new List<ValidationResult>();
-            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
+            try
+            {
+                bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
 
-            string message = isValid
-                ? "✅ Valid!"
-                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
-            message += "\n(Note: async UniqueEmail check was skipped because sync EmailAddress failed first)";
-            lblResult.Text = message;
+                string message = isValid
+                    ? "✅ Valid!"
+                    : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+                message += "\n(Note: async UniqueEmail check was skipped because sync EmailAddress failed first)";
+                lblResult.Text = message;
+            }
+            catch (OperationCanceledException)
+            {
+                lblResult.Text = "⏹️ Validation was cancelled.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                lblResult.Text = $"⚠️ Infrastructure error: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                lblResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
+            }
         };
         panel.Controls.Add(btnValidate);
         panel.Controls.Add(lblResult);

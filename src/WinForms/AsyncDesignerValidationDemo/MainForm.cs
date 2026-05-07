@@ -33,11 +33,25 @@ public partial class MainForm : Form
 
         var context = new ValidationContext(registration, _serviceProvider, null);
         var results = new List<ValidationResult>();
-        bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
-
-        lblRegResult.Text = isValid
-            ? "✅ Valid!"
-            : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
+            lblRegResult.Text = isValid
+                ? "✅ Valid!"
+                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+        }
+        catch (OperationCanceledException)
+        {
+            lblRegResult.Text = "⏹️ Validation was cancelled.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            lblRegResult.Text = $"⚠️ Infrastructure error: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            lblRegResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
+        }
     }
 
     private async void BtnValidateTransfer_Click(object? sender, EventArgs e)
@@ -51,11 +65,21 @@ public partial class MainForm : Form
 
         var context = new ValidationContext(transfer, _serviceProvider, null);
         var results = new List<ValidationResult>();
-        bool isValid = await Validator.TryValidateObjectAsync(transfer, context, results, true);
-
-        lblTransferResult.Text = isValid
-            ? "✅ Valid!"
-            : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(transfer, context, results, true);
+            lblTransferResult.Text = isValid
+                ? "✅ Valid!"
+                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+        }
+        catch (OperationCanceledException)
+        {
+            lblTransferResult.Text = "⏹️ Validation was cancelled.";
+        }
+        catch (Exception ex)
+        {
+            lblTransferResult.Text = $"⚠️ Validation error: {ex.Message}";
+        }
     }
 
     private async void BtnValidateError_Click(object? sender, EventArgs e)
@@ -80,6 +104,14 @@ public partial class MainForm : Form
         {
             lblErrorResult.Text = $"⚠️ Infrastructure error caught: {ex.Message}";
         }
+        catch (OperationCanceledException)
+        {
+            lblErrorResult.Text = "⏹️ Validation was cancelled.";
+        }
+        catch (Exception ex)
+        {
+            lblErrorResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
+        }
     }
 
     private async void BtnValidateTwoPhase_Click(object? sender, EventArgs e)
@@ -93,12 +125,27 @@ public partial class MainForm : Form
 
         var context = new ValidationContext(registration, _serviceProvider, null);
         var results = new List<ValidationResult>();
-        bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
 
-        string message = isValid
-            ? "✅ Valid!"
-            : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
-        message += "\n(Note: async UniqueEmail check was skipped because sync EmailAddress failed first)";
-        lblTwoPhaseResult.Text = message;
+            string message = isValid
+                ? "✅ Valid!"
+                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+            message += "\n(Note: async UniqueEmail check was skipped because sync EmailAddress failed first)";
+            lblTwoPhaseResult.Text = message;
+        }
+        catch (OperationCanceledException)
+        {
+            lblTwoPhaseResult.Text = "⏹️ Validation was cancelled.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            lblTwoPhaseResult.Text = $"⚠️ Infrastructure error: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            lblTwoPhaseResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
+        }
     }
 }
