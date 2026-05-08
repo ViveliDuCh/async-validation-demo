@@ -5,6 +5,7 @@
 
 using AutoValidationSample.Models;
 using SharedModels.EntityClasses;
+using SharedModels.ServiceClasses;
 using System.ComponentModel.DataAnnotations;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Keep automatic validation for local models that do not need async I/O.
 // It is convenient, but it does not make blocking validation attributes asynchronous.
 builder.Services.AddValidation();
+builder.Services.AddSingleton<UserService>();
 
 var app = builder.Build();
 
@@ -26,10 +28,9 @@ app.MapGet("/", () => Results.Ok(new
         new { Method = "POST", Path = "/orders", Scenario = "IValidatableObject custom validation" },
         new { Method = "POST", Path = "/products", Scenario = "DisableValidation() — bypasses validation" },
         new { Method = "POST", Path = "/contact", Scenario = "Localization-ready error message keys" },
-        new { Method = "POST", Path = "/api/user/valid", Scenario = "SharedModels User (async-validated)" },
+        new { Method = "POST", Path = "/api/register/invalid", Scenario = "SharedModels UserRegistration (async-validated)" },
         new { Method = "POST", Path = "/api/event/invalid", Scenario = "SharedModels Event (async-validated)" },
-        new { Method = "POST", Path = "/api/order/over-limit", Scenario = "SharedModels Order (async-validated)" },
-        new { Method = "POST", Path = "/api/profile/invalid", Scenario = "SharedModels Profile (async-validated)" }
+        new { Method = "POST", Path = "/api/order/invalid", Scenario = "SharedModels Order (async-validated)" }
     }
 }));
 
@@ -78,10 +79,15 @@ app.MapPost("/contact", (ContactFormModel model) =>
 static async Task<IResult> ValidateSharedModelAsync<T>(
     T instance,
     string scenarioName,
-    Func<T, object> successFactory) where T : notnull
+    Func<T, object> successFactory,
+    IServiceProvider? serviceProvider = null) where T : notnull
 {
     var results = new List<ValidationResult>();
-    bool isValid = await Validator.TryValidateObjectAsync(instance, new ValidationContext(instance), results, validateAllProperties: true);
+    bool isValid = await Validator.TryValidateObjectAsync(
+        instance,
+        new ValidationContext(instance, serviceProvider, null),
+        results,
+        validateAllProperties: true);
 
     if (!isValid)
     {
@@ -104,14 +110,14 @@ static async Task<IResult> ValidateSharedModelAsync<T>(
 // as async validation: we opt out, await Validator.TryValidateObjectAsync, and avoid blocking.
 // ═══════════════════════════════════════════
 
-app.MapPost("/api/user/valid", async (User user) =>
-    await ValidateSharedModelAsync(user, "SharedModels User (async-validated)", validatedUser => new
+app.MapPost("/api/register/invalid", async (UserRegistration registration, IServiceProvider sp) =>
+    await ValidateSharedModelAsync(registration, "SharedModels UserRegistration (async-validated)", validatedRegistration => new
     {
-        Scenario = "SharedModels User (async-validated)",
+        Scenario = "SharedModels UserRegistration (async-validated)",
         Valid = true,
-        validatedUser.Name,
-        validatedUser.Email
-    }))
+        validatedRegistration.Username,
+        validatedRegistration.Email
+    }, sp))
     .DisableValidation();
 
 app.MapPost("/api/event/invalid", async (Event ev) =>
@@ -123,21 +129,12 @@ app.MapPost("/api/event/invalid", async (Event ev) =>
     }))
     .DisableValidation();
 
-app.MapPost("/api/order/over-limit", async (Order order) =>
+app.MapPost("/api/order/invalid", async (Order order) =>
     await ValidateSharedModelAsync(order, "SharedModels Order (async-validated)", validatedOrder => new
     {
         Scenario = "SharedModels Order (async-validated)",
         Valid = true,
         validatedOrder.ProductName
-    }))
-    .DisableValidation();
-
-app.MapPost("/api/profile/invalid", async (Profile profile) =>
-    await ValidateSharedModelAsync(profile, "SharedModels Profile (async-validated)", validatedProfile => new
-    {
-        Scenario = "SharedModels Profile (async-validated)",
-        Valid = true,
-        validatedProfile.Username
     }))
     .DisableValidation();
 

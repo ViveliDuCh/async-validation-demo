@@ -1,163 +1,133 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Threading;
-using System.Threading.Tasks;
 using SharedModels.EntityClasses;
 using SharedModels.ServiceClasses;
+using SharedModels.ValidationClasses;
+using System.ComponentModel.DataAnnotations;
+using System.Threading;
 
 public class Program
 {
+    private const int DelayMs = 100;
+
     public static async Task Main()
     {
         Console.WriteLine("=== Async Validation Console Demo ===\n");
 
-        //Simple provider with a UserService registered
         var serviceProvider = new SimpleServiceProvider()
             .Register(new UserService());
 
-        // ───────────────────────────────────────────
-        // Scenario 1: DI Service Resolution + Multiple Async Attributes
-        // ───────────────────────────────────────────
-        Console.WriteLine("--- Scenario 1: DI Service Resolution + Duplicate Detection ---");
+        Console.WriteLine("--- Scenario 1: DI duplicate detection (UserRegistration) ---");
+        var duplicateRegistration = new UserRegistration
         {
-            var registration = new UserRegistration
-            {
-                Username = "admin",       // taken
-                Email = "admin@example.com", // taken
-                Password = "SecureP@ss123"
-            };
+            Username = "admin",
+            Email = "admin@example.com",
+            Password = "SecurePass123"
+        };
+        await ValidateAndPrintAsync(
+            duplicateRegistration,
+            new ValidationContext(duplicateRegistration, serviceProvider, null));
+        Console.WriteLine();
 
-            var context = new ValidationContext(registration, serviceProvider, null);
-            var results = new List<ValidationResult>();
-            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
+        Console.WriteLine("--- Scenario 2: IValidatableObject behavior (Event) ---");
+        var eventSample = new Event
+        {
+            Title = "TBD Kickoff",
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = new DateTime(2026, 6, 2),
+            Delay = DelayMs
+        };
+        await ValidateAndPrintAsync(
+            eventSample,
+            new ValidationContext(eventSample));
+        Console.WriteLine();
 
-            Console.WriteLine($"  Valid: {isValid}");
-            foreach (var r in results)
-            {
-                Console.WriteLine($"  Error: {r.ErrorMessage}");
-            }
+        Console.WriteLine("--- Scenario 3: IAsyncValidatableObject behavior (Order) ---");
+        var orderSample = new Order
+        {
+            ProductName = "Gadget",
+            Quantity = 250,
+            UnitPrice = 250.00m,
+            Delay = DelayMs
+        };
+        await ValidateAndPrintAsync(
+            orderSample,
+            new ValidationContext(orderSample));
+        Console.WriteLine();
+
+        Console.WriteLine("--- Scenario 4: Infrastructure failure handling ---");
+        var failingRegistration = new UserRegistration
+        {
+            Username = "error-trigger",
+            Email = "new@example.com",
+            Password = "SecurePass123"
+        };
+        try
+        {
+            await ValidateAndPrintAsync(
+                failingRegistration,
+                new ValidationContext(failingRegistration, serviceProvider, null));
+            Console.WriteLine("  (Should not reach here)");
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.WriteLine($"  Caught expected error: {ex.Message}");
         }
         Console.WriteLine();
 
-        // ───────────────────────────────────────────
-        // Scenario 2: Two-Phase Validation (sync blocks async on same property)
-        // ───────────────────────────────────────────
-        Console.WriteLine("--- Scenario 2: Two-Phase Validation ---");
+        Console.WriteLine("--- Scenario 5: CancellationToken propagation ---");
+        var cancellableOrder = new Order
         {
-            var registration = new UserRegistration
-            {
-                Username = "newuser",
-                Email = "not-an-email",    // fails sync [EmailAddress] → async [UniqueEmail] skipped
-                Password = "SecureP@ss123"
-            };
+            ProductName = "Widget",
+            Quantity = 10,
+            UnitPrice = 25.00m,
+            Delay = 1_000
+        };
 
-            var context = new ValidationContext(registration, serviceProvider, null);
+        using var cts = new CancellationTokenSource(50);
+        try
+        {
             var results = new List<ValidationResult>();
-            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
-
-            Console.WriteLine($"  Valid: {isValid}");
-            foreach (var r in results)
-            {
-                Console.WriteLine($"  Error: {r.ErrorMessage}");
-            }
-            Console.WriteLine("  (Note: UniqueEmail async check was skipped because sync EmailAddress failed first)");
+            await Validator.TryValidateObjectAsync(
+                cancellableOrder,
+                new ValidationContext(cancellableOrder),
+                results,
+                validateAllProperties: true,
+                cts.Token);
+            Console.WriteLine("  (Should not reach here)");
         }
-        Console.WriteLine();
-
-        // ───────────────────────────────────────────
-        // Scenario 3: IAsyncValidatableObject (cross-property validation)
-        // ───────────────────────────────────────────
-        Console.WriteLine("--- Scenario 3: IAsyncValidatableObject (MoneyTransfer) ---");
+        catch (OperationCanceledException)
         {
-            var transfer = new MoneyTransfer
-            {
-                FromAccount = "checking",
-                ToAccount = "checking",  // same account — cross-property error
-                Amount = 1000.00m        // exceeds balance — async balance check
-            };
-
-            var context = new ValidationContext(transfer, serviceProvider, null);
-            var results = new List<ValidationResult>();
-            bool isValid = await Validator.TryValidateObjectAsync(transfer, context, results, true);
-
-            Console.WriteLine($"  Valid: {isValid}");
-            foreach (var r in results)
-            {
-                Console.WriteLine($"  Error: {r.ErrorMessage}");
-            }
+            Console.WriteLine("  Caught expected OperationCanceledException.");
         }
-        Console.WriteLine();
+    }
 
-        // ───────────────────────────────────────────
-        // Scenario 4: Infrastructure Failure Handling
-        // ───────────────────────────────────────────
-        Console.WriteLine("--- Scenario 4: Infrastructure Failure Handling ---");
+    private static async Task ValidateAndPrintAsync<T>(
+        T model,
+        ValidationContext context) where T : notnull
+    {
+        var results = new List<ValidationResult>();
+        bool isValid = await Validator.TryValidateObjectAsync(
+            model,
+            context,
+            results,
+            validateAllProperties: true);
+
+        Console.WriteLine($"  Valid: {isValid}");
+
+        if (results.Count == 0)
         {
-            var registration = new UserRegistration
-            {
-                Username = "error-trigger", // triggers simulated DB failure
-                Email = "new@example.com",
-                Password = "SecureP@ss123"
-            };
-
-            var context = new ValidationContext(registration, serviceProvider, null);
-            var results = new List<ValidationResult>();
-            try
-            {
-                await Validator.TryValidateObjectAsync(registration, context, results, true);
-                Console.WriteLine("  (Should not reach here)");
-            }
-            catch (InvalidOperationException ex)
-            {
-                Console.WriteLine($"  Caught expected error: {ex.Message}");
-            }
-        }
-        Console.WriteLine();
-
-        // ───────────────────────────────────────────
-        // Scenario 5: CancellationToken Propagation
-        // Expected to throw OperationCanceledException immediately
-        // ───────────────────────────────────────────
-        //This tests that CancellationToken flows correctly through the entire pipeline:
-        //From the public Validator.TryValidateObjectAsync call → through internal helpers
-        //→ into each AsyncValidationAttribute.IsValidAsync and IAsyncValidatableObject.ValidateAsync.
-        //When the token is cancelled, the operation should throw OperationCanceledException
-        //rather than performing (or waiting for) unnecessary I/O.
-        Console.WriteLine("--- Scenario 5: CancellationToken Propagation ---");
-        {
-            var registration = new UserRegistration
-            {
-                Username = "newuser",
-                Email = "new@example.com",
-                Password = "SecureP@ss123"
-            };
-
-            // Pre-cancel the token before calling validation
-            using var cts = new CancellationTokenSource();
-            cts.Cancel(); // Cancel before starting validation for deterministic results
-
-            var context = new ValidationContext(registration, serviceProvider, null);
-            var results = new List<ValidationResult>();
-            try
-            {
-                await Validator.TryValidateObjectAsync(registration, context, results, true, cts.Token);
-                Console.WriteLine("  (Should not reach here)");
-            }
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("  Caught expected OperationCanceledException from pre-cancelled token.");
-            }
+            Console.WriteLine("  No validation errors.");
+            return;
         }
 
-        // Real world apps for scenario 5
-        // - ASP.NET Core Minimal API:
-        // The framework provides a CancellationToken that fires when the
-        // client disconnects (closes the browser tab, navigates away, etc.)
-        // - Blazor form with timeout:
-        // Cancel validation if it takes longer than 5 seconds
+        foreach (var result in results)
+        {
+            var members = result.MemberNames.Any()
+                ? $" [Members: {string.Join(", ", result.MemberNames)}]"
+                : string.Empty;
+            Console.WriteLine($"  Error: {result.ErrorMessage}{members}");
+        }
     }
 }

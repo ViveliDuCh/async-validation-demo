@@ -28,12 +28,16 @@ public abstract class ValidatableViewModelBase : INotifyPropertyChanged, INotify
         return Enumerable.Empty<string>();
     }
 
-    protected void SetAndValidateAsync<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    protected void SetAndValidateAsync<T>(
+        T currentValue,
+        T value,
+        Action<T> setValue,
+        [CallerMemberName] string? propertyName = null)
     {
-        if (EqualityComparer<T>.Default.Equals(field, value))
+        if (EqualityComparer<T>.Default.Equals(currentValue, value))
             return;
 
-        field = value;
+        setValue(value);
         OnPropertyChanged(propertyName);
         _ = ValidatePropertyAsync(value, propertyName!);
     }
@@ -42,7 +46,7 @@ public abstract class ValidatableViewModelBase : INotifyPropertyChanged, INotify
     {
         ClearErrors(propertyName);
 
-        var context = new ValidationContext(GetValidationTarget()) { MemberName = propertyName };
+        var context = CreateValidationContext(propertyName);
         var results = new List<ValidationResult>();
 
         bool isValid = await Validator.TryValidatePropertyAsync(value, context, results);
@@ -58,7 +62,7 @@ public abstract class ValidatableViewModelBase : INotifyPropertyChanged, INotify
 
     public async Task<bool> ValidateAllAsync()
     {
-        var context = new ValidationContext(GetValidationTarget());
+        var context = CreateValidationContext();
         var results = new List<ValidationResult>();
         bool isValid = await Validator.TryValidateObjectAsync(GetValidationTarget(), context, results, validateAllProperties: true);
 
@@ -82,8 +86,21 @@ public abstract class ValidatableViewModelBase : INotifyPropertyChanged, INotify
 
     protected abstract object GetValidationTarget();
 
+    protected virtual IServiceProvider? GetServiceProvider() => null;
+
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    private ValidationContext CreateValidationContext(string? propertyName = null)
+    {
+        var context = new ValidationContext(GetValidationTarget(), GetServiceProvider(), items: null);
+        if (!string.IsNullOrEmpty(propertyName))
+        {
+            context.MemberName = propertyName;
+        }
+
+        return context;
+    }
 
     private void AddError(string property, string error)
     {

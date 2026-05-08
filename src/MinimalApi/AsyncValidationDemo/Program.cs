@@ -22,9 +22,10 @@ app.MapGet("/", () => Results.Ok(new
     {
         new { Method = "POST", Path = "/api/register/duplicate", Scenario = "1 — DI + duplicate detection" },
         new { Method = "POST", Path = "/api/register/bad-email", Scenario = "2 — Two-phase validation" },
-        new { Method = "POST", Path = "/api/transfer/invalid", Scenario = "3 — IAsyncValidatableObject (MoneyTransfer)" },
-        new { Method = "POST", Path = "/api/register/error", Scenario = "4 — Infrastructure failure handling" },
-        new { Method = "POST", Path = "/api/register/cancellation", Scenario = "5 — CancellationToken propagation" }
+        new { Method = "POST", Path = "/api/order/invalid", Scenario = "3 — IAsyncValidatableObject (Order)" },
+        new { Method = "POST", Path = "/api/event/invalid", Scenario = "4 — IValidatableObject (Event)" },
+        new { Method = "POST", Path = "/api/register/error", Scenario = "5 — Infrastructure failure handling" },
+        new { Method = "POST", Path = "/api/register/cancellation", Scenario = "6 — CancellationToken propagation" }
     }
 }));
 
@@ -55,7 +56,7 @@ static async Task<IResult> ValidateAndRespondAsync<T>(
 // ───────────────────────────────────────────
 // Scenario 1: DI Service Resolution + Multiple Async Attributes.
 // Async validators resolve UserService from DI and await uniqueness checks without blocking threads.
-// POST /api/register/duplicate  { "username": "admin", "email": "admin@example.com", "password": "SecureP@ss123" }
+// POST /api/register/duplicate  { "username": "admin", "email": "admin@example.com", "password": "adminPass" }
 // ───────────────────────────────────────────
 app.MapPost("/api/register/duplicate", async (UserRegistration registration, IServiceProvider sp) =>
     await ValidateAndRespondAsync(registration, sp, "DI Service Resolution + Duplicate Detection"));
@@ -71,14 +72,22 @@ app.MapPost("/api/register/bad-email", async (UserRegistration registration, ISe
 
 // ───────────────────────────────────────────
 // Scenario 3: IAsyncValidatableObject (cross-property validation).
-// MoneyTransfer can perform async balance checks without tying up the server thread.
-// POST /api/transfer/invalid  { "fromAccount": "checking", "toAccount": "checking", "amount": 1000.00 }
+// Order can perform async catalog, inventory, and approval checks without tying up the server thread.
+// POST /api/order/invalid  { "productName": "Unknown", "quantity": 1000, "unitPrice": 120, "delay": 3000 }
 // ───────────────────────────────────────────
-app.MapPost("/api/transfer/invalid", async (MoneyTransfer transfer, IServiceProvider sp) =>
-    await ValidateAndRespondAsync(transfer, sp, "IAsyncValidatableObject (MoneyTransfer)"));
+app.MapPost("/api/order/invalid", async (Order order, IServiceProvider sp) =>
+    await ValidateAndRespondAsync(order, sp, "IAsyncValidatableObject (Order)"));
 
 // ───────────────────────────────────────────
-// Scenario 4: Infrastructure Failure Handling.
+// Scenario 4: IValidatableObject + async attributes.
+// Event demonstrates sync inline validation plus async title/schedule checks.
+// POST /api/event/invalid  { "title": "Test Event", "startDate": "2027-01-01", "endDate": "2026-12-31", "delay": 3000 }
+// ───────────────────────────────────────────
+app.MapPost("/api/event/invalid", async (Event ev, IServiceProvider sp) =>
+    await ValidateAndRespondAsync(ev, sp, "IValidatableObject (Event)"));
+
+// ───────────────────────────────────────────
+// Scenario 5: Infrastructure Failure Handling.
 // Async validation surfaces service failures while keeping the request pipeline non-blocking.
 // POST /api/register/error  { "username": "error-trigger", "email": "new@example.com", "password": "SecureP@ss123" }
 // ───────────────────────────────────────────
@@ -98,7 +107,7 @@ app.MapPost("/api/register/error", async (UserRegistration registration, IServic
 });
 
 // ───────────────────────────────────────────
-// Scenario 5: CancellationToken Propagation.
+// Scenario 6: CancellationToken Propagation.
 // Async validation can observe disconnects/timeouts so the server stops waiting instead of blocking.
 // POST /api/register/cancellation  { "username": "newuser", "email": "new@example.com", "password": "SecureP@ss123" }
 // ───────────────────────────────────────────

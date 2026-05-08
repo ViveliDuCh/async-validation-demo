@@ -8,8 +8,8 @@ using SharedModels.ServiceClasses;
 namespace AsyncValidationDemo;
 
 /// <summary>
-/// WinForms async validation demo with DI, two-phase validation,
-/// IAsyncValidatableObject, error handling, and cancellation.
+/// WinForms async validation demo with DI, event/order validation,
+/// two-phase validation, and error handling.
 /// </summary>
 public partial class MainForm : Form
 {
@@ -29,7 +29,8 @@ public partial class MainForm : Form
         Controls.Add(tabControl);
 
         tabControl.TabPages.Add(CreateRegistrationTab());
-        tabControl.TabPages.Add(CreateTransferTab());
+        tabControl.TabPages.Add(CreateOrderTab());
+        tabControl.TabPages.Add(CreateEventTab());
         tabControl.TabPages.Add(CreateErrorHandlingTab());
         tabControl.TabPages.Add(CreateTwoPhaseTab());
     }
@@ -44,6 +45,7 @@ public partial class MainForm : Form
         var txtUsername = CreateField(panel, "Username:", "admin");
         var txtEmail = CreateField(panel, "Email:", "admin@example.com");
         var txtPassword = CreateField(panel, "Password:", "SecureP@ss123");
+        txtPassword.UseSystemPasswordChar = true;
 
         var btnValidate = new Button { Text = "Validate (Async)", AutoSize = true };
         var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };
@@ -85,33 +87,84 @@ public partial class MainForm : Form
         return tab;
     }
 
-    private TabPage CreateTransferTab()
+    private TabPage CreateOrderTab()
     {
-        var tab = new TabPage("Transfer");
+        var tab = new TabPage("Order");
         var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10) };
 
-        panel.Controls.Add(new Label { Text = "IAsyncValidatableObject — MoneyTransfer (same-account + balance check)", AutoSize = true });
+        panel.Controls.Add(new Label { Text = "IAsyncValidatableObject — Order ([AsyncProductExists], [MaxOrderValue], [AsyncInventoryCheck])", AutoSize = true });
 
-        var txtFrom = CreateField(panel, "From Account:", "checking");
-        var txtTo = CreateField(panel, "To Account:", "checking");
-        var txtAmount = CreateField(panel, "Amount:", "1000.00");
+        var txtProduct = CreateField(panel, "Product:", "Widget");
+        var txtQuantity = CreateField(panel, "Quantity:", "10000");
+        var txtPrice = CreateField(panel, "Unit Price:", "10");
+        var txtDelay = CreateField(panel, "Delay (ms):", "3000");
 
         var btnValidate = new Button { Text = "Validate (Async)", AutoSize = true };
         var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };
         btnValidate.Click += async (s, e) =>
         {
-            var transfer = new MoneyTransfer
+            var order = new Order
             {
-                FromAccount = txtFrom.Text,
-                ToAccount = txtTo.Text,
-                Amount = decimal.TryParse(txtAmount.Text, out decimal a) ? a : 0m
+                ProductName = txtProduct.Text,
+                Quantity = int.TryParse(txtQuantity.Text, out int quantity) ? quantity : 0,
+                UnitPrice = decimal.TryParse(txtPrice.Text, out decimal unitPrice) ? unitPrice : 0m,
+                Delay = int.TryParse(txtDelay.Text, out int delay) ? delay : null
             };
 
-            var context = new ValidationContext(transfer, _serviceProvider, null);
+            var context = new ValidationContext(order);
             var results = new List<ValidationResult>();
             try
             {
-                bool isValid = await Validator.TryValidateObjectAsync(transfer, context, results, true);
+                bool isValid = await Validator.TryValidateObjectAsync(order, context, results, true);
+                lblResult.Text = isValid
+                    ? "✅ Valid!"
+                    : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+            }
+            catch (OperationCanceledException)
+            {
+                lblResult.Text = "⏹️ Validation was cancelled.";
+            }
+            catch (Exception ex)
+            {
+                lblResult.Text = $"⚠️ Validation error: {ex.Message}";
+            }
+        };
+        panel.Controls.Add(btnValidate);
+        panel.Controls.Add(lblResult);
+
+        tab.Controls.Add(panel);
+        return tab;
+    }
+
+    private TabPage CreateEventTab()
+    {
+        var tab = new TabPage("Event");
+        var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10) };
+
+        panel.Controls.Add(new Label { Text = "IValidatableObject — Event ([ReservedTitleCheck], [DateRange], [AsyncScheduleCheck])", AutoSize = true });
+
+        var txtTitle = CreateField(panel, "Title:", "Launch Party");
+        var txtStart = CreateField(panel, "Start Date:", "2026-12-25");
+        var txtEnd = CreateField(panel, "End Date:", "2026-12-20");
+        var txtDelay = CreateField(panel, "Delay (ms):", "3000");
+
+        var btnValidate = new Button { Text = "Validate (Async)", AutoSize = true };
+        var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };
+        btnValidate.Click += async (s, e) =>
+        {
+            var eventModel = new Event
+            {
+                Title = txtTitle.Text,
+                StartDate = DateTime.TryParse(txtStart.Text, out var startDate) ? startDate : null,
+                EndDate = DateTime.TryParse(txtEnd.Text, out var endDate) ? endDate : null,
+                Delay = int.TryParse(txtDelay.Text, out int delay) ? delay : null
+            };
+
+            var context = new ValidationContext(eventModel);
+            var results = new List<ValidationResult>();
+            try
+            {
+                bool isValid = await Validator.TryValidateObjectAsync(eventModel, context, results, true);
                 lblResult.Text = isValid
                     ? "✅ Valid!"
                     : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
@@ -142,6 +195,7 @@ public partial class MainForm : Form
         var txtUsername = CreateField(panel, "Username:", "error-trigger");
         var txtEmail = CreateField(panel, "Email:", "new@example.com");
         var txtPassword = CreateField(panel, "Password:", "SecureP@ss123");
+        txtPassword.UseSystemPasswordChar = true;
 
         var btnValidate = new Button { Text = "Validate (Async)", AutoSize = true };
         var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };
@@ -193,6 +247,7 @@ public partial class MainForm : Form
         var txtUsername = CreateField(panel, "Username:", "newuser");
         var txtEmail = CreateField(panel, "Email:", "not-an-email");
         var txtPassword = CreateField(panel, "Password:", "SecureP@ss123");
+        txtPassword.UseSystemPasswordChar = true;
 
         var btnValidate = new Button { Text = "Validate (Async)", AutoSize = true };
         var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };

@@ -3,28 +3,34 @@
 
 <h3>Scenario 5: CancellationToken Propagation</h3>
 <p>
-    This page validates a <strong>User</strong> model with delay-backed async attributes and passes a
+    This page validates an <strong>Event</strong> model with delay-backed async checks and passes a
     <code>CancellationToken</code> into <code>Validator.TryValidateObjectAsync</code>.
     Start validation, then click <strong>Cancel</strong> to stop in-flight async validation without blocking the server thread.
 </p>
 
 <EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="cancellationForm">
     <div class="mb-3">
-        <label class="form-label">Name</label>
-        <InputText class="form-control" @bind-Value="_user.Name" />
-        <ValidationMessage For="@(() => _user.Name)" />
+        <label class="form-label">Title</label>
+        <InputText class="form-control" @bind-Value="_event.Title" />
+        <ValidationMessage For="@(() => _event.Title)" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label">Email</label>
-        <InputText class="form-control" @bind-Value="_user.Email" />
-        <ValidationMessage For="@(() => _user.Email)" />
+        <label class="form-label">Start Date</label>
+        <InputDate class="form-control" @bind-Value="_event.StartDate" />
+        <ValidationMessage For="@(() => _event.StartDate)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">End Date</label>
+        <InputDate class="form-control" @bind-Value="_event.EndDate" />
+        <ValidationMessage For="@(() => _event.EndDate)" />
     </div>
 
     <div class="mb-3">
         <label class="form-label">Simulated I/O Delay (ms)</label>
-        <InputNumber class="form-control" @bind-Value="_user.Delay" />
-        <ValidationMessage For="@(() => _user.Delay)" />
+        <InputNumber class="form-control" @bind-Value="_event.Delay" />
+        <ValidationMessage For="@(() => _event.Delay)" />
     </div>
 
     <div class="d-flex gap-2">
@@ -45,7 +51,14 @@
 }
 
 @code {
-    private readonly User _user = new() { Name = "Bob", Email = "bob@contoso.com", Delay = 5000 };
+    private readonly Event _event = new()
+    {
+        Title = "TBD Planning",
+        StartDate = new DateTime(DateTime.Today.Year + 1, 1, 1),
+        EndDate = new DateTime(DateTime.Today.Year + 1, 1, 2),
+        Delay = 5000
+    };
+
     private EditContext _editContext = null!;
     private ValidationMessageStore _messageStore = null!;
     private CancellationTokenSource? _cts;
@@ -55,7 +68,7 @@
 
     protected override void OnInitialized()
     {
-        _editContext = new EditContext(_user);
+        _editContext = new EditContext(_event);
         _messageStore = new ValidationMessageStore(_editContext);
         _editContext.OnFieldChanged += OnFieldChanged;
     }
@@ -82,15 +95,15 @@
         await InvokeAsync(StateHasChanged);
 
         var results = new List<ValidationResult>();
-        var context = new ValidationContext(_user);
+        var context = new ValidationContext(_event);
 
         try
         {
-            bool isValid = await Validator.TryValidateObjectAsync(_user, context, results, true, _cts.Token);
-            AddResultsToMessageStore(_user, results);
+            bool isValid = await Validator.TryValidateObjectAsync(_event, context, results, true, _cts.Token);
+            AddResultsToMessageStore(_event, results);
             _message = isValid
                 ? "✅ Validation completed without cancellation."
-                : "❌ Validation completed — see errors above.";
+                : "❌ Validation completed — see event errors above.";
             _alertClass = isValid ? "alert-success" : "alert-danger";
         }
         catch (OperationCanceledException)

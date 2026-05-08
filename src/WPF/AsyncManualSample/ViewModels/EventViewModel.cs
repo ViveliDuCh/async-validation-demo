@@ -18,7 +18,7 @@ public class EventViewModel : ValidatableViewModelBase
     public string? Title
     {
         get => _event.Title;
-        set { _event.Title = value; SetAndValidateAsync(ref value, value); }
+        set => SetAndValidateAsync(_event.Title, value, title => _event.Title = title);
     }
 
     public DateTime? StartDate

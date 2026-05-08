@@ -12,9 +12,9 @@ public class EventController : Controller
     {
         var model = new Event
         {
-            Title = "Launch Party",
-            StartDate = DateTime.Today.AddDays(10),
-            EndDate = DateTime.Today.AddDays(5),
+            Title = "Test Event",
+            StartDate = new DateTime(DateTime.Today.Year + 1, 1, 1),
+            EndDate = new DateTime(DateTime.Today.Year, 12, 31),
             Delay = 100
         };
         return View(model);

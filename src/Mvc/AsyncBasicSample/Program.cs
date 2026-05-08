@@ -3,6 +3,8 @@
 // Built-in MVC sync validators are disabled so AsyncValidationAttribute and
 // IAsyncValidatableObject run without blocking the request thread.
 
+using SharedModels.ServiceClasses;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
@@ -11,6 +13,7 @@ builder.Services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(options =>
 {
     options.ModelValidatorProviders.Clear();
 });
+builder.Services.AddSingleton<UserService>();
 
 var app = builder.Build();
 

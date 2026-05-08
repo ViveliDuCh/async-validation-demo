@@ -3,29 +3,32 @@
 // Each POST endpoint awaits Validator.TryValidateObjectAsync and returns errors or success.
 
 using SharedModels.EntityClasses;
+using SharedModels.ServiceClasses;
 using System.ComponentModel.DataAnnotations;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton<UserService>();
 var app = builder.Build();
 
 app.MapGet("/", () => Results.Ok(new
 {
     Name = "AsyncBasicSample — Minimal API",
-    Description = "Async validation using AsyncValidationAttribute + IAsyncValidatableObject without blocking server threads",
+    Description = "Async validation for attribute-only, IValidatableObject, and IAsyncValidatableObject models without blocking server threads",
     Endpoints = new[]
     {
-        new { Method = "POST", Path = "/api/user/valid", Scenario = "1 — Reusable property attribute (valid user)" },
-        new { Method = "POST", Path = "/api/user/invalid-email", Scenario = "2 — Invalid email domain" },
-        new { Method = "POST", Path = "/api/event/invalid", Scenario = "3 — Entity-level attribute (cross-field)" },
-        new { Method = "POST", Path = "/api/order/over-limit", Scenario = "4 — IAsyncValidatableObject (cross-property)" },
-        new { Method = "POST", Path = "/api/profile/invalid", Scenario = "5 — IAsyncValidatableObject (property-scoped)" }
+        new { Method = "POST", Path = "/api/register/invalid", Scenario = "1 — UserRegistration with DI-backed async validation" },
+        new { Method = "POST", Path = "/api/event/invalid", Scenario = "2 — Event with IValidatableObject + async attributes" },
+        new { Method = "POST", Path = "/api/order/invalid", Scenario = "3 — Order with IAsyncValidatableObject + async attributes" }
     }
 }));
 
-static async Task<IResult> ValidateAndRespondAsync<T>(T instance, string scenarioName) where T : notnull
+static async Task<IResult> ValidateAndRespondAsync<T>(
+    T instance,
+    string scenarioName,
+    IServiceProvider? serviceProvider = null) where T : notnull
 {
     var results = new List<ValidationResult>();
-    var context = new ValidationContext(instance);
+    var context = new ValidationContext(instance, serviceProvider, null);
     bool isValid = await Validator.TryValidateObjectAsync(instance, context, results, validateAllProperties: true);
 
     if (isValid)
@@ -43,43 +46,26 @@ static async Task<IResult> ValidateAndRespondAsync<T>(T instance, string scenari
 }
 
 // ───────────────────────────────────────────
-// Reusable async property attribute with I/O simulation.
-// The server thread is released while validation awaits the simulated external call.
-// POST /api/user/valid  { "name": "Alice", "email": "alice@contoso.com", "delay": 3000 }
+// UserRegistration combines DI-backed async uniqueness checks, sync password policy,
+// and async registration screening without blocking the request thread.
+// POST /api/register/invalid  { "username": "admin", "email": "admin@example.com", "password": "adminPass" }
 // ───────────────────────────────────────────
-app.MapPost("/api/user/valid", async (User user) =>
-    await ValidateAndRespondAsync(user, "Reusable property attribute (Valid user)"));
+app.MapPost("/api/register/invalid", async (UserRegistration registration, IServiceProvider sp) =>
+    await ValidateAndRespondAsync(registration, "UserRegistration with DI-backed async validation", sp));
 
 // ───────────────────────────────────────────
-// Reusable async-only property attribute, parameterized.
-// Invalid email domains fail without blocking the request thread during the I/O wait.
-// POST /api/user/invalid-email  { "name": "Bob", "email": "bob@gmail.com", "delay": 3000 }
-// ───────────────────────────────────────────
-app.MapPost("/api/user/invalid-email", async (User user) =>
-    await ValidateAndRespondAsync(user, "Async-only property attribute (invalid email domain)"));
-
-// ───────────────────────────────────────────
-// [Event] Reusable async entity-level attribute (cross-field).
-// Async validation keeps the server responsive while the simulated delay runs.
-// POST /api/event/invalid  { "title": "Launch Party", "startDate": "2026-12-25", "endDate": "2026-12-20", "delay": 3000 }
+// Event uses IValidatableObject plus sync/async entity rules:
+// reserved titles, date ordering, and schedule conflicts.
+// POST /api/event/invalid  { "title": "Test Event", "startDate": "2027-01-01", "endDate": "2026-12-31", "delay": 3000 }
 // ───────────────────────────────────────────
 app.MapPost("/api/event/invalid", async (Event ev) =>
-    await ValidateAndRespondAsync(ev, "Reusable entity-level attribute (cross-field)"));
+    await ValidateAndRespondAsync(ev, "Event with IValidatableObject + async attributes"));
 
 // ───────────────────────────────────────────
-// [Order] Self-validating entity via IAsyncValidatableObject (cross-property).
-// Because validation is async, expensive checks do not block the thread pool.
-// POST /api/order/over-limit  { "productName": "Widget", "quantity": 10000, "unitPrice": 10, "delay": 3000 }
+// Order uses async catalog/inventory checks plus sync/async order-total limits.
+// POST /api/order/invalid  { "productName": "Unknown", "quantity": 1000, "unitPrice": 120, "delay": 3000 }
 // ───────────────────────────────────────────
-app.MapPost("/api/order/over-limit", async (Order order) =>
-    await ValidateAndRespondAsync(order, "IAsyncValidatableObject (cross-property)"));
-
-// ───────────────────────────────────────────
-// [Profile] Self-validating entity via IAsyncValidatableObject (property-scoped).
-// Multiple async checks can run without tying up a server thread.
-// POST /api/profile/invalid  { "username": "admin", "bio": "<201 chars>", "delay": 3000 }
-// ───────────────────────────────────────────
-app.MapPost("/api/profile/invalid", async (Profile profile) =>
-    await ValidateAndRespondAsync(profile, "IAsyncValidatableObject (property-scoped)"));
+app.MapPost("/api/order/invalid", async (Order order) =>
+    await ValidateAndRespondAsync(order, "Order with IAsyncValidatableObject + async attributes"));
 
 app.Run();

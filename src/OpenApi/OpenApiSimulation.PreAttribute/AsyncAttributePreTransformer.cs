@@ -15,7 +15,7 @@ public static class AsyncAttributePreTransformer
 {
     /// <summary>
     /// Inspects a property for AsyncValidationAttribute subclasses and adds
-    /// schema extensions. Works with the attributes AS THEY ARE — no interface required.
+    /// schema extensions. Works with the attributes as they are — no interface required.
     /// </summary>
     public static void TransformProperty(SimulatedPropertySchema schema, PropertyInfo property)
     {
@@ -52,7 +52,7 @@ public static class AsyncAttributePreTransformer
 
     /// <summary>
     /// Inspects a class for class-level AsyncValidationAttribute subclasses
-    /// (e.g., [AsyncDateRangeValid] on the Event class).
+    /// (e.g., [AsyncRegistrationScreen], [AsyncScheduleCheck], [AsyncInventoryCheck]).
     /// </summary>
     public static void TransformClass(SimulatedEntitySchema schema, Type entityType)
     {

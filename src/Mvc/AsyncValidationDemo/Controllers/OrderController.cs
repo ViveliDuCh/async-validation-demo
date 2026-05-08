@@ -4,16 +4,17 @@ using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using SharedModels.EntityClasses;
 
-namespace AsyncBasicSample.Controllers;
+namespace AsyncValidationDemo.Controllers;
 
-public class ProfileController : Controller
+public class OrderController : Controller
 {
     public IActionResult Index()
     {
-        var model = new Profile
+        var model = new Order
         {
-            Username = "admin",
-            Bio = new string('x', 201),
+            ProductName = "Unknown",
+            Quantity = 1000,
+            UnitPrice = 120m,
             Delay = 100
         };
         return View(model);
@@ -21,7 +22,7 @@ public class ProfileController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(Profile model)
+    public async Task<IActionResult> Index(Order model)
     {
         var results = new List<ValidationResult>();
         var context = new ValidationContext(model, HttpContext.RequestServices, null);
@@ -45,7 +46,7 @@ public class ProfileController : Controller
             return View(model);
         }
 
-        ViewBag.SuccessMessage = $"✅ Profile '{model.Username}' validated!";
+        ViewBag.SuccessMessage = $"✅ Order for {model.Quantity}x '{model.ProductName}' validated!";
         return View(model);
     }
 }

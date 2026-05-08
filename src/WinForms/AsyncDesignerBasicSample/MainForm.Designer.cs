@@ -21,23 +21,20 @@ partial class MainForm
         components = new System.ComponentModel.Container();
         _errorProvider = new ErrorProvider(components);
         _tabControl = new TabControl();
-        _tabUserPage = new TabPage();
+        _tabRegistrationPage = new TabPage();
         _tabEventPage = new TabPage();
         _tabOrderPage = new TabPage();
-        _tabProfilePage = new TabPage();
 
-        // User tab controls
-        lblUserHeader = new Label();
-        lblUserName = new Label();
-        txtUserName = new TextBox();
-        lblUserEmail = new Label();
-        txtUserEmail = new TextBox();
-        lblUserDelay = new Label();
-        txtUserDelay = new TextBox();
-        btnValidateUser = new Button();
-        lblUserResult = new Label();
+        lblRegistrationHeader = new Label();
+        lblRegistrationUsername = new Label();
+        txtRegistrationUsername = new TextBox();
+        lblRegistrationEmail = new Label();
+        txtRegistrationEmail = new TextBox();
+        lblRegistrationPassword = new Label();
+        txtRegistrationPassword = new TextBox();
+        btnValidateRegistration = new Button();
+        lblRegistrationResult = new Label();
 
-        // Event tab controls
         lblEventHeader = new Label();
         lblEventTitle = new Label();
         txtEventTitle = new TextBox();
@@ -50,12 +47,11 @@ partial class MainForm
         btnValidateEvent = new Button();
         lblEventResult = new Label();
 
-        // Order tab controls
         lblOrderHeader = new Label();
         lblOrderProduct = new Label();
         txtOrderProduct = new TextBox();
-        lblOrderQty = new Label();
-        txtOrderQty = new TextBox();
+        lblOrderQuantity = new Label();
+        txtOrderQuantity = new TextBox();
         lblOrderPrice = new Label();
         txtOrderPrice = new TextBox();
         lblOrderDelay = new Label();
@@ -63,73 +59,63 @@ partial class MainForm
         btnValidateOrder = new Button();
         lblOrderResult = new Label();
 
-        // Profile tab controls
-        lblProfileHeader = new Label();
-        lblProfileUsername = new Label();
-        txtProfileUsername = new TextBox();
-        lblProfileBio = new Label();
-        txtProfileBio = new TextBox();
-        lblProfileDelay = new Label();
-        txtProfileDelay = new TextBox();
-        btnValidateProfile = new Button();
-        lblProfileResult = new Label();
-
         ((System.ComponentModel.ISupportInitialize)_errorProvider).BeginInit();
         SuspendLayout();
 
-        // TabControl
+        _errorProvider.ContainerControl = this;
+
         _tabControl.Dock = DockStyle.Fill;
-        _tabControl.TabPages.AddRange(new TabPage[] { _tabUserPage, _tabEventPage, _tabOrderPage, _tabProfilePage });
+        _tabControl.TabPages.AddRange(new TabPage[] { _tabRegistrationPage, _tabEventPage, _tabOrderPage });
 
-        // --- User Tab ---
-        _tabUserPage.Text = "User";
-        _tabUserPage.Padding = new Padding(10);
+        _tabRegistrationPage.Text = "UserRegistration";
+        _tabRegistrationPage.Padding = new Padding(10);
 
-        lblUserHeader.Text = "Scenarios 1 & 2: IsValidName + AsyncOnlyEmailDomain (async)";
-        lblUserHeader.AutoSize = true;
-        lblUserHeader.Location = new System.Drawing.Point(15, 15);
-        lblUserHeader.Font = new System.Drawing.Font(lblUserHeader.Font, System.Drawing.FontStyle.Bold);
+        lblRegistrationHeader.Text = "DI + Async Duplicate Detection (UniqueUsername + UniqueEmail)";
+        lblRegistrationHeader.AutoSize = true;
+        lblRegistrationHeader.Location = new System.Drawing.Point(15, 15);
+        lblRegistrationHeader.Font = new System.Drawing.Font(lblRegistrationHeader.Font, System.Drawing.FontStyle.Bold);
 
-        lblUserName.Text = "Name:";
-        lblUserName.AutoSize = true;
-        lblUserName.Location = new System.Drawing.Point(15, 45);
-        txtUserName.Text = "Bob";
-        txtUserName.Width = 400;
-        txtUserName.Location = new System.Drawing.Point(15, 65);
+        lblRegistrationUsername.Text = "Username:";
+        lblRegistrationUsername.AutoSize = true;
+        lblRegistrationUsername.Location = new System.Drawing.Point(15, 45);
+        txtRegistrationUsername.Text = "admin";
+        txtRegistrationUsername.Width = 400;
+        txtRegistrationUsername.Location = new System.Drawing.Point(15, 65);
 
-        lblUserEmail.Text = "Email:";
-        lblUserEmail.AutoSize = true;
-        lblUserEmail.Location = new System.Drawing.Point(15, 95);
-        txtUserEmail.Text = "bob@gmail.com";
-        txtUserEmail.Width = 400;
-        txtUserEmail.Location = new System.Drawing.Point(15, 115);
+        lblRegistrationEmail.Text = "Email:";
+        lblRegistrationEmail.AutoSize = true;
+        lblRegistrationEmail.Location = new System.Drawing.Point(15, 95);
+        txtRegistrationEmail.Text = "admin@example.com";
+        txtRegistrationEmail.Width = 400;
+        txtRegistrationEmail.Location = new System.Drawing.Point(15, 115);
 
-        lblUserDelay.Text = "Delay (ms):";
-        lblUserDelay.AutoSize = true;
-        lblUserDelay.Location = new System.Drawing.Point(15, 145);
-        txtUserDelay.Text = "3000";
-        txtUserDelay.Width = 100;
-        txtUserDelay.Location = new System.Drawing.Point(15, 165);
+        lblRegistrationPassword.Text = "Password:";
+        lblRegistrationPassword.AutoSize = true;
+        lblRegistrationPassword.Location = new System.Drawing.Point(15, 145);
+        txtRegistrationPassword.Text = "SecureP@ss123";
+        txtRegistrationPassword.Width = 400;
+        txtRegistrationPassword.Location = new System.Drawing.Point(15, 165);
 
-        btnValidateUser.Text = "Validate All (Async)";
-        btnValidateUser.AutoSize = true;
-        btnValidateUser.Location = new System.Drawing.Point(15, 200);
-        btnValidateUser.Click += BtnValidateUser_Click;
+        btnValidateRegistration.Text = "Validate All (Async)";
+        btnValidateRegistration.AutoSize = true;
+        btnValidateRegistration.Location = new System.Drawing.Point(15, 200);
+        btnValidateRegistration.Click += BtnValidateRegistration_Click;
 
-        lblUserResult.AutoSize = true;
-        lblUserResult.ForeColor = System.Drawing.Color.DarkRed;
-        lblUserResult.Location = new System.Drawing.Point(15, 235);
-        lblUserResult.MaximumSize = new System.Drawing.Size(550, 0);
+        lblRegistrationResult.AutoSize = true;
+        lblRegistrationResult.ForeColor = System.Drawing.Color.DarkRed;
+        lblRegistrationResult.Location = new System.Drawing.Point(15, 235);
+        lblRegistrationResult.MaximumSize = new System.Drawing.Size(550, 0);
 
-        _tabUserPage.Controls.AddRange(new Control[] {
-            lblUserHeader, lblUserName, txtUserName, lblUserEmail, txtUserEmail,
-            lblUserDelay, txtUserDelay, btnValidateUser, lblUserResult });
+        _tabRegistrationPage.Controls.AddRange(new Control[]
+        {
+            lblRegistrationHeader, lblRegistrationUsername, txtRegistrationUsername, lblRegistrationEmail, txtRegistrationEmail,
+            lblRegistrationPassword, txtRegistrationPassword, btnValidateRegistration, lblRegistrationResult
+        });
 
-        // --- Event Tab ---
         _tabEventPage.Text = "Event";
         _tabEventPage.Padding = new Padding(10);
 
-        lblEventHeader.Text = "Scenario 3: AsyncDateRangeValid (async)";
+        lblEventHeader.Text = "IValidatableObject + [ReservedTitleCheck], [DateRange], [AsyncScheduleCheck]";
         lblEventHeader.AutoSize = true;
         lblEventHeader.Location = new System.Drawing.Point(15, 15);
         lblEventHeader.Font = new System.Drawing.Font(lblEventHeader.Font, System.Drawing.FontStyle.Bold);
@@ -172,15 +158,16 @@ partial class MainForm
         lblEventResult.Location = new System.Drawing.Point(15, 285);
         lblEventResult.MaximumSize = new System.Drawing.Size(550, 0);
 
-        _tabEventPage.Controls.AddRange(new Control[] {
+        _tabEventPage.Controls.AddRange(new Control[]
+        {
             lblEventHeader, lblEventTitle, txtEventTitle, lblEventStart, dtpEventStart,
-            lblEventEnd, dtpEventEnd, lblEventDelay, txtEventDelay, btnValidateEvent, lblEventResult });
+            lblEventEnd, dtpEventEnd, lblEventDelay, txtEventDelay, btnValidateEvent, lblEventResult
+        });
 
-        // --- Order Tab ---
         _tabOrderPage.Text = "Order";
         _tabOrderPage.Padding = new Padding(10);
 
-        lblOrderHeader.Text = "Scenario 4: IAsyncValidatableObject cross-property (async)";
+        lblOrderHeader.Text = "IAsyncValidatableObject + [AsyncProductExists], [MaxOrderValue], [AsyncInventoryCheck]";
         lblOrderHeader.AutoSize = true;
         lblOrderHeader.Location = new System.Drawing.Point(15, 15);
         lblOrderHeader.Font = new System.Drawing.Font(lblOrderHeader.Font, System.Drawing.FontStyle.Bold);
@@ -192,12 +179,12 @@ partial class MainForm
         txtOrderProduct.Width = 400;
         txtOrderProduct.Location = new System.Drawing.Point(15, 65);
 
-        lblOrderQty.Text = "Quantity:";
-        lblOrderQty.AutoSize = true;
-        lblOrderQty.Location = new System.Drawing.Point(15, 95);
-        txtOrderQty.Text = "10000";
-        txtOrderQty.Width = 100;
-        txtOrderQty.Location = new System.Drawing.Point(15, 115);
+        lblOrderQuantity.Text = "Quantity:";
+        lblOrderQuantity.AutoSize = true;
+        lblOrderQuantity.Location = new System.Drawing.Point(15, 95);
+        txtOrderQuantity.Text = "10000";
+        txtOrderQuantity.Width = 100;
+        txtOrderQuantity.Location = new System.Drawing.Point(15, 115);
 
         lblOrderPrice.Text = "Unit Price:";
         lblOrderPrice.AutoSize = true;
@@ -223,55 +210,12 @@ partial class MainForm
         lblOrderResult.Location = new System.Drawing.Point(15, 285);
         lblOrderResult.MaximumSize = new System.Drawing.Size(550, 0);
 
-        _tabOrderPage.Controls.AddRange(new Control[] {
-            lblOrderHeader, lblOrderProduct, txtOrderProduct, lblOrderQty, txtOrderQty,
-            lblOrderPrice, txtOrderPrice, lblOrderDelay, txtOrderDelay, btnValidateOrder, lblOrderResult });
+        _tabOrderPage.Controls.AddRange(new Control[]
+        {
+            lblOrderHeader, lblOrderProduct, txtOrderProduct, lblOrderQuantity, txtOrderQuantity,
+            lblOrderPrice, txtOrderPrice, lblOrderDelay, txtOrderDelay, btnValidateOrder, lblOrderResult
+        });
 
-        // --- Profile Tab ---
-        _tabProfilePage.Text = "Profile";
-        _tabProfilePage.Padding = new Padding(10);
-
-        lblProfileHeader.Text = "Scenario 5: IAsyncValidatableObject property-scoped (async)";
-        lblProfileHeader.AutoSize = true;
-        lblProfileHeader.Location = new System.Drawing.Point(15, 15);
-        lblProfileHeader.Font = new System.Drawing.Font(lblProfileHeader.Font, System.Drawing.FontStyle.Bold);
-
-        lblProfileUsername.Text = "Username:";
-        lblProfileUsername.AutoSize = true;
-        lblProfileUsername.Location = new System.Drawing.Point(15, 45);
-        txtProfileUsername.Text = "admin";
-        txtProfileUsername.Width = 400;
-        txtProfileUsername.Location = new System.Drawing.Point(15, 65);
-
-        lblProfileBio.Text = "Bio:";
-        lblProfileBio.AutoSize = true;
-        lblProfileBio.Location = new System.Drawing.Point(15, 95);
-        txtProfileBio.Text = new string('x', 201);
-        txtProfileBio.Width = 400;
-        txtProfileBio.Location = new System.Drawing.Point(15, 115);
-
-        lblProfileDelay.Text = "Delay (ms):";
-        lblProfileDelay.AutoSize = true;
-        lblProfileDelay.Location = new System.Drawing.Point(15, 145);
-        txtProfileDelay.Text = "3000";
-        txtProfileDelay.Width = 100;
-        txtProfileDelay.Location = new System.Drawing.Point(15, 165);
-
-        btnValidateProfile.Text = "Validate All (Async)";
-        btnValidateProfile.AutoSize = true;
-        btnValidateProfile.Location = new System.Drawing.Point(15, 200);
-        btnValidateProfile.Click += BtnValidateProfile_Click;
-
-        lblProfileResult.AutoSize = true;
-        lblProfileResult.ForeColor = System.Drawing.Color.DarkRed;
-        lblProfileResult.Location = new System.Drawing.Point(15, 235);
-        lblProfileResult.MaximumSize = new System.Drawing.Size(550, 0);
-
-        _tabProfilePage.Controls.AddRange(new Control[] {
-            lblProfileHeader, lblProfileUsername, txtProfileUsername, lblProfileBio, txtProfileBio,
-            lblProfileDelay, txtProfileDelay, btnValidateProfile, lblProfileResult });
-
-        // Form
         AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new System.Drawing.Size(650, 500);
@@ -284,23 +228,20 @@ partial class MainForm
 
     private ErrorProvider _errorProvider;
     private TabControl _tabControl;
-    private TabPage _tabUserPage;
+    private TabPage _tabRegistrationPage;
     private TabPage _tabEventPage;
     private TabPage _tabOrderPage;
-    private TabPage _tabProfilePage;
 
-    // User
-    private Label lblUserHeader;
-    private Label lblUserName;
-    private TextBox txtUserName;
-    private Label lblUserEmail;
-    private TextBox txtUserEmail;
-    private Label lblUserDelay;
-    private TextBox txtUserDelay;
-    private Button btnValidateUser;
-    private Label lblUserResult;
+    private Label lblRegistrationHeader;
+    private Label lblRegistrationUsername;
+    private TextBox txtRegistrationUsername;
+    private Label lblRegistrationEmail;
+    private TextBox txtRegistrationEmail;
+    private Label lblRegistrationPassword;
+    private TextBox txtRegistrationPassword;
+    private Button btnValidateRegistration;
+    private Label lblRegistrationResult;
 
-    // Event
     private Label lblEventHeader;
     private Label lblEventTitle;
     private TextBox txtEventTitle;
@@ -313,27 +254,15 @@ partial class MainForm
     private Button btnValidateEvent;
     private Label lblEventResult;
 
-    // Order
     private Label lblOrderHeader;
     private Label lblOrderProduct;
     private TextBox txtOrderProduct;
-    private Label lblOrderQty;
-    private TextBox txtOrderQty;
+    private Label lblOrderQuantity;
+    private TextBox txtOrderQuantity;
     private Label lblOrderPrice;
     private TextBox txtOrderPrice;
     private Label lblOrderDelay;
     private TextBox txtOrderDelay;
     private Button btnValidateOrder;
     private Label lblOrderResult;
-
-    // Profile
-    private Label lblProfileHeader;
-    private Label lblProfileUsername;
-    private TextBox txtProfileUsername;
-    private Label lblProfileBio;
-    private TextBox txtProfileBio;
-    private Label lblProfileDelay;
-    private TextBox txtProfileDelay;
-    private Button btnValidateProfile;
-    private Label lblProfileResult;
 }

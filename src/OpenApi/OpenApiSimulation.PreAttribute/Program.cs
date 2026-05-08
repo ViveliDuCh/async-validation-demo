@@ -7,37 +7,25 @@ Console.WriteLine("=== OpenAPI Schema Simulation — Pre-Attribute Approach ==="
 Console.WriteLine("(No attribute classes were modified — pure reflection)\n");
 
 // ───────────────────────────────────────────
-// Scenario 1: UserRegistration — has [UniqueUsername] and [UniqueEmail]
-// Same entity used by AsyncValidationConsoleDemo
+// Scenario 1: UserRegistration — async property + class-level attributes
+// [PasswordPolicy] remains invisible because it is sync-only
 // ───────────────────────────────────────────
-Console.WriteLine("Scenario 1: UserRegistration (same entity as AsyncValidationConsoleDemo)");
+Console.WriteLine("Scenario 1: UserRegistration (async attrs visible, sync-only PasswordPolicy ignored)");
 {
     var schemaWithout = SchemaBuilder.BuildSchema<UserRegistration>();
     SchemaPrinter.PrintSchema(schemaWithout, "WITHOUT transformer (async attrs invisible)");
 
     var schemaWith = SchemaBuilder.BuildSchema<UserRegistration>(
-        AsyncAttributePreTransformer.TransformProperty);
-    SchemaPrinter.PrintSchema(schemaWith, "WITH pre-attribute transformer (async attrs visible)");
+        AsyncAttributePreTransformer.TransformProperty,
+        AsyncAttributePreTransformer.TransformClass);
+    SchemaPrinter.PrintSchema(schemaWith, "WITH pre-attribute transformer (property + class async attrs visible)");
 }
 
 // ───────────────────────────────────────────
-// Scenario 2: User — has [IsValidName] and [AsyncOnlyEmailDomain("contoso.com")]
+// Scenario 2: Event — [ReservedTitleCheck] + [AsyncScheduleCheck]
+// [DateRange] remains invisible because it is sync-only
 // ───────────────────────────────────────────
-Console.WriteLine("Scenario 2: User (multiple async-only attributes)");
-{
-    var schemaWithout = SchemaBuilder.BuildSchema<User>();
-    SchemaPrinter.PrintSchema(schemaWithout, "WITHOUT transformer");
-
-    var schemaWith = SchemaBuilder.BuildSchema<User>(
-        AsyncAttributePreTransformer.TransformProperty);
-    SchemaPrinter.PrintSchema(schemaWith, "WITH pre-attribute transformer");
-}
-
-// ───────────────────────────────────────────
-// Scenario 3: Event — class-level [AsyncDateRangeValid]
-// Shows that class-level async validation attributes are also discoverable
-// ───────────────────────────────────────────
-Console.WriteLine("Scenario 3: Event (class-level async attribute)");
+Console.WriteLine("Scenario 2: Event (ReservedTitleCheck + AsyncScheduleCheck)");
 {
     var schemaWithout = SchemaBuilder.BuildSchema<Event>();
     SchemaPrinter.PrintSchema(schemaWithout, "WITHOUT transformer");
@@ -45,23 +33,26 @@ Console.WriteLine("Scenario 3: Event (class-level async attribute)");
     var schemaWith = SchemaBuilder.BuildSchema<Event>(
         AsyncAttributePreTransformer.TransformProperty,
         AsyncAttributePreTransformer.TransformClass);
-    SchemaPrinter.PrintSchema(schemaWith, "WITH pre-attribute transformer (class-level)");
+    SchemaPrinter.PrintSchema(schemaWith, "WITH pre-attribute transformer");
 }
 
 // ───────────────────────────────────────────
-// Scenario 4: MoneyTransfer — IAsyncValidatableObject (class-level, no per-property attrs)
-// The transformer correctly produces NO property-level extensions
+// Scenario 3: Order — [AsyncProductExists] + [AsyncInventoryCheck]
+// [MaxOrderValue] and IAsyncValidatableObject remain invisible here
 // ───────────────────────────────────────────
-Console.WriteLine("Scenario 4: MoneyTransfer (IAsyncValidatableObject — no per-property async attrs)");
+Console.WriteLine("Scenario 3: Order (async attrs visible, IAsyncValidatableObject ignored)");
 {
-    var schema = SchemaBuilder.BuildSchema<MoneyTransfer>(
-        AsyncAttributePreTransformer.TransformProperty);
-    SchemaPrinter.PrintSchema(schema,
-        "MoneyTransfer — IAsyncValidatableObject is class-level, not per-property");
+    var schemaWithout = SchemaBuilder.BuildSchema<Order>();
+    SchemaPrinter.PrintSchema(schemaWithout, "WITHOUT transformer");
+
+    var schemaWith = SchemaBuilder.BuildSchema<Order>(
+        AsyncAttributePreTransformer.TransformProperty,
+        AsyncAttributePreTransformer.TransformClass);
+    SchemaPrinter.PrintSchema(schemaWith, "WITH pre-attribute transformer");
 }
 
 Console.WriteLine("=== Simulation Complete ===");
 Console.WriteLine();
-Console.WriteLine("Key takeaway: The same async validation attributes used by");
-Console.WriteLine("AsyncValidationConsoleDemo can produce OpenAPI schema metadata");
-Console.WriteLine("via an IOpenApiSchemaTransformer — without modifying any attribute class.");
+Console.WriteLine("Key takeaway: Current SharedModels async attributes on");
+Console.WriteLine("UserRegistration, Event, and Order can drive OpenAPI schema metadata");
+Console.WriteLine("without surfacing sync-only attributes or validation interfaces.");

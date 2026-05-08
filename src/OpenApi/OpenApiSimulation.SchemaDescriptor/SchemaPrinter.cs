@@ -24,6 +24,11 @@ public static class SchemaPrinter
             ["title"] = schema.EntityName
         };
 
+        if (schema.Description is not null)
+        {
+            jsonSchema["description"] = schema.Description;
+        }
+
         var required = new List<string>();
         var properties = new Dictionary<string, object>();
 
@@ -49,6 +54,11 @@ public static class SchemaPrinter
 
         jsonSchema["required"] = required;
         jsonSchema["properties"] = properties;
+
+        foreach (var (key, value) in schema.Extensions)
+        {
+            jsonSchema[key] = value;
+        }
 
         Console.WriteLine(JsonSerializer.Serialize(jsonSchema, s_jsonOptions));
         Console.WriteLine();

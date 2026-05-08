@@ -1,10 +1,10 @@
 @page "/event"
 @implements IDisposable
 
-<h3>Scenario 3: Reusable Entity-Level Attribute (Cross-Field)</h3>
+<h3>Scenario 2: Event — IValidatableObject + Async Checks</h3>
 <p>
-    <strong>AsyncDateRangeValid</strong> awaits a simulated async check before verifying that
-    StartDate is before EndDate. Manual submit keeps Blazor's validation UI updated while async I/O runs without blocking.
+    <strong>Event</strong> combines sync entity validation via <code>IValidatableObject</code> with
+    async attribute-based checks. Manual submit keeps Blazor's validation UI updated while async I/O runs without blocking.
 </p>
 
 <EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="eventForm">
@@ -47,10 +47,10 @@
 @code {
     private readonly Event _event = new()
     {
-        Title = "Launch Party",
-        StartDate = new DateTime(2026, 12, 25),
-        EndDate = new DateTime(2026, 12, 20),
-        Delay = 3000
+        Title = "TBD Planning",
+        StartDate = new DateTime(DateTime.Today.Year + 1, 1, 1),
+        EndDate = new DateTime(DateTime.Today.Year + 1, 1, 2),
+        Delay = 100
     };
 
     private EditContext _editContext = null!;
@@ -96,8 +96,8 @@
 
             AddResultsToMessageStore(_event, results);
             _message = isValid
-                ? "✅ Valid! Async validation completed without blocking the server thread."
-                : "❌ Validation failed — see errors above.";
+                ? "✅ Valid! Event validation completed without blocking the server thread."
+                : "❌ Validation failed — see event errors above.";
             _alertClass = isValid ? "alert-success" : "alert-danger";
         }
         catch (OperationCanceledException)

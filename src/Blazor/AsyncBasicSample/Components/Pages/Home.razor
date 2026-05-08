@@ -12,16 +12,13 @@
 </p>
 
 <div class="list-group">
-    <a href="/user" class="list-group-item list-group-item-action">
-        <strong>Scenarios 1 &amp; 2:</strong> Reusable property attributes (IsValidName + EmailDomain)
+    <a href="/registration" class="list-group-item list-group-item-action">
+        <strong>Scenario 1:</strong> Attribute-driven <code>UserRegistration</code> with DI-backed async checks
     </a>
     <a href="/event" class="list-group-item list-group-item-action">
-        <strong>Scenario 3:</strong> Reusable entity-level attribute (DateRangeValid — cross-field)
+        <strong>Scenario 2:</strong> <code>Event</code> with <code>IValidatableObject</code> and async entity checks
     </a>
     <a href="/order" class="list-group-item list-group-item-action">
-        <strong>Scenario 4:</strong> IAsyncValidatableObject — cross-property (Order total limit)
-    </a>
-    <a href="/profile" class="list-group-item list-group-item-action">
-        <strong>Scenario 5:</strong> IAsyncValidatableObject — property-scoped (Profile username + bio)
+        <strong>Scenario 3:</strong> <code>Order</code> with <code>IAsyncValidatableObject</code> cross-property validation
     </a>
 </div>

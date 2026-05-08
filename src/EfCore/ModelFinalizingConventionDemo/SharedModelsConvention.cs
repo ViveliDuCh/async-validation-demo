@@ -10,7 +10,7 @@ namespace ModelFinalizingConventionDemo;
 /// <summary>
 /// Path B: IModelFinalizingConvention
 ///
-/// Scans ALL properties in ALL entity types for AsyncValidationAttribute
+/// Scans all registered SharedModels entity types for AsyncValidationAttribute
 /// subclasses and applies convention-defined schema actions.
 ///
 /// Registration (one line, no service provider deps):
@@ -62,16 +62,13 @@ public class SharedModelsConvention : IModelFinalizingConvention
                             Log.Add($"    → UNIQUE INDEX on {entity}.{prop}");
                             break;
 
-                        case AsyncOnlyEmailDomainAttribute:
-                            Log.Add($"    → No schema action (domain validation only)");
-                            break;
-
-                        case IsValidNameAttribute:
-                            Log.Add($"    → No schema action (name validation only)");
+                        case ReservedTitleCheckAttribute:
+                        case AsyncProductExistsAttribute:
+                            Log.Add($"    → No schema action (async property validation only)");
                             break;
 
                         default:
-                            Log.Add($"    → No schema action (unknown async attr)");
+                            Log.Add($"    → No schema action (async validation metadata only)");
                             break;
                     }
 

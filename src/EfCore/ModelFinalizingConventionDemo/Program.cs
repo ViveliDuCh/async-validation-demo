@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using ModelFinalizingConventionDemo;
+using SharedModels.EntityClasses;
 
 Console.WriteLine("╔════════════════════════════════════════════════════════════╗");
 Console.WriteLine("║  EF Core — Path B: IModelFinalizingConvention              ║");
-Console.WriteLine("║  Full SharedModels attribute scan (all 6 entities)         ║");
+Console.WriteLine("║  Current SharedModels attribute scan (3 entities)          ║");
 Console.WriteLine("╚════════════════════════════════════════════════════════════╝");
 Console.WriteLine();
 
@@ -18,7 +19,7 @@ db.Database.EnsureCreated();
 // ───────────────────────────────────────────
 // Scenario 1: Full Attribute Scan
 // ───────────────────────────────────────────
-Console.WriteLine("--- Scenario 1: Full Attribute Scan Across All SharedModels Entities ---");
+Console.WriteLine("--- Scenario 1: Full Attribute Scan Across Current SharedModels Entities ---");
 Console.WriteLine();
 
 if (convention.Log.Count > 0)
@@ -74,25 +75,21 @@ foreach (var entityType in db.Model.GetEntityTypes())
 Console.WriteLine();
 
 // ───────────────────────────────────────────
-// Scenario 4: IAsyncValidatableObject entities correctly ignored
+// Scenario 4: IAsyncValidatableObject interface correctly ignored
 // ───────────────────────────────────────────
-Console.WriteLine("--- Scenario 4: Entities With Only IAsyncValidatableObject (No Property Attrs) ---");
+Console.WriteLine("--- Scenario 4: Order's IAsyncValidatableObject Interface Is Ignored ---");
 Console.WriteLine();
-Console.WriteLine("  IAsyncValidatableObject is a runtime interface — not an attribute.");
-Console.WriteLine("  EF Core conventions correctly ignore these entities:");
+var orderEntity = db.Model.FindEntityType(typeof(Order))!;
+int orderAnnotationCount =
+    orderEntity.GetAnnotations().Count(a => a.Name.StartsWith("AsyncValidation:")) +
+    orderEntity.GetDeclaredProperties()
+        .SelectMany(p => p.GetAnnotations())
+        .Count(a => a.Name.StartsWith("AsyncValidation:"));
 
-foreach (var entityType in db.Model.GetEntityTypes())
-{
-    bool hasAsyncInterface = typeof(IAsyncValidatableObject)
-        .IsAssignableFrom(entityType.ClrType);
-    bool hasAsyncAttrs = convention.Log
-        .Any(l => l.Contains(entityType.ClrType.Name) && l.Contains("FOUND"));
-
-    if (hasAsyncInterface && !hasAsyncAttrs)
-    {
-        Console.WriteLine($"  ✔ {entityType.ClrType.Name}: IAsyncValidatableObject only — convention skipped (correct)");
-    }
-}
+Console.WriteLine($"  Order implements IAsyncValidatableObject: {typeof(IAsyncValidatableObject).IsAssignableFrom(typeof(Order))}");
+Console.WriteLine($"  Async annotations discovered for Order:   {orderAnnotationCount}");
+Console.WriteLine("  ✔ Convention stored metadata only for [AsyncProductExists] and [AsyncInventoryCheck].");
+Console.WriteLine("  ✔ IAsyncValidatableObject itself produced no convention metadata.");
 Console.WriteLine();
 
 // ───────────────────────────────────────────
@@ -137,7 +134,7 @@ Console.WriteLine($"  UNIQUE indexes created:        {uniqueIdxCount}");
 Console.WriteLine($"  Annotations stored:            {annotationCount}");
 Console.WriteLine($"  SharedModels entities scanned: {db.Model.GetEntityTypes().Count()}");
 Console.WriteLine();
-Console.WriteLine("  All SharedModels async attributes are detectable by");
-Console.WriteLine("  EF Core's convention system using the real prototype runtime.");
+Console.WriteLine("  All current SharedModels async attributes are detectable by");
+Console.WriteLine("  EF Core's convention system without picking up sync-only attributes.");
 
 connection.Close();

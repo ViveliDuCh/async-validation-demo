@@ -1,12 +1,11 @@
 @model Order
 @{ ViewData["Title"] = "Order Validation"; }
 
-<h3>Scenario 4: IAsyncValidatableObject (Cross-Property)</h3>
+<h3>Scenario 3: Order Validation with IAsyncValidatableObject</h3>
 <p>
-    <code>Order</code> implements <code>IAsyncValidatableObject</code>. The controller calls
-    <code>Validator.TryValidateObjectAsync()</code>, which awaits the simulated inventory
-    check with <code>Task.Delay</code> without blocking the request thread. The error targets
-    <code>[Quantity, UnitPrice]</code> — shown on both fields.
+    <code>Order</code> uses <code>[AsyncProductExists]</code>, <code>[MaxOrderValue]</code>,
+    <code>[AsyncInventoryCheck]</code>, and <code>IAsyncValidatableObject</code>. Try
+    <code>Unknown</code> or push the total above <code>$50,000</code> / <code>$100,000</code>.
 </p>
 
 @if (ViewBag.SuccessMessage is not null)

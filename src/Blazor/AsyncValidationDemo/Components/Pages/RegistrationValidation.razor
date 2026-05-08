@@ -4,8 +4,8 @@
 
 <h3>Scenarios 1 &amp; 2: DI Service Resolution + Two-Phase Validation</h3>
 <p>
-    <strong>Scenario 1:</strong> <code>UniqueUsername</code> and <code>UniqueEmail</code> resolve
-    <code>UserService</code> from the DI container via <code>ValidationContext.GetService()</code>.
+    <strong>Scenario 1:</strong> <code>UserRegistration</code> uses <code>UniqueUsername</code> and
+    <code>UniqueEmail</code> to resolve <code>UserService</code> from the DI container via <code>ValidationContext.GetService()</code>.
 </p>
 <p>
     <strong>Scenario 2:</strong> Async validation uses two phases. Synchronous attributes run first,
@@ -22,7 +22,7 @@
 
     <div class="mb-3">
         <label class="form-label">Email</label>
-        <InputText class="form-control" @bind-Value="_registration1.Email" />
+        <InputText class="form-control" type="email" @bind-Value="_registration1.Email" />
         <ValidationMessage For="@(() => _registration1.Email)" />
     </div>
 
@@ -55,7 +55,7 @@
 
     <div class="mb-3">
         <label class="form-label">Email</label>
-        <InputText class="form-control" @bind-Value="_registration2.Email" />
+        <InputText class="form-control" type="email" @bind-Value="_registration2.Email" />
         <ValidationMessage For="@(() => _registration2.Email)" />
     </div>
 

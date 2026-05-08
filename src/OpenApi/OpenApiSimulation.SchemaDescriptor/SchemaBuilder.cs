@@ -12,7 +12,8 @@ using System.Reflection;
 public static class SchemaBuilder
 {
     public static SimulatedEntitySchema BuildSchema<TEntity>(
-        Action<SimulatedPropertySchema, PropertyInfo>? customTransformer = null)
+        Action<SimulatedPropertySchema, PropertyInfo>? customTransformer = null,
+        Action<SimulatedEntitySchema, Type>? classLevelTransformer = null)
     {
         var entityType = typeof(TEntity);
         var schema = new SimulatedEntitySchema { EntityName = entityType.Name };
@@ -58,6 +59,8 @@ public static class SchemaBuilder
 
             schema.Properties.Add(propSchema);
         }
+
+        classLevelTransformer?.Invoke(schema, entityType);
 
         return schema;
     }

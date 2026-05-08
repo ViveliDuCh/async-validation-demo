@@ -7,6 +7,8 @@ using System.ComponentModel.DataAnnotations;
 /// Copy of UserRegistration using the ISchemaDescriptor-enabled attributes.
 /// Shows what an entity looks like when its async attributes opt into schema visibility.
 /// </summary>
+[PasswordPolicyDescriptor(nameof(Username), nameof(Password))]
+[AsyncRegistrationScreenDescriptor]
 public class UserRegistrationWithDescriptor
 {
     [Required]

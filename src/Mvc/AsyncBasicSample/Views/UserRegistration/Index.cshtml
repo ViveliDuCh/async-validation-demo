@@ -1,0 +1,48 @@
+@model UserRegistration
+@{ ViewData["Title"] = "User Registration"; }
+
+<h3>Scenario 1: User Registration with DI-backed Validation</h3>
+<p>
+    <code>UserRegistration</code> uses <code>[UniqueUsername]</code>, <code>[UniqueEmail]</code>,
+    <code>[PasswordPolicy]</code>, and <code>[AsyncRegistrationScreen]</code>. The controller passes
+    <code>HttpContext.RequestServices</code> into <code>Validator.TryValidateObjectAsync()</code> so
+    the async validators can resolve <code>UserService</code> from DI.
+</p>
+<p class="text-muted">
+    Try <code>admin</code> / <code>admin@example.com</code> / <code>adminPass</code> or
+    <code>x@blocked.com</code>.
+</p>
+
+@if (ViewBag.SuccessMessage is not null)
+{
+    <div class="alert alert-success">@ViewBag.SuccessMessage</div>
+}
+
+<form asp-action="Index" method="post" class="col-md-6">
+    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="Username" class="form-label"></label>
+        <input asp-for="Username" class="form-control" />
+        <span asp-validation-for="Username" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" type="password" class="form-control" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Validate</button>
+    <a asp-controller="Home" class="btn btn-outline-secondary ms-2">← Back</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

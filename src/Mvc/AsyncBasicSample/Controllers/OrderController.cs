@@ -12,9 +12,9 @@ public class OrderController : Controller
     {
         var model = new Order
         {
-            ProductName = "Widget",
-            Quantity = 10_000,
-            UnitPrice = 10,
+            ProductName = "Unknown",
+            Quantity = 1000,
+            UnitPrice = 120m,
             Delay = 100
         };
         return View(model);

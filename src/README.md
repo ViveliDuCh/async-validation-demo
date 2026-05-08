@@ -4,9 +4,15 @@ Demonstrates the async validation APIs (`AsyncValidationAttribute`,
 `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, etc.) across
 Console, WinForms, WPF, Blazor, Minimal API, MVC, EF Core, OpenAPI, and
 Options applications. All form/endpoint samples share a common set of entity,
-validation, and service classes via the `SharedModels` project. The Options
-samples use a standalone `Options.Shared` library to demonstrate `IOptions<T>`
-async validation at startup.
+validation, and service classes via the `SharedModels` project.
+
+The shared model set is intentionally organized around three validation cases:
+an attribute-only entity with no interface (`UserRegistration`), a sync
+`IValidatableObject` entity (`Event`), and an async
+`IAsyncValidatableObject` entity (`Order`). `Event` also includes the
+sync-over-async fallback pattern (Case 4) via `[ReservedTitleCheck]`. The
+Options samples use a standalone `Options.Shared` library to demonstrate
+`IOptions<T>` async validation at startup.
 
 ## Folder Structure
 
@@ -15,41 +21,44 @@ src/
 ├── AsyncValidationDemo.slnx            ← Single solution for all projects
 ├── Directory.Build.props                ← Wires local-packages DLLs into all projects
 ├── SharedModels/                        ← Class library shared by ALL samples
-│   ├── EntityClasses/                   ← User, Event, Order, Profile, UserRegistration, MoneyTransfer
-│   ├── ValidationClasses/               ← IsValidName, AsyncOnlyEmailDomain, AsyncDateRangeValid,
-│   │                                      UniqueEmail, UniqueUsername
+│   ├── EntityClasses/                   ← UserRegistration, Event, Order
+│   ├── ValidationClasses/               ← UniqueUsername, UniqueEmail, PasswordPolicy,
+│   │                                      AsyncRegistrationScreen, ReservedTitleCheck,
+│   │                                      DateRange, AsyncScheduleCheck,
+│   │                                      AsyncProductExists, MaxOrderValue,
+│   │                                      AsyncInventoryCheck
 │   └── ServiceClasses/                  ← UserService, SimpleServiceProvider
 │
 ├── Console/
-│   ├── BasicAsyncSample/                ← 5 async validation scenarios + timing comparison
-│   └── AsyncValidationConsoleDemo/      ← DI, two-phase, error handling, cancellation
+│   ├── BasicAsyncSample/                ← 3-case walkthrough + Case 4 timing comparison
+│   └── AsyncValidationConsoleDemo/      ← DI, two-phase, cancellation, infrastructure handling
 │
 ├── WinForms/
-│   ├── AsyncBasicSample/                ← Programmatic controls + async ErrorProvider bridge
-│   ├── AsyncValidationDemo/             ← DI-backed async validation (Registration, Transfer, Errors)
-│   ├── AsyncDesignerBasicSample/        ← Designer-generated controls + async validation
-│   └── AsyncDesignerValidationDemo/     ← Designer + DI + async validation
+│   ├── AsyncBasicSample/                ← Programmatic controls + async ErrorProvider bridge (3 tabs)
+│   ├── AsyncValidationDemo/             ← DI-backed async validation across 3 entities
+│   ├── AsyncDesignerBasicSample/        ← Designer-generated controls + async validation (3 tabs)
+│   └── AsyncDesignerValidationDemo/     ← Designer + DI + async validation across 3 entities
 │
 ├── WPF/
-│   ├── AsyncManualSample/               ← Manual INotifyDataErrorInfo async bridge (~50 LOC base)
-│   └── AsyncToolkitSample/              ← CommunityToolkit.Mvvm ObservableValidator + async
+│   ├── AsyncManualSample/               ← Manual INotifyDataErrorInfo async bridge (~50 LOC base, 3 panels)
+│   └── AsyncToolkitSample/              ← CommunityToolkit.Mvvm ObservableValidator + async (3 panels)
 │
 ├── Blazor/
-│   ├── AsyncBasicSample/                ← EditContext + ValidationMessageStore async bridge
-│   └── AsyncValidationDemo/             ← DI, two-phase, error handling, cancellation token
+│   ├── AsyncBasicSample/                ← EditContext + ValidationMessageStore async bridge (3 pages)
+│   └── AsyncValidationDemo/             ← DI, two-phase, error handling, cancellation across 3 pages
 │
 ├── MinimalApi/
-│   ├── AsyncBasicSample/                ← Manual TryValidateObjectAsync in endpoint handlers
-│   ├── AsyncValidationDemo/             ← DI + real CancellationToken propagation
+│   ├── AsyncBasicSample/                ← Manual TryValidateObjectAsync for 3 entity endpoint groups
+│   ├── AsyncValidationDemo/             ← DI + real CancellationToken propagation for 3 entities
 │   └── AutoValidationSample/            ← Hybrid: AddValidation() + manual async for SharedModels
 │
 ├── Mvc/
-│   ├── AsyncBasicSample/                ← Cleared ModelValidatorProviders + async controllers
-│   └── AsyncValidationDemo/             ← DI, async controllers, infrastructure error handling
+│   ├── AsyncBasicSample/                ← Cleared ModelValidatorProviders + 3 async controllers
+│   └── AsyncValidationDemo/             ← DI, async controllers, infrastructure handling across 3 entities
 │
 ├── EfCore/
 │   ├── PropertyAttributeConventionDemo/ ← Path A: PropertyAttributeConventionBase<T> (self-contained)
-│   └── ModelFinalizingConventionDemo/   ← Path B: IModelFinalizingConvention (SharedModels scan)
+│   └── ModelFinalizingConventionDemo/   ← Path B: IModelFinalizingConvention (3 entities / 7 async attrs)
 │
 ├── OpenApi/
 │   ├── OpenApiSimulation.PreAttribute/  ← Zero-modification: reflection-based schema extraction
@@ -66,9 +75,39 @@ src/
 
 ## SharedModels
 
-Shared class library containing all entity, validation attribute, and service
-classes. Uses `AsyncValidationAttribute`, `IAsyncValidatableObject`, and
-`Task.Delay` to simulate async I/O.
+Shared class library containing the refactored three-entity model set plus the
+validation attributes and helper services used by every non-Options sample.
+`Task.Delay` is used throughout to simulate async I/O, while `UserService`
+demonstrates DI-backed validation through `ValidationContext.GetService()`.
+
+The entities intentionally map to the three core validation shapes, with one
+extra fallback pattern layered onto `Event`:
+
+| Entity | Interface shape | What it demonstrates |
+|--------|------------------|----------------------|
+| `UserRegistration` | No interface | Pure attribute-driven validation: DI-backed async property attrs (`[UniqueUsername]`, `[UniqueEmail]`), sync entity attr (`[PasswordPolicy]`), async entity attr (`[AsyncRegistrationScreen]`) |
+| `Event` | `IValidatableObject` | Sync interface validation plus sync/async attributes: `[ReservedTitleCheck]`, `[DateRange]`, `[AsyncScheduleCheck]`, and inline `Validate()` logic |
+| `Order` | `IAsyncValidatableObject` | Async interface validation plus sync/async attributes: `[AsyncProductExists]`, `[MaxOrderValue]`, `[AsyncInventoryCheck]`, and inline `ValidateAsync()` logic |
+
+### Validation Attribute Inventory
+
+| Attribute | Target | Kind | Notes |
+|-----------|--------|------|-------|
+| `UniqueUsername` | `UserRegistration.Username` | Async property | DI-backed uniqueness check via `UserService` |
+| `UniqueEmail` | `UserRegistration.Email` | Async property | DI-backed uniqueness check via `UserService` |
+| `PasswordPolicy` | `UserRegistration` | Sync entity | Rejects passwords that contain the username |
+| `AsyncRegistrationScreen` | `UserRegistration` | Async entity | Simulates async blocklist / fraud screening |
+| `ReservedTitleCheck` | `Event.Title` | Async property + sync fallback | Case 4: async under `TryValidateObjectAsync`, blocking sync-over-async under `TryValidateObject` |
+| `DateRange` | `Event` | Sync entity | Ensures `StartDate < EndDate` |
+| `AsyncScheduleCheck` | `Event` | Async entity | Simulates external calendar conflict checks |
+| `AsyncProductExists` | `Order.ProductName` | Async property | Simulates async product catalog lookup |
+| `MaxOrderValue` | `Order` | Sync entity | Hard cap on order total |
+| `AsyncInventoryCheck` | `Order` | Async entity | Simulates external inventory verification |
+
+Case 4 is represented by `[ReservedTitleCheck]`: async callers use
+`Validator.TryValidateObjectAsync` and stay non-blocking, while sync callers
+using `Validator.TryValidateObject` force the attribute through a deliberate
+sync-over-async fallback to illustrate the tradeoff.
 
 ---
 
@@ -76,40 +115,42 @@ classes. Uses `AsyncValidationAttribute`, `IAsyncValidatableObject`, and
 
 ### BasicAsyncSample
 
-Minimal sample covering every variation of async validation:
+Minimal sample covering the refactored SharedModels design:
 
 | # | Pattern | Mechanism |
 |---|---------|-----------|
-| 1 | Reusable property attribute (async-only) | `AsyncValidationAttribute` on property |
-| 2 | Reusable property attribute (parameterized) | `AsyncValidationAttribute` on property |
-| 3 | Reusable entity-level (class) attribute | `AsyncValidationAttribute` on class |
-| 4 | Non-reusable entity validation (cross-property) | `IAsyncValidatableObject` |
-| 5 | Non-reusable property-scoped validation | `IAsyncValidatableObject` + `MemberNames` |
+| 1 | Case 1 — attribute-only entity | `UserRegistration` with sync + async property/entity attributes |
+| 2 | Case 2 — sync interface entity | `Event` with `IValidatableObject`, `[DateRange]`, `[AsyncScheduleCheck]`, and `[ReservedTitleCheck]` |
+| 3 | Case 3 — async interface entity | `Order` with `IAsyncValidatableObject`, `[AsyncProductExists]`, `[MaxOrderValue]`, and `[AsyncInventoryCheck]` |
+| 4 | Case 4 — sync-over-async fallback | `ReservedTitleCheck` timing comparison: async-parallel vs sync-blocking |
 
-Includes async-parallel vs sync-sequential timing comparison for Scenario 3.
+Includes an async-parallel vs sync-sequential timing comparison for
+`Event.Title` to show the Case 4 fallback behavior.
 
 ### AsyncValidationConsoleDemo
 
-Advanced sample with DI integration, two-phase validation, infrastructure
-failure handling, and cancellation token propagation.
+Advanced sample that reuses the same three entities with DI integration,
+two-phase validation, `IValidatableObject`, `IAsyncValidatableObject`,
+infrastructure failure handling, and cancellation token propagation.
 
 ---
 
 ## WinForms Samples
 
 ### AsyncBasicSample
-Programmatic UI (no designer). Four tabs (User, Event, Order, Profile) with
-`ErrorProvider` wired to `Validator.TryValidateObjectAsync`.
+Programmatic UI (no designer). Three tabs (`UserRegistration`, `Event`,
+`Order`) with `ErrorProvider` wired to `Validator.TryValidateObjectAsync`.
 
 ### AsyncValidationDemo
-DI-backed validation using `UserRegistration` and `MoneyTransfer` models.
-Demonstrates duplicate detection, `IAsyncValidatableObject`, infrastructure
-error handling, and two-phase validation.
+DI-backed validation using `UserRegistration`, `Event`, and `Order`.
+Demonstrates duplicate detection, two-phase validation, Case 4
+sync-over-async fallback, `IValidatableObject`, `IAsyncValidatableObject`,
+infrastructure error handling, and cancellation-aware validation.
 
 ### AsyncDesignerBasicSample / AsyncDesignerValidationDemo
 Same scenarios as above but with designer-generated `InitializeComponent`
-controls. Shows the pattern for integrating async validation into
-designer-based WinForms apps.
+controls. The basic and DI-backed designer samples now mirror the same
+three-tab entity layout as the code-first WinForms samples.
 
 ---
 
@@ -118,20 +159,23 @@ designer-based WinForms apps.
 ### AsyncManualSample
 Manual `INotifyDataErrorInfo` bridge using `ValidatableViewModelBase` (~50 LOC).
 Calls `Validator.TryValidatePropertyAsync` per-property and
-`Validator.TryValidateObjectAsync` on "Validate All". UI remains responsive.
+`Validator.TryValidateObjectAsync` on "Validate All". The window now presents
+three SharedModels panels (`UserRegistration`, `Event`, `Order`) and remains
+responsive throughout validation.
 
 ### AsyncToolkitSample
 Uses `CommunityToolkit.Mvvm` `ObservableValidator` for zero-boilerplate
 `INotifyDataErrorInfo`. Full-object async validation via
-`Validator.TryValidateObjectAsync` on button click.
+`Validator.TryValidateObjectAsync` on button click, again using the same three
+entity panels.
 
 ---
 
 ## Blazor Samples
 
 ### AsyncBasicSample
-Blazor Server app with five validation pages (User, Event, Order, Profile).
-Since Blazor's built-in `DataAnnotationsValidator` only supports sync
+Blazor Server app with three validation pages (`UserRegistration`, `Event`,
+`Order`). Since Blazor's built-in `DataAnnotationsValidator` only supports sync
 validation, this sample uses `EditContext` + `ValidationMessageStore` to bridge
 async validation into the Blazor form system. `<ValidationMessage>` and
 `<ValidationSummary>` tag helpers still display errors correctly.
@@ -145,17 +189,16 @@ the event subscription and `CancellationTokenSource`.
 
 | # | Pattern | Page |
 |---|---------|------|
-| 1–2 | Reusable async property attributes | UserValidation |
-| 3 | Reusable async entity-level attribute | EventValidation |
-| 4 | `IAsyncValidatableObject` (cross-property) | OrderValidation |
-| 5 | `IAsyncValidatableObject` (property-scoped) | ProfileValidation |
+| 1 | Case 1 — attribute-only validation | `RegistrationValidation` |
+| 2 | Case 2 — `IValidatableObject` + Case 4 fallback | `EventValidation` |
+| 3 | Case 3 — `IAsyncValidatableObject` | `OrderValidation` |
 
 ### AsyncValidationDemo
 DI-backed Blazor Server app demonstrating `UserService` resolution via
 `IServiceProvider` in `ValidationContext`, two-phase validation (sync attr
-fails → async attr skipped), `IAsyncValidatableObject` cross-property
-validation, infrastructure error handling, and `CancellationToken` propagation
-(not possible with sync validation). All pages support cancel-on-field-change
+fails → async attr skipped), `IValidatableObject`, `IAsyncValidatableObject`,
+infrastructure error handling, and `CancellationToken` propagation (not
+possible with sync validation). All three pages support cancel-on-field-change
 via `EditContext.OnFieldChanged` — the same pattern as AsyncBasicSample.
 
 ---
@@ -163,37 +206,40 @@ via `EditContext.OnFieldChanged` — the same pattern as AsyncBasicSample.
 ## Minimal API Samples
 
 ### AsyncBasicSample
-Minimal API with five POST endpoints, each validating request bodies using
-`Validator.TryValidateObjectAsync`. Mirrors the console `BasicAsyncSample`
-scenarios as HTTP endpoints.
+Minimal API with three SharedModels endpoint groups, each validating request
+bodies using `Validator.TryValidateObjectAsync`. Mirrors the console
+`BasicAsyncSample` cases as HTTP endpoints for `UserRegistration`, `Event`, and
+`Order`.
 
 ### AsyncValidationDemo
 DI-backed Minimal API with `UserService` registration, duplicate detection,
-`IAsyncValidatableObject` (MoneyTransfer), infrastructure error handling, and
-real `CancellationToken` propagation via `HttpContext.RequestAborted`.
+two-phase validation, `IValidatableObject`, `IAsyncValidatableObject`,
+infrastructure error handling, and real `CancellationToken` propagation via
+`HttpContext.RequestAborted`.
 
 ### AutoValidationSample (Hybrid)
 Demonstrates that .NET 10's `AddValidation()` automatic validation is **not**
 async validation. Local models (Customer, Address, DemoOrder, ContactFormModel)
 use `AddValidation()` with standard sync attributes. SharedModels endpoints
-use `.DisableValidation()` and manual `Validator.TryValidateObjectAsync` to
-show the async path. This hybrid approach explicitly illustrates when automatic
-validation suffices and when async validation is needed.
+use `.DisableValidation()` and manual `Validator.TryValidateObjectAsync` for
+the refactored `UserRegistration`, `Event`, and `Order` models. This hybrid
+approach explicitly illustrates when automatic validation suffices and when
+async validation is needed.
 
 ---
 
 ## MVC Samples
 
 ### AsyncBasicSample
-MVC app with four entity controllers (User, Event, Order, Profile). Built-in
-`DataAnnotationsModelValidatorProvider` is cleared via
+MVC app with three entity controllers (`Registration`, `Event`, `Order`).
+Built-in `DataAnnotationsModelValidatorProvider` is cleared via
 `ModelValidatorProviders.Clear()` to prevent sync blocking during model
 binding. Controller POST actions are `async Task<IActionResult>` and manually
 call `Validator.TryValidateObjectAsync`, adding errors to `ModelState` so
 existing Razor tag helpers display them without view changes.
 
 ### AsyncValidationDemo
-DI-backed MVC app with `UserService`, duplicate detection, `MoneyTransfer`
+DI-backed MVC app with `UserService`, duplicate detection, `Event` and `Order`
 validation, and infrastructure failure handling. Uses
 `HttpContext.RequestServices` as the `IServiceProvider` in `ValidationContext`.
 The `ErrorHandlingController` wraps async validation in try/catch and uses
@@ -215,10 +261,10 @@ UNIQUE INDEX creation, annotation storage, generated SQL.
 
 ### ModelFinalizingConventionDemo (Path B)
 References SharedModels and uses `IModelFinalizingConvention` to scan ALL
-6 entities for ANY `AsyncValidationAttribute` subclass. Detects 5 async
-attributes (4 property-level, 1 class-level), creates 2 UNIQUE indexes,
-stores 5 annotations, and correctly ignores 3 `IAsyncValidatableObject`-only
-entities (Order, Profile, MoneyTransfer).
+3 entities for ANY `AsyncValidationAttribute` subclass. Detects 7 async
+attributes (4 property-level, 3 class-level), creates 2 UNIQUE indexes, stores
+7 annotations, and ignores interface methods such as `Event.Validate()` and
+`Order.ValidateAsync()` because EF Core conventions only react to attributes.
 
 ---
 
@@ -231,12 +277,14 @@ projects, one per schema-extraction approach.
 ### OpenApiSimulation.PreAttribute (Approach A)
 **Zero attribute modification** — discovers `AsyncValidationAttribute`
 subclasses via pure reflection and extracts metadata by convention to produce
-`x-async-validation` and `x-requires-server-check` schema extensions.
+`x-async-validation` and `x-requires-server-check` schema extensions for the
+refactored `UserRegistration`, `Event`, and `Order` schemas.
 
 ### OpenApiSimulation.SchemaDescriptor (Approach B)
 Attributes implement `ISchemaDescriptor` to self-describe their schema
 contributions (description, format, pattern, extensions). Produces richer
-metadata than Approach A.
+metadata than Approach A while still mapping back to the same three
+SharedModels entity shapes.
 
 ---
 
@@ -296,9 +344,10 @@ dotnet build Console\BasicAsyncSample\BasicAsyncSample.csproj
 dotnet run --no-build --project Console\BasicAsyncSample\BasicAsyncSample.csproj
 ```
 
-Expected output: 5 scenarios print to stdout — valid user, async vs sync timing
-comparison, invalid email domain, invalid date range, IAsyncValidatableObject
-cross-property (Order) and property-scoped (Profile).
+Expected output: a walkthrough of the three SharedModels cases plus the Case 4
+timing comparison — attribute-only `UserRegistration`, `Event` sync-vs-async
+`ReservedTitleCheck` timing with entity-level date/schedule failures, and
+`Order` async business-rule failures.
 
 #### AsyncValidationConsoleDemo
 
@@ -308,9 +357,11 @@ dotnet build Console\AsyncValidationConsoleDemo\AsyncValidationConsoleDemo.cspro
 dotnet run --no-build --project Console\AsyncValidationConsoleDemo\AsyncValidationConsoleDemo.csproj
 ```
 
-Expected output: 5 scenarios — DI duplicate detection, two-phase validation,
-IAsyncValidatableObject (MoneyTransfer), infrastructure failure (`InvalidOperationException`
-caught), and cancellation (`OperationCanceledException` caught).
+Expected output: scenarios covering DI-backed duplicate detection
+(`UserRegistration`), two-phase short-circuiting, `Event`
+`IValidatableObject` validation, `Order` `IAsyncValidatableObject` validation,
+infrastructure failure (`InvalidOperationException` caught), and cancellation
+(`OperationCanceledException` caught).
 
 ### WinForms
 
@@ -322,8 +373,8 @@ dotnet build WinForms\AsyncBasicSample\AsyncBasicSample.csproj
 dotnet run --no-build --project WinForms\AsyncBasicSample\AsyncBasicSample.csproj
 ```
 
-Launches a tabbed WinForms window (User, Event, Order, Profile). Click
-"Validate All (Async)" on each tab to trigger async validation.
+Launches a tabbed WinForms window (`UserRegistration`, `Event`, `Order`).
+Click "Validate All (Async)" on each tab to trigger async validation.
 
 #### AsyncValidationDemo
 
@@ -333,8 +384,9 @@ dotnet build WinForms\AsyncValidationDemo\AsyncValidationDemo.csproj
 dotnet run --no-build --project WinForms\AsyncValidationDemo\AsyncValidationDemo.csproj
 ```
 
-Launches a tabbed window (Registration, Transfer, Error Handling, Two-Phase)
-with DI-backed async validation.
+Launches a DI-backed tabbed window for the same three entities,
+demonstrating duplicate checks, two-phase validation, interface-based entity
+validation, infrastructure failure handling, and cancellation-aware flows.
 
 #### AsyncDesignerBasicSample
 
@@ -344,6 +396,9 @@ dotnet build WinForms\AsyncDesignerBasicSample\AsyncDesignerBasicSample.csproj
 dotnet run --no-build --project WinForms\AsyncDesignerBasicSample\AsyncDesignerBasicSample.csproj
 ```
 
+Designer-based equivalent of `AsyncBasicSample`, using the same three-tab
+layout.
+
 #### AsyncDesignerValidationDemo
 
 ```powershell
@@ -351,6 +406,9 @@ dotnet run --no-build --project WinForms\AsyncDesignerBasicSample\AsyncDesignerB
 dotnet build WinForms\AsyncDesignerValidationDemo\AsyncDesignerValidationDemo.csproj
 dotnet run --no-build --project WinForms\AsyncDesignerValidationDemo\AsyncDesignerValidationDemo.csproj
 ```
+
+Designer-based equivalent of `AsyncValidationDemo`, again using the same three
+entity workflows.
 
 ### WPF
 
@@ -362,7 +420,7 @@ dotnet build WPF\AsyncManualSample\AsyncManualSample.csproj
 dotnet run --no-build --project WPF\AsyncManualSample\AsyncManualSample.csproj
 ```
 
-Launches a WPF window with four entity panels. Validation errors appear as red
+Launches a WPF window with three entity panels. Validation errors appear as red
 borders + tooltips via `INotifyDataErrorInfo`.
 
 #### AsyncToolkitSample
@@ -373,7 +431,8 @@ dotnet build WPF\AsyncToolkitSample\AsyncToolkitSample.csproj
 dotnet run --no-build --project WPF\AsyncToolkitSample\AsyncToolkitSample.csproj
 ```
 
-Uses CommunityToolkit.Mvvm `ObservableValidator` with async validation.
+Uses CommunityToolkit.Mvvm `ObservableValidator` with async validation across
+the same three entity panels.
 
 ### Blazor
 
@@ -385,8 +444,8 @@ dotnet build Blazor\AsyncBasicSample\AsyncBasicSample.csproj
 dotnet run --no-build --project Blazor\AsyncBasicSample\AsyncBasicSample.csproj
 ```
 
-Starts Kestrel on `http://localhost:5200`. Browse to `/user`, `/event`,
-`/order`, `/profile` to test async validation in Blazor forms.
+Starts Kestrel on `http://localhost:5200`. Browse to `/registration`,
+`/event`, `/order` to test async validation in Blazor forms.
 
 #### AsyncValidationDemo
 
@@ -397,9 +456,9 @@ dotnet run --no-build --project Blazor\AsyncValidationDemo\AsyncValidationDemo.c
 ```
 
 Starts Kestrel on `http://localhost:5202`. Browse to `/registration`,
-`/transfer`, `/error-handling`, `/cancellation` to test DI-backed async
-validation in Blazor forms. Try editing a field while validation is in progress
-to see `CancellationToken` cancel the in-flight check.
+`/event`, `/order` to test DI-backed async validation in Blazor forms. Try
+editing a field while validation is in progress to see `CancellationToken`
+cancel the in-flight check.
 
 ### Minimal API
 
@@ -411,17 +470,9 @@ dotnet build MinimalApi\AsyncBasicSample\AsyncBasicSample.csproj
 dotnet run --no-build --project MinimalApi\AsyncBasicSample\AsyncBasicSample.csproj
 ```
 
-Starts Kestrel on `http://localhost:5204`. Test via:
-
-```powershell
-# Valid user → 200
-Invoke-RestMethod -Uri http://localhost:5204/api/user/valid -Method POST `
-    -Body '{"name":"Alice","email":"alice@contoso.com","delay":100}' -ContentType "application/json"
-
-# Invalid email domain → 400
-Invoke-RestMethod -Uri http://localhost:5204/api/user/invalid-email -Method POST `
-    -Body '{"name":"Bob","email":"bob@gmail.com","delay":100}' -ContentType "application/json"
-```
+Starts Kestrel on `http://localhost:5204`. The root endpoint documents the
+three SharedModels endpoint groups (`UserRegistration`, `Event`, `Order`) used
+to exercise the basic async-validation cases.
 
 #### AsyncValidationDemo
 
@@ -431,9 +482,9 @@ dotnet build MinimalApi\AsyncValidationDemo\AsyncValidationDemo.csproj
 dotnet run --no-build --project MinimalApi\AsyncValidationDemo\AsyncValidationDemo.csproj
 ```
 
-Starts Kestrel on `http://localhost:5206`. Endpoints: `/api/register/duplicate`,
-`/api/register/bad-email`, `/api/transfer/invalid`, `/api/register/error`,
-`/api/register/cancellation`.
+Starts Kestrel on `http://localhost:5206`. Endpoints are grouped around
+`UserRegistration`, `Event`, and `Order` workflows, including DI-backed
+validation, infrastructure failure, and cancellation scenarios.
 
 #### AutoValidationSample
 
@@ -444,7 +495,8 @@ dotnet run --no-build --project MinimalApi\AutoValidationSample\AutoValidationSa
 ```
 
 Starts Kestrel on `http://localhost:5208`. Hybrid sample: local models use
-`AddValidation()`, SharedModels endpoints use manual async validation.
+`AddValidation()`, while SharedModels `UserRegistration`, `Event`, and `Order`
+endpoints use manual async validation.
 
 ### MVC
 
@@ -456,8 +508,8 @@ dotnet build Mvc\AsyncBasicSample\AsyncBasicSample.csproj
 dotnet run --no-build --project Mvc\AsyncBasicSample\AsyncBasicSample.csproj
 ```
 
-Starts Kestrel on `http://localhost:5210`. Browse to `/User`, `/Event`,
-`/Order`, `/Profile` to test async validation in MVC controllers.
+Starts Kestrel on `http://localhost:5210`. Browse to `/Registration`, `/Event`,
+`/Order` to test async validation in MVC controllers.
 
 #### AsyncValidationDemo
 
@@ -467,8 +519,8 @@ dotnet build Mvc\AsyncValidationDemo\AsyncValidationDemo.csproj
 dotnet run --no-build --project Mvc\AsyncValidationDemo\AsyncValidationDemo.csproj
 ```
 
-Starts Kestrel on `http://localhost:5212`. Browse to `/Registration`,
-`/Transfer` for DI-backed async validation.
+Starts Kestrel on `http://localhost:5212`. Browse to `/Registration`, `/Event`,
+`/Order` for DI-backed async validation.
 
 ### EfCore
 
@@ -491,8 +543,9 @@ dotnet build EfCore\ModelFinalizingConventionDemo\ModelFinalizingConventionDemo.
 dotnet run --no-build --project EfCore\ModelFinalizingConventionDemo\ModelFinalizingConventionDemo.csproj
 ```
 
-Console app. Expected output: full attribute scan across all 6 SharedModels
-entities, detecting 5 async attributes, creating 2 UNIQUE indexes.
+Console app. Expected output: full attribute scan across all 3 SharedModels
+entities, detecting 7 async attributes, storing 7 annotations, and creating 2
+UNIQUE indexes.
 
 ### OpenApi
 
@@ -504,8 +557,8 @@ dotnet build OpenApi\OpenApiSimulation.PreAttribute\OpenApiSimulation.PreAttribu
 dotnet run --no-build --project OpenApi\OpenApiSimulation.PreAttribute\OpenApiSimulation.PreAttribute.csproj
 ```
 
-Console app. Expected output: JSON Schema with and without the async
-validation transformer, showing `x-async-validation` extensions.
+Console app. Expected output: JSON Schema comparisons for `UserRegistration`,
+`Event`, and `Order`, showing where `x-async-validation` extensions appear.
 
 #### OpenApiSimulation.SchemaDescriptor
 
@@ -516,7 +569,7 @@ dotnet run --no-build --project OpenApi\OpenApiSimulation.SchemaDescriptor\OpenA
 ```
 
 Console app. Expected output: comparison of original vs `ISchemaDescriptor`-
-enabled schemas with richer metadata.
+enabled schemas for the refactored SharedModels entities with richer metadata.
 
 ### Options
 

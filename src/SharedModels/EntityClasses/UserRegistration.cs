@@ -7,8 +7,12 @@ using SharedModels.ValidationClasses;
 namespace SharedModels.EntityClasses;
 
 /// <summary>
-/// Registration model with both sync and async validation attributes.
+/// Case 1: No interface — validation is entirely attribute-driven.
+/// Demonstrates sync + async property-level and entity-level attributes.
+/// DI-backed async property attrs resolve UserService via ValidationContext.GetService().
 /// </summary>
+[PasswordPolicy(nameof(Username), nameof(Password))]
+[AsyncRegistrationScreen]
 public class UserRegistration
 {
     [Required]

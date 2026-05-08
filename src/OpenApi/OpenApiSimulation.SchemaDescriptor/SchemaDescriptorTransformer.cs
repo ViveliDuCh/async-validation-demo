@@ -12,7 +12,7 @@ using System.Reflection;
 /// </summary>
 public static class SchemaDescriptorTransformer
 {
-    public static void Transform(SimulatedPropertySchema schema, PropertyInfo property)
+    public static void TransformProperty(SimulatedPropertySchema schema, PropertyInfo property)
     {
         var descriptors = property
             .GetCustomAttributes(inherit: true)
@@ -44,4 +44,30 @@ public static class SchemaDescriptorTransformer
             }
         }
     }
+
+    public static void TransformClass(SimulatedEntitySchema schema, Type entityType)
+    {
+        var descriptors = entityType
+            .GetCustomAttributes(inherit: true)
+            .OfType<ISchemaDescriptor>();
+
+        foreach (var desc in descriptors)
+        {
+            if (desc.SchemaDescription is { } description)
+            {
+                schema.Description = AppendDescription(schema.Description, description);
+            }
+
+            if (desc.SchemaExtensions is { } extensions)
+            {
+                foreach (var (key, value) in extensions)
+                {
+                    schema.Extensions[key] = value;
+                }
+            }
+        }
+    }
+
+    private static string AppendDescription(string? existing, string next) =>
+        string.IsNullOrEmpty(existing) ? next : $"{existing}; {next}";
 }

@@ -52,7 +52,7 @@ public static class SchemaBuilder
                         propSchema.Pattern = regex.Pattern;
                         break;
                     // Everything else: SILENTLY SKIPPED — this is what happens to
-                    // [UniqueUsername], [UniqueEmail], [EmailAddress], etc.
+                    // [UniqueUsername], [ReservedTitleCheck], [AsyncProductExists], etc.
                 }
             }
 

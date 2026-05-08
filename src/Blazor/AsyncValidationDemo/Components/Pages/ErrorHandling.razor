@@ -4,7 +4,8 @@
 
 <h3>Scenario 4: Infrastructure Failure Handling</h3>
 <p>
-    The username <code>error-trigger</code> simulates a database connection failure.
+    The username <code>error-trigger</code> simulates a database connection failure during
+    DI-backed <code>UserRegistration</code> validation.
     This page wraps <code>Validator.TryValidateObjectAsync</code> in <code>try</code>/<code>catch</code>
     so infrastructure errors can be shown separately from validation results.
 </p>
@@ -18,7 +19,7 @@
 
     <div class="mb-3">
         <label class="form-label">Email</label>
-        <InputText class="form-control" @bind-Value="_registration.Email" />
+        <InputText class="form-control" type="email" @bind-Value="_registration.Email" />
         <ValidationMessage For="@(() => _registration.Email)" />
     </div>
 

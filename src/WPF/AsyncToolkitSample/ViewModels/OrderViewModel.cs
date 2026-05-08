@@ -21,27 +21,27 @@ public partial class OrderViewModel : ObservableValidator
     public string? ProductName
     {
         get => _order.ProductName;
-        set { _order.ProductName = value; SetProperty(_order.ProductName, value, _order, (o, v) => o.ProductName = v, true); }
+        set => SetProperty(_order.ProductName, value, _order, static (item, productName) => item.ProductName = productName, true);
     }
 
     [Range(1, 10_000)]
     public int Quantity
     {
         get => _order.Quantity;
-        set { _order.Quantity = value; OnPropertyChanged(); }
+        set => SetProperty(_order.Quantity, value, _order, static (item, quantity) => item.Quantity = quantity, true);
     }
 
     [Range(0.01, double.MaxValue)]
     public decimal UnitPrice
     {
         get => _order.UnitPrice;
-        set { _order.UnitPrice = value; OnPropertyChanged(); }
+        set => SetProperty(_order.UnitPrice, value, _order, static (item, unitPrice) => item.UnitPrice = unitPrice, true);
     }
 
     public int? Delay
     {
         get => _order.Delay;
-        set { _order.Delay = value; OnPropertyChanged(); }
+        set => SetProperty(_order.Delay, value, _order, static (item, delay) => item.Delay = delay);
     }
 
     public async Task<bool> ValidateAllAsync()

@@ -14,7 +14,7 @@ public class RegistrationController : Controller
         {
             Username = "admin",
             Email = "admin@example.com",
-            Password = "SecureP@ss123"
+            Password = "adminPass"
         };
         return View(model);
     }

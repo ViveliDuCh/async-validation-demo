@@ -23,5 +23,7 @@ public class SimulatedPropertySchema
 public class SimulatedEntitySchema
 {
     public string EntityName { get; set; } = "";
+    public string? Description { get; set; }
     public List<SimulatedPropertySchema> Properties { get; set; } = new();
+    public Dictionary<string, object> Extensions { get; set; } = new();
 }

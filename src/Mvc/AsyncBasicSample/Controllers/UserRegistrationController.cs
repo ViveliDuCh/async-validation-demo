@@ -4,24 +4,24 @@ using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using SharedModels.EntityClasses;
 
-namespace AsyncValidationDemo.Controllers;
+namespace AsyncBasicSample.Controllers;
 
-public class TransferController : Controller
+public class UserRegistrationController : Controller
 {
     public IActionResult Index()
     {
-        var model = new MoneyTransfer
+        var model = new UserRegistration
         {
-            FromAccount = "checking",
-            ToAccount = "checking",
-            Amount = 1000.00m
+            Username = "admin",
+            Email = "admin@example.com",
+            Password = "adminPass"
         };
         return View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(MoneyTransfer model)
+    public async Task<IActionResult> Index(UserRegistration model)
     {
         var results = new List<ValidationResult>();
         var context = new ValidationContext(model, HttpContext.RequestServices, null);
@@ -45,7 +45,7 @@ public class TransferController : Controller
             return View(model);
         }
 
-        ViewBag.SuccessMessage = $"✅ Transfer of ${model.Amount:F2} accepted!";
+        ViewBag.SuccessMessage = $"✅ Registration for '{model.Username}' validated successfully!";
         return View(model);
     }
 }

@@ -8,10 +8,9 @@ namespace AsyncManualSample;
 
 public partial class MainWindow : Window
 {
-    public UserViewModel UserVM { get; } = new();
+    public UserRegistrationViewModel UserRegistrationVM { get; } = new();
     public EventViewModel EventVM { get; } = new();
     public OrderViewModel OrderVM { get; } = new();
-    public ProfileViewModel ProfileVM { get; } = new();
 
     public MainWindow()
     {
@@ -19,20 +18,20 @@ public partial class MainWindow : Window
         DataContext = this;
     }
 
-    private async void ValidateUser_Click(object sender, RoutedEventArgs e)
+    private async void ValidateUserRegistration_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            bool valid = await UserVM.ValidateAllAsync();
-            UserResult.Text = valid ? "✅ Valid!" : "❌ Validation failed (async, UI stayed responsive).";
+            bool valid = await UserRegistrationVM.ValidateAllAsync();
+            UserRegistrationResult.Text = valid ? "✅ Valid!" : "❌ Validation failed (async, UI stayed responsive).";
         }
         catch (OperationCanceledException)
         {
-            UserResult.Text = "⏹️ Validation cancelled.";
+            UserRegistrationResult.Text = "⏹️ Validation cancelled.";
         }
         catch (Exception ex)
         {
-            UserResult.Text = $"⚠️ Validation error: {ex.Message}";
+            UserRegistrationResult.Text = $"⚠️ Validation error: {ex.Message}";
         }
     }
 
@@ -70,20 +69,4 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void ValidateProfile_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            bool valid = await ProfileVM.ValidateAllAsync();
-            ProfileResult.Text = valid ? "✅ Valid!" : "❌ Validation failed (async, UI stayed responsive).";
-        }
-        catch (OperationCanceledException)
-        {
-            ProfileResult.Text = "⏹️ Validation cancelled.";
-        }
-        catch (Exception ex)
-        {
-            ProfileResult.Text = $"⚠️ Validation error: {ex.Message}";
-        }
-    }
 }

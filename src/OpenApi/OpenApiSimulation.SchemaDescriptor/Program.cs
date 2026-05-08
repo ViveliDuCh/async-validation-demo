@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 Console.WriteLine("=== OpenAPI Schema Simulation — ISchemaDescriptor Approach ===");
-Console.WriteLine("(Attributes implement ISchemaDescriptor to self-describe schema contributions)\n");
+Console.WriteLine("(Descriptor-enabled attributes self-describe property and class-level schema contributions)\n");
 
 // ───────────────────────────────────────────
 // Compare original UserRegistration (invisible) vs descriptor-enabled (visible)
@@ -15,12 +15,13 @@ Console.WriteLine("Comparison: Original SharedModels vs ISchemaDescriptor-enable
 
     // ISchemaDescriptor-enabled — attrs self-describe
     var enhanced = SchemaBuilder.BuildSchema<UserRegistrationWithDescriptor>(
-        SchemaDescriptorTransformer.Transform);
-    SchemaPrinter.PrintSchema(enhanced, "UserRegistrationWithDescriptor (ISchemaDescriptor — attrs visible)");
+        SchemaDescriptorTransformer.TransformProperty,
+        SchemaDescriptorTransformer.TransformClass);
+    SchemaPrinter.PrintSchema(enhanced, "UserRegistrationWithDescriptor (ISchemaDescriptor — property + class attrs visible)");
 }
 
 Console.WriteLine("=== Simulation Complete ===");
 Console.WriteLine();
-Console.WriteLine("Key takeaway: Async validation attributes can implement ISchemaDescriptor");
-Console.WriteLine("to self-describe their OpenAPI schema contributions. A single transformer");
-Console.WriteLine("class handles ALL attributes that implement the interface.");
+Console.WriteLine("Key takeaway: Descriptor-enabled copies of the current UserRegistration");
+Console.WriteLine("attributes can self-describe both property and entity-level OpenAPI metadata");
+Console.WriteLine("through one shared ISchemaDescriptor transformer.");

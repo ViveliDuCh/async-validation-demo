@@ -25,12 +25,12 @@
     <div class="col-md-4 mb-3">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Money Transfer</h5>
+                <h5 class="card-title">Order Validation</h5>
                 <p class="card-text">
-                    <code>IAsyncValidatableObject</code> — same-account check + async balance check
-                    with <code>Task.Delay</code>.
+                    <code>Order</code> combines async catalog/inventory checks with sync and async
+                    order-total limits via <code>IAsyncValidatableObject</code>.
                 </p>
-                <a asp-controller="Transfer" class="btn btn-primary">Open Form →</a>
+                <a asp-controller="Order" class="btn btn-primary">Open Form →</a>
             </div>
         </div>
     </div>

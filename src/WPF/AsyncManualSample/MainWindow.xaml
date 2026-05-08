@@ -17,22 +17,22 @@
     </Window.Resources>
 
     <TabControl Margin="10">
-        <TabItem Header="User">
-            <StackPanel Margin="10" DataContext="{Binding UserVM}">
-                <TextBlock Text="Scenarios 1 &amp; 2: Async Reusable Property Attributes" FontWeight="Bold" Margin="0,0,0,10"/>
-                <TextBlock Text="IsValidName + AsyncOnlyEmailDomain attrs with Task.Delay (non-blocking)." Margin="0,0,0,10"/>
+        <TabItem Header="User Registration">
+            <StackPanel Margin="10" DataContext="{Binding UserRegistrationVM}">
+                <TextBlock Text="Scenario 1: DI-backed async registration validation" FontWeight="Bold" Margin="0,0,0,10"/>
+                <TextBlock Text="UserRegistration resolves UserService through ValidationContext for async uniqueness checks." Margin="0,0,0,10"/>
 
-                <Label Content="Name"/>
-                <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+                <Label Content="Username"/>
+                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
 
                 <Label Content="Email"/>
                 <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
 
-                <Label Content="Delay (ms)"/>
-                <TextBox Text="{Binding Delay, UpdateSourceTrigger=PropertyChanged}"/>
+                <Label Content="Password"/>
+                <TextBox Text="{Binding Password, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
 
-                <Button Content="Validate All (Async)" Margin="0,10,0,0" Click="ValidateUser_Click"/>
-                <TextBlock x:Name="UserResult" Margin="0,5,0,0" Foreground="DarkRed"/>
+                <Button Content="Validate All (Async)" Margin="0,10,0,0" Click="ValidateUserRegistration_Click"/>
+                <TextBlock x:Name="UserRegistrationResult" Margin="0,5,0,0" Foreground="DarkRed"/>
             </StackPanel>
         </TabItem>
 
@@ -80,24 +80,5 @@
             </StackPanel>
         </TabItem>
 
-        <TabItem Header="Profile">
-            <StackPanel Margin="10" DataContext="{Binding ProfileVM}">
-                <TextBlock Text="Scenario 5: IAsyncValidatableObject (Property-Scoped)" FontWeight="Bold" Margin="0,0,0,10"/>
-                <TextBlock Text="Profile.ValidateAsync() targets specific members asynchronously." Margin="0,0,0,10"/>
-
-                <Label Content="Username"/>
-                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
-
-                <Label Content="Bio"/>
-                <TextBox Text="{Binding Bio, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"
-                         AcceptsReturn="True" Height="60" TextWrapping="Wrap"/>
-
-                <Label Content="Delay (ms)"/>
-                <TextBox Text="{Binding Delay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                <Button Content="Validate All (Async)" Margin="0,10,0,0" Click="ValidateProfile_Click"/>
-                <TextBlock x:Name="ProfileResult" Margin="0,5,0,0" Foreground="DarkRed"/>
-            </StackPanel>
-        </TabItem>
     </TabControl>
 </Window>

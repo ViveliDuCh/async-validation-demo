@@ -11,7 +11,7 @@ Content-Type: application/json
 {
   "username": "admin",
   "email": "admin@example.com",
-  "password": "SecureP@ss123"
+  "password": "adminPass"
 }
 
 ### ❌ Scenario 2: Invalid email format — async two-phase validation skips UniqueEmail
@@ -24,17 +24,29 @@ Content-Type: application/json
   "password": "SecureP@ss123"
 }
 
-### ❌ Scenario 3: Invalid money transfer — same account + exceeds balance
-POST {{host}}/api/transfer/invalid
+### ❌ Scenario 3: Invalid order — unknown product + total exceeds async/sync limits
+POST {{host}}/api/order/invalid
 Content-Type: application/json
 
 {
-  "fromAccount": "checking",
-  "toAccount": "checking",
-  "amount": 1000.00
+  "productName": "Unknown",
+  "quantity": 1000,
+  "unitPrice": 120,
+  "delay": 100
 }
 
-### ❌ Scenario 4: Infrastructure error — "error-trigger" causes DB failure
+### ❌ Scenario 4: Invalid event — reserved title + New Year's Day conflict + bad date range
+POST {{host}}/api/event/invalid
+Content-Type: application/json
+
+{
+  "title": "Test Event",
+  "startDate": "2027-01-01",
+  "endDate": "2026-12-31",
+  "delay": 100
+}
+
+### ❌ Scenario 5: Infrastructure error — "error-trigger" causes DB failure
 POST {{host}}/api/register/error
 Content-Type: application/json
 
@@ -44,7 +56,7 @@ Content-Type: application/json
   "password": "SecureP@ss123"
 }
 
-### ⚠️ Scenario 5: CancellationToken propagation — request abort/timeout can cancel validation
+### ⚠️ Scenario 6: CancellationToken propagation — request abort/timeout can cancel validation
 POST {{host}}/api/register/cancellation
 Content-Type: application/json
 

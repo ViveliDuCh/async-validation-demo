@@ -21,25 +21,25 @@ public partial class EventViewModel : ObservableValidator
     public string? Title
     {
         get => _event.Title;
-        set { _event.Title = value; SetProperty(_event.Title, value, _event, (e, v) => e.Title = v, true); }
+        set => SetProperty(_event.Title, value, _event, static (item, title) => item.Title = title, true);
     }
 
     public DateTime? StartDate
     {
         get => _event.StartDate;
-        set { _event.StartDate = value; OnPropertyChanged(); }
+        set => SetProperty(_event.StartDate, value, _event, static (item, startDate) => item.StartDate = startDate);
     }
 
     public DateTime? EndDate
     {
         get => _event.EndDate;
-        set { _event.EndDate = value; OnPropertyChanged(); }
+        set => SetProperty(_event.EndDate, value, _event, static (item, endDate) => item.EndDate = endDate);
     }
 
     public int? Delay
     {
         get => _event.Delay;
-        set { _event.Delay = value; OnPropertyChanged(); }
+        set => SetProperty(_event.Delay, value, _event, static (item, delay) => item.Delay = delay);
     }
 
     public async Task<bool> ValidateAllAsync()

@@ -18,7 +18,7 @@ public class OrderViewModel : ValidatableViewModelBase
     public string? ProductName
     {
         get => _order.ProductName;
-        set { _order.ProductName = value; SetAndValidateAsync(ref value, value); }
+        set => SetAndValidateAsync(_order.ProductName, value, productName => _order.ProductName = productName);
     }
 
     public int Quantity

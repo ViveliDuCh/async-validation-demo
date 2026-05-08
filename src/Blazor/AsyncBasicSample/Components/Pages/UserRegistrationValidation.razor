@@ -1,31 +1,31 @@
-@page "/user"
+@page "/registration"
 @using System.Diagnostics
 @implements IDisposable
 
-<h3>Scenarios 1 &amp; 2: Reusable Property Attributes</h3>
+<h3>Scenario 1: Attribute-Driven Registration + DI</h3>
 <p>
-    <strong>IsValidName</strong> and <strong>AsyncOnlyEmailDomain</strong> perform async work.
-    This page uses <code>EditContext</code> + <code>ValidationMessageStore</code> so Blazor can await
-    async I/O without blocking the server thread.
+    <strong>UserRegistration</strong> is validated entirely through attributes.
+    This page uses a local <code>SimpleServiceProvider</code> with <code>UserService</code> so
+    <code>UniqueUsername</code> and <code>UniqueEmail</code> can resolve DI services during async validation.
 </p>
 
-<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="userForm">
+<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="registrationForm">
     <div class="mb-3">
-        <label class="form-label">Name</label>
-        <InputText class="form-control" @bind-Value="_user.Name" />
-        <ValidationMessage For="@(() => _user.Name)" />
+        <label class="form-label">Username</label>
+        <InputText class="form-control" @bind-Value="_registration.Username" />
+        <ValidationMessage For="@(() => _registration.Username)" />
     </div>
 
     <div class="mb-3">
         <label class="form-label">Email</label>
-        <InputText class="form-control" @bind-Value="_user.Email" />
-        <ValidationMessage For="@(() => _user.Email)" />
+        <InputText class="form-control" type="email" @bind-Value="_registration.Email" />
+        <ValidationMessage For="@(() => _registration.Email)" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label">Simulated I/O Delay (ms)</label>
-        <InputNumber class="form-control" @bind-Value="_user.Delay" />
-        <ValidationMessage For="@(() => _user.Delay)" />
+        <label class="form-label">Password</label>
+        <InputText class="form-control" type="password" @bind-Value="_registration.Password" />
+        <ValidationMessage For="@(() => _registration.Password)" />
     </div>
 
     <button type="submit" class="btn btn-primary">
@@ -41,7 +41,16 @@
 }
 
 @code {
-    private readonly User _user = new() { Name = "Bob", Email = "bob@gmail.com", Delay = 3000 };
+    private readonly UserRegistration _registration = new()
+    {
+        Username = "admin",
+        Email = "admin@example.com",
+        Password = "SecureP@ss123"
+    };
+
+    private readonly IServiceProvider _serviceProvider = new SimpleServiceProvider()
+        .Register(new UserService());
+
     private EditContext _editContext = null!;
     private ValidationMessageStore _messageStore = null!;
     private CancellationTokenSource? _cts;
@@ -51,7 +60,7 @@
 
     protected override void OnInitialized()
     {
-        _editContext = new EditContext(_user);
+        _editContext = new EditContext(_registration);
         _messageStore = new ValidationMessageStore(_editContext);
         _editContext.OnFieldChanged += OnFieldChanged;
     }
@@ -76,27 +85,26 @@
         _editContext.NotifyValidationStateChanged();
         await InvokeAsync(StateHasChanged);
 
-        var sw = Stopwatch.StartNew();
         var results = new List<ValidationResult>();
-        var context = new ValidationContext(_user);
+        var context = new ValidationContext(_registration, _serviceProvider, null);
 
         try
         {
-            bool isValid = await Validator.TryValidateObjectAsync(_user, context, results, true, _cts.Token);
+            var sw = Stopwatch.StartNew();
+            bool isValid = await Validator.TryValidateObjectAsync(_registration, context, results, true, _cts.Token);
             sw.Stop();
 
-            AddResultsToMessageStore(_user, results);
+            AddResultsToMessageStore(_registration, results);
             _message = isValid
                 ? $"✅ Valid! Validation took {sw.ElapsedMilliseconds}ms while awaiting async I/O without blocking the server thread."
-                : $"❌ Validation failed after {sw.ElapsedMilliseconds}ms — see errors above.";
+                : $"❌ Validation failed after {sw.ElapsedMilliseconds}ms — see registration errors above.";
             _alertClass = isValid ? "alert-success" : "alert-danger";
         }
         catch (OperationCanceledException)
         {
-            sw.Stop();
             _messageStore.Clear();
             _editContext.NotifyValidationStateChanged();
-            _message = $"⚠️ Validation cancelled after {sw.ElapsedMilliseconds}ms — a field value changed.";
+            _message = "⚠️ Validation cancelled — a field value changed.";
             _alertClass = "alert-warning";
         }
         finally

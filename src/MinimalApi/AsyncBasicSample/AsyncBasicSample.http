@@ -4,54 +4,34 @@
 GET {{host}}/
 Accept: application/json
 
-### ✅ Scenario 1: Valid user — should return 200
-POST {{host}}/api/user/valid
-Content-Type: application/json
-
-{
-  "name": "Alice",
-  "email": "alice@contoso.com",
-  "delay": 100
-}
-
-### ❌ Scenario 2: Invalid email domain — bob@gmail.com ≠ contoso.com
-POST {{host}}/api/user/invalid-email
-Content-Type: application/json
-
-{
-  "name": "Bob",
-  "email": "bob@gmail.com",
-  "delay": 100
-}
-
-### ❌ Scenario 3: Invalid event — StartDate after EndDate
-POST {{host}}/api/event/invalid
-Content-Type: application/json
-
-{
-  "title": "Launch Party",
-  "startDate": "2026-12-25",
-  "endDate": "2026-12-20",
-  "delay": 100
-}
-
-### ❌ Scenario 4: Order over limit — $100k > $50k
-POST {{host}}/api/order/over-limit
-Content-Type: application/json
-
-{
-  "productName": "Widget",
-  "quantity": 10000,
-  "unitPrice": 10,
-  "delay": 100
-}
-
-### ❌ Scenario 5: Invalid profile — "admin" reserved + bio too long
-POST {{host}}/api/profile/invalid
+### ❌ Scenario 1: Invalid registration — duplicate username/email + password contains username
+POST {{host}}/api/register/invalid
 Content-Type: application/json
 
 {
   "username": "admin",
-  "bio": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "email": "admin@example.com",
+  "password": "adminPass"
+}
+
+### ❌ Scenario 2: Invalid event — reserved title + New Year's Day conflict + bad date range
+POST {{host}}/api/event/invalid
+Content-Type: application/json
+
+{
+  "title": "Test Event",
+  "startDate": "2027-01-01",
+  "endDate": "2026-12-31",
+  "delay": 100
+}
+
+### ❌ Scenario 3: Invalid order — unknown product + total exceeds async/sync limits
+POST {{host}}/api/order/invalid
+Content-Type: application/json
+
+{
+  "productName": "Unknown",
+  "quantity": 1000,
+  "unitPrice": 120,
   "delay": 100
 }

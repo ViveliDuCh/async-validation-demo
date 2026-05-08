@@ -2,32 +2,87 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using SharedModels.EntityClasses;
+using SharedModels.ServiceClasses;
 
 namespace AsyncDesignerBasicSample;
 
 /// <summary>
 /// WinForms designer-based async validation with ErrorProvider.
-/// Same 4 scenarios as AsyncBasicSample but using designer-generated controls.
+/// Demonstrates UserRegistration, Event, and Order using designer-generated controls.
 /// </summary>
 public partial class MainForm : Form
 {
-    private readonly User _user = new() { Name = "Bob", Email = "bob@gmail.com", Delay = 3000 };
-    private readonly Event _event = new() { Title = "Launch Party", StartDate = new DateTime(2026, 12, 25), EndDate = new DateTime(2026, 12, 20), Delay = 3000 };
-    private readonly Order _order = new() { ProductName = "Widget", Quantity = 10_000, UnitPrice = 10m, Delay = 3000 };
-    private readonly Profile _profile = new() { Username = "admin", Bio = new string('x', 201), Delay = 3000 };
+    private readonly SimpleServiceProvider _serviceProvider = new SimpleServiceProvider()
+        .Register(new UserService());
+    private readonly UserRegistration _registration = new()
+    {
+        Username = "admin",
+        Email = "admin@example.com",
+        Password = "SecureP@ss123"
+    };
+    private readonly Event _event = new()
+    {
+        Title = "Launch Party",
+        StartDate = new DateTime(2026, 12, 25),
+        EndDate = new DateTime(2026, 12, 20),
+        Delay = 3000
+    };
+    private readonly Order _order = new()
+    {
+        ProductName = "Widget",
+        Quantity = 10_000,
+        UnitPrice = 10m,
+        Delay = 3000
+    };
 
     public MainForm()
     {
         InitializeComponent();
+
+        txtRegistrationPassword.UseSystemPasswordChar = true;
+        txtRegistrationUsername.Validating += async (sender, args) =>
+        {
+            _registration.Username = txtRegistrationUsername.Text;
+            await ValidationHelper.ValidatePropertyAsync(
+                _errorProvider,
+                txtRegistrationUsername,
+                _registration,
+                nameof(UserRegistration.Username),
+                txtRegistrationUsername.Text,
+                _serviceProvider);
+        };
+        txtRegistrationEmail.Validating += async (sender, args) =>
+        {
+            _registration.Email = txtRegistrationEmail.Text;
+            await ValidationHelper.ValidatePropertyAsync(
+                _errorProvider,
+                txtRegistrationEmail,
+                _registration,
+                nameof(UserRegistration.Email),
+                txtRegistrationEmail.Text,
+                _serviceProvider);
+        };
+        txtRegistrationPassword.Validating += async (sender, args) =>
+        {
+            _registration.Password = txtRegistrationPassword.Text;
+            await ValidationHelper.ValidatePropertyAsync(
+                _errorProvider,
+                txtRegistrationPassword,
+                _registration,
+                nameof(UserRegistration.Password),
+                txtRegistrationPassword.Text,
+                _serviceProvider);
+        };
     }
 
-    private async void BtnValidateUser_Click(object? sender, EventArgs e)
+    private async void BtnValidateRegistration_Click(object? sender, EventArgs e)
     {
-        _user.Name = txtUserName.Text;
-        _user.Email = txtUserEmail.Text;
-        if (int.TryParse(txtUserDelay.Text, out int d)) _user.Delay = d;
-        var (valid, results) = await ValidationHelper.ValidateObjectAsync(_user);
-        lblUserResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
+        _registration.Username = txtRegistrationUsername.Text;
+        _registration.Email = txtRegistrationEmail.Text;
+        _registration.Password = txtRegistrationPassword.Text;
+
+        var (valid, results) = await ValidationHelper.ValidateObjectAsync(_registration, _serviceProvider);
+        lblRegistrationResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
     }
 
     private async void BtnValidateEvent_Click(object? sender, EventArgs e)
@@ -35,7 +90,11 @@ public partial class MainForm : Form
         _event.Title = txtEventTitle.Text;
         _event.StartDate = dtpEventStart.Value;
         _event.EndDate = dtpEventEnd.Value;
-        if (int.TryParse(txtEventDelay.Text, out int d)) _event.Delay = d;
+        if (int.TryParse(txtEventDelay.Text, out int delay))
+        {
+            _event.Delay = delay;
+        }
+
         var (valid, results) = await ValidationHelper.ValidateObjectAsync(_event);
         lblEventResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
     }
@@ -43,19 +102,22 @@ public partial class MainForm : Form
     private async void BtnValidateOrder_Click(object? sender, EventArgs e)
     {
         _order.ProductName = txtOrderProduct.Text;
-        if (int.TryParse(txtOrderQty.Text, out int q)) _order.Quantity = q;
-        if (decimal.TryParse(txtOrderPrice.Text, out decimal p)) _order.UnitPrice = p;
-        if (int.TryParse(txtOrderDelay.Text, out int d)) _order.Delay = d;
+        if (int.TryParse(txtOrderQuantity.Text, out int quantity))
+        {
+            _order.Quantity = quantity;
+        }
+
+        if (decimal.TryParse(txtOrderPrice.Text, out decimal price))
+        {
+            _order.UnitPrice = price;
+        }
+
+        if (int.TryParse(txtOrderDelay.Text, out int delay))
+        {
+            _order.Delay = delay;
+        }
+
         var (valid, results) = await ValidationHelper.ValidateObjectAsync(_order);
         lblOrderResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
-    }
-
-    private async void BtnValidateProfile_Click(object? sender, EventArgs e)
-    {
-        _profile.Username = txtProfileUsername.Text;
-        _profile.Bio = txtProfileBio.Text;
-        if (int.TryParse(txtProfileDelay.Text, out int d)) _profile.Delay = d;
-        var (valid, results) = await ValidationHelper.ValidateObjectAsync(_profile);
-        lblProfileResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
     }
 }

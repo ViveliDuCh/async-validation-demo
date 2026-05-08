@@ -1,11 +1,11 @@
 @model Event
 @{ ViewData["Title"] = "Event Validation"; }
 
-<h3>Scenario 3: Entity-Level Attribute (Cross-Field)</h3>
+<h3>Scenario 2: Event Validation with IValidatableObject</h3>
 <p>
-    <code>[AsyncDateRangeValid]</code> is a class-level async attribute that validates
-    StartDate &lt; EndDate. Because it targets the <strong>class</strong> (not a property),
-    the async validation error appears in the <strong>validation summary</strong>.
+    <code>Event</code> uses <code>[ReservedTitleCheck]</code>, <code>[DateRange]</code>,
+    <code>[AsyncScheduleCheck]</code>, and <code>IValidatableObject</code>. Try
+    <code>Test Event</code> with a New Year's Day start date and an end date before the start date.
 </p>
 
 @if (ViewBag.SuccessMessage is not null)

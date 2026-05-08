@@ -18,6 +18,8 @@ public class UniqueEmailDescriptorAttribute : AsyncValidationAttribute, ISchemaD
         new Dictionary<string, object>
         {
             ["x-async-validation"] = true,
+            ["x-requires-server-check"] = true,
+            ["x-async-validation-type"] = "unique-email",
             ["x-uniqueness-check"] = "email"
         };
 

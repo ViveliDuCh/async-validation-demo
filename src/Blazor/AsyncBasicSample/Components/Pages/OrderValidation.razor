@@ -4,7 +4,7 @@
 <h3>Scenario 4: IAsyncValidatableObject — Cross-Property (Order)</h3>
 <p>
     <strong>Order</strong> implements <code>IAsyncValidatableObject.ValidateAsync</code>.
-    Cross-property validation checks that total cost (Quantity × UnitPrice) does not exceed $50,000 while awaiting async I/O without blocking.
+    Async property and entity rules validate product availability, inventory, and total cost while awaiting I/O without blocking.
 </p>
 
 <EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="orderForm">
@@ -47,10 +47,10 @@
 @code {
     private readonly Order _order = new()
     {
-        ProductName = "Widget",
-        Quantity = 10_000,
+        ProductName = "Gadget",
+        Quantity = 6_000,
         UnitPrice = 10m,
-        Delay = 3000
+        Delay = 100
     };
 
     private EditContext _editContext = null!;
@@ -97,7 +97,7 @@
             AddResultsToMessageStore(_order, results);
             _message = isValid
                 ? "✅ Valid!"
-                : "❌ Validation failed — see errors above while async cross-property checks completed without blocking.";
+                : "❌ Validation failed — see order errors above while async cross-property checks completed without blocking.";
             _alertClass = isValid ? "alert-success" : "alert-danger";
         }
         catch (OperationCanceledException)

@@ -1,29 +1,35 @@
-@page "/profile"
+@page "/order"
 @implements IDisposable
 
-<h3>Scenario 5: IAsyncValidatableObject — Property-Scoped (Profile)</h3>
+<h3>Scenario 3: IAsyncValidatableObject — Order</h3>
 <p>
-    <strong>Profile</strong> implements <code>IAsyncValidatableObject.ValidateAsync</code>.
-    Each validation result targets a specific member (Username or Bio) after async checks complete without blocking the server thread.
+    <strong>Order</strong> uses <code>IAsyncValidatableObject.ValidateAsync</code> for async cross-property rules.
+    Product existence, inventory, and total-cost checks all run through the Blazor <code>EditContext</code> bridge.
 </p>
 
-<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="profileForm">
+<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="orderForm">
     <div class="mb-3">
-        <label class="form-label">Username</label>
-        <InputText class="form-control" @bind-Value="_profile.Username" />
-        <ValidationMessage For="@(() => _profile.Username)" />
+        <label class="form-label">Product Name</label>
+        <InputText class="form-control" @bind-Value="_order.ProductName" />
+        <ValidationMessage For="@(() => _order.ProductName)" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label">Bio</label>
-        <InputTextArea class="form-control" @bind-Value="_profile.Bio" />
-        <ValidationMessage For="@(() => _profile.Bio)" />
+        <label class="form-label">Quantity</label>
+        <InputNumber class="form-control" @bind-Value="_order.Quantity" />
+        <ValidationMessage For="@(() => _order.Quantity)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Unit Price</label>
+        <InputNumber class="form-control" @bind-Value="_order.UnitPrice" />
+        <ValidationMessage For="@(() => _order.UnitPrice)" />
     </div>
 
     <div class="mb-3">
         <label class="form-label">Simulated I/O Delay (ms)</label>
-        <InputNumber class="form-control" @bind-Value="_profile.Delay" />
-        <ValidationMessage For="@(() => _profile.Delay)" />
+        <InputNumber class="form-control" @bind-Value="_order.Delay" />
+        <ValidationMessage For="@(() => _order.Delay)" />
     </div>
 
     <button type="submit" class="btn btn-primary">
@@ -39,11 +45,12 @@
 }
 
 @code {
-    private readonly Profile _profile = new()
+    private readonly Order _order = new()
     {
-        Username = "admin",
-        Bio = new string('x', 201),
-        Delay = 3000
+        ProductName = "Gadget",
+        Quantity = 6_000,
+        UnitPrice = 10m,
+        Delay = 100
     };
 
     private EditContext _editContext = null!;
@@ -55,7 +62,7 @@
 
     protected override void OnInitialized()
     {
-        _editContext = new EditContext(_profile);
+        _editContext = new EditContext(_order);
         _messageStore = new ValidationMessageStore(_editContext);
         _editContext.OnFieldChanged += OnFieldChanged;
     }
@@ -81,16 +88,16 @@
         await InvokeAsync(StateHasChanged);
 
         var results = new List<ValidationResult>();
-        var context = new ValidationContext(_profile);
+        var context = new ValidationContext(_order);
 
         try
         {
-            bool isValid = await Validator.TryValidateObjectAsync(_profile, context, results, true, _cts.Token);
+            bool isValid = await Validator.TryValidateObjectAsync(_order, context, results, true, _cts.Token);
 
-            AddResultsToMessageStore(_profile, results);
+            AddResultsToMessageStore(_order, results);
             _message = isValid
-                ? "✅ Valid!"
-                : "❌ Validation failed — see property-scoped errors above.";
+                ? "✅ Order valid!"
+                : "❌ Validation failed — see order errors above.";
             _alertClass = isValid ? "alert-success" : "alert-danger";
         }
         catch (OperationCanceledException)

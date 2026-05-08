@@ -9,7 +9,7 @@ namespace AsyncDesignerValidationDemo;
 
 /// <summary>
 /// WinForms designer-based async validation demo with DI,
-/// two-phase validation, error handling, and IAsyncValidatableObject.
+/// event/order validation, two-phase validation, and error handling.
 /// </summary>
 public partial class MainForm : Form
 {
@@ -20,6 +20,9 @@ public partial class MainForm : Form
         InitializeComponent();
         _serviceProvider = new SimpleServiceProvider()
             .Register(new UserService());
+        txtRegPassword.UseSystemPasswordChar = true;
+        txtErrorPassword.UseSystemPasswordChar = true;
+        txtTwoPhasePassword.UseSystemPasswordChar = true;
     }
 
     private async void BtnValidateReg_Click(object? sender, EventArgs e)
@@ -54,31 +57,61 @@ public partial class MainForm : Form
         }
     }
 
-    private async void BtnValidateTransfer_Click(object? sender, EventArgs e)
+    private async void BtnValidateOrder_Click(object? sender, EventArgs e)
     {
-        var transfer = new MoneyTransfer
+        var order = new Order
         {
-            FromAccount = txtTransferFrom.Text,
-            ToAccount = txtTransferTo.Text,
-            Amount = decimal.TryParse(txtTransferAmount.Text, out decimal a) ? a : 0m
+            ProductName = txtOrderProduct.Text,
+            Quantity = int.TryParse(txtOrderQuantity.Text, out int quantity) ? quantity : 0,
+            UnitPrice = decimal.TryParse(txtOrderPrice.Text, out decimal unitPrice) ? unitPrice : 0m,
+            Delay = int.TryParse(txtOrderDelay.Text, out int delay) ? delay : null
         };
 
-        var context = new ValidationContext(transfer, _serviceProvider, null);
+        var context = new ValidationContext(order);
         var results = new List<ValidationResult>();
         try
         {
-            bool isValid = await Validator.TryValidateObjectAsync(transfer, context, results, true);
-            lblTransferResult.Text = isValid
+            bool isValid = await Validator.TryValidateObjectAsync(order, context, results, true);
+            lblOrderResult.Text = isValid
                 ? "✅ Valid!"
                 : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
         }
         catch (OperationCanceledException)
         {
-            lblTransferResult.Text = "⏹️ Validation was cancelled.";
+            lblOrderResult.Text = "⏹️ Validation was cancelled.";
         }
         catch (Exception ex)
         {
-            lblTransferResult.Text = $"⚠️ Validation error: {ex.Message}";
+            lblOrderResult.Text = $"⚠️ Validation error: {ex.Message}";
+        }
+    }
+
+    private async void BtnValidateEvent_Click(object? sender, EventArgs e)
+    {
+        var eventModel = new Event
+        {
+            Title = txtEventTitle.Text,
+            StartDate = dtpEventStart.Value,
+            EndDate = dtpEventEnd.Value,
+            Delay = int.TryParse(txtEventDelay.Text, out int delay) ? delay : null
+        };
+
+        var context = new ValidationContext(eventModel);
+        var results = new List<ValidationResult>();
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(eventModel, context, results, true);
+            lblEventResult.Text = isValid
+                ? "✅ Valid!"
+                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
+        }
+        catch (OperationCanceledException)
+        {
+            lblEventResult.Text = "⏹️ Validation was cancelled.";
+        }
+        catch (Exception ex)
+        {
+            lblEventResult.Text = $"⚠️ Validation error: {ex.Message}";
         }
     }
 

@@ -20,6 +20,8 @@ public class UniqueUsernameDescriptorAttribute : AsyncValidationAttribute, ISche
         new Dictionary<string, object>
         {
             ["x-async-validation"] = true,
+            ["x-requires-server-check"] = true,
+            ["x-async-validation-type"] = "unique-username",
             ["x-uniqueness-check"] = "username"
         };
 
