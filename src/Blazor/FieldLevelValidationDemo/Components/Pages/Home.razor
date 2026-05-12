@@ -1,0 +1,77 @@
+@page "/"
+
+<h3>Field-Level Async Validation — Blazor Web App</h3>
+<p>
+    This app demonstrates the <strong>new field-level async validation</strong> added to Blazor's
+    <code>DataAnnotationsValidator</code> and <code>EditContext</code>. Unlike the existing
+    form-level samples that manually call <code>Validator.TryValidateObjectAsync</code> on submit,
+    these pages use <code>&lt;DataAnnotationsValidator /&gt;</code> which now <strong>automatically</strong>
+    validates each field asynchronously when its value changes.
+</p>
+
+<div class="alert alert-primary">
+    <strong>Key difference:</strong> Existing Blazor samples validate the entire model on submit
+    (form-level). This app validates individual fields on change (field-level) using
+    <code>Validator.TryValidatePropertyAsync</code> — powered by the new <code>EditContext</code>
+    APIs: <code>AddValidationTask</code>, <code>IsValidationPending</code>, and
+    <code>IsValidationFaulted</code>.
+</div>
+
+<div class="list-group">
+    <a href="/registration" class="list-group-item list-group-item-action">
+        <strong>Registration:</strong> <code>UserRegistration</code> with DI-backed
+        <code>[UniqueUsername]</code> and <code>[UniqueEmail]</code> — async field validation
+        triggers on field change with per-field pending spinners
+    </a>
+    <a href="/order" class="list-group-item list-group-item-action">
+        <strong>Order:</strong> <code>Order</code> (<code>IAsyncValidatableObject</code>) —
+        field-level <code>[AsyncProductExists]</code> + form-level cross-property
+        <code>ValidateAsync()</code>
+    </a>
+    <a href="/event" class="list-group-item list-group-item-action">
+        <strong>Event:</strong> <code>Event</code> (<code>IValidatableObject</code>) —
+        field-level <code>[ReservedTitleCheck]</code> async property check + sync entity
+        <code>Validate()</code>
+    </a>
+    <a href="/pending-faulted" class="list-group-item list-group-item-action">
+        <strong>Pending &amp; Faulted:</strong> <code>IsValidationPending()</code> per-field
+        spinners and <code>IsValidationFaulted()</code> per-field error badges — demonstrates
+        the new state-tracking APIs
+    </a>
+    <a href="/comparison" class="list-group-item list-group-item-action">
+        <strong>Comparison:</strong> Side-by-side form-level (manual, ~60 LOC) vs field-level
+        (<code>DataAnnotationsValidator</code>, ~10 LOC) — same model, same attributes, less code
+    </a>
+</div>
+
+<h4 class="mt-4">New EditContext APIs</h4>
+<table class="table table-bordered table-sm">
+    <thead class="table-light">
+        <tr>
+            <th>API</th>
+            <th>Purpose</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>ValidateAsync()</code></td>
+            <td>Async form-level validation (replaces manual <code>TryValidateObjectAsync</code>)</td>
+        </tr>
+        <tr>
+            <td><code>AddValidationTask(field, task, cts)</code></td>
+            <td>Tracks per-field async validation with auto-cancellation on re-type</td>
+        </tr>
+        <tr>
+            <td><code>IsValidationPending(field)</code></td>
+            <td>Returns <code>true</code> while a field's async validation is in flight</td>
+        </tr>
+        <tr>
+            <td><code>IsValidationFaulted(field)</code></td>
+            <td>Returns <code>true</code> if a field's async validation threw an exception</td>
+        </tr>
+        <tr>
+            <td><code>OnAsyncValidationRequested</code></td>
+            <td>Async delegate replacing <code>OnValidationRequested</code> for form submit</td>
+        </tr>
+    </tbody>
+</table>

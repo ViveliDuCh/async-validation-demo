@@ -19,8 +19,17 @@
     <Reference Include="Microsoft.AspNetCore.Components.Forms"
                HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Components.Forms.dll"
                Private="true" />
+    <Reference Include="Microsoft.AspNetCore.Components.Web"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Components.Web.dll"
+               Private="true" />
     <Reference Include="Microsoft.AspNetCore.Mvc.DataAnnotations"
                HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Mvc.DataAnnotations.dll"
+               Private="true" />
+    <Reference Include="Microsoft.AspNetCore.Mvc.Abstractions"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Mvc.Abstractions.dll"
+               Private="true" />
+    <Reference Include="Microsoft.AspNetCore.Mvc.Core"
+               HintPath="$(LocalPackagesDir)\aspnetcore\Microsoft.AspNetCore.Mvc.Core.dll"
                Private="true" />
   </ItemGroup>
 

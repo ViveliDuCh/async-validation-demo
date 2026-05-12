@@ -45,7 +45,9 @@ src/
 │
 ├── Blazor/
 │   ├── AsyncBasicSample/                ← EditContext + ValidationMessageStore async bridge (3 pages)
-│   └── AsyncValidationDemo/             ← DI, two-phase, error handling, cancellation across 3 pages
+│   ├── AsyncValidationDemo/             ← DI, two-phase, error handling, cancellation across 3 pages
+│   ├── FieldLevelValidationDemo/        ← DataAnnotationsValidator field-level async (5 pages)
+│   └── MevValidationDemo/              ← MEV source-gen vs fallback path comparison (5 pages)
 │
 ├── MinimalApi/
 │   ├── AsyncBasicSample/                ← Manual TryValidateObjectAsync for 3 entity endpoint groups
@@ -173,12 +175,13 @@ entity panels.
 
 ## Blazor Samples
 
-### AsyncBasicSample
+### AsyncBasicSample (Form-Level)
 Blazor Server app with three validation pages (`UserRegistration`, `Event`,
-`Order`). Since Blazor's built-in `DataAnnotationsValidator` only supports sync
-validation, this sample uses `EditContext` + `ValidationMessageStore` to bridge
-async validation into the Blazor form system. `<ValidationMessage>` and
-`<ValidationSummary>` tag helpers still display errors correctly.
+`Order`). Uses the **form-level** manual pattern: `EditContext` +
+`ValidationMessageStore` + manual `Validator.TryValidateObjectAsync()` on
+submit to bridge async validation into the Blazor form system.
+`<ValidationMessage>` and `<ValidationSummary>` tag helpers still display
+errors correctly.
 
 All pages pass a `CancellationToken` to `TryValidateObjectAsync` and subscribe
 to `EditContext.OnFieldChanged` — editing any field while validation is in
@@ -193,13 +196,58 @@ the event subscription and `CancellationTokenSource`.
 | 2 | Case 2 — `IValidatableObject` + Case 4 fallback | `EventValidation` |
 | 3 | Case 3 — `IAsyncValidatableObject` | `OrderValidation` |
 
-### AsyncValidationDemo
+### AsyncValidationDemo (Form-Level)
 DI-backed Blazor Server app demonstrating `UserService` resolution via
 `IServiceProvider` in `ValidationContext`, two-phase validation (sync attr
 fails → async attr skipped), `IValidatableObject`, `IAsyncValidatableObject`,
 infrastructure error handling, and `CancellationToken` propagation (not
 possible with sync validation). All three pages support cancel-on-field-change
 via `EditContext.OnFieldChanged` — the same pattern as AsyncBasicSample.
+
+### FieldLevelValidationDemo (Field-Level)
+Blazor Server app demonstrating the **new field-level async validation**
+capability added to `DataAnnotationsValidator` and `EditContext`. Unlike the
+form-level samples above, this app uses `<DataAnnotationsValidator />` which
+now **automatically** validates each field asynchronously when its value
+changes via `Validator.TryValidatePropertyAsync`.
+
+Key architectural differences from form-level samples:
+- **`<DataAnnotationsValidator />`** wires up async validation automatically —
+  no manual `ValidationMessageStore` or `CancellationTokenSource`
+- **Field-level validation on change** — `OnFieldChanged` →
+  `ValidateFieldWithRuntimeAsync` → `TryValidatePropertyAsync` runs per-field
+- **`IsValidationPending(field)`** — per-field loading spinners while async
+  validation is in flight
+- **`IsValidationFaulted(field)`** — per-field error badges when validation
+  infrastructure fails
+- **`AddValidationTask()` auto-cancellation** — no manual CTS management;
+  re-typing cancels the previous field validation automatically
+- **`ValidateAsync()` on submit** — replaces manual `TryValidateObjectAsync`
+  call; also cancels all pending field tasks before running form-level
+
+| # | Pattern | Page |
+|---|---------|------|
+| 1 | `UserRegistration` with DI-backed field-level async | `FieldLevelRegistration` |
+| 2 | `Order` (`IAsyncValidatableObject`) field + form level | `FieldLevelOrder` |
+| 3 | `Event` (`IValidatableObject`) field-level async | `FieldLevelEvent` |
+| 4 | `IsValidationPending` / `IsValidationFaulted` per-field | `PendingFaultedDemo` |
+| 5 | Side-by-side form-level vs field-level comparison | `ComparisonDemo` |
+
+### MevValidationDemo (MEV Source-Gen vs Fallback — NEW)
+Blazor Server app testing the **MEV (Microsoft.Extensions.Validation)** source-gen
+code path in `DataAnnotationsValidator`. When `AddValidation()` is called and a
+model has `[ValidatableType]`, `DataAnnotationsValidator` routes through
+`TryValidateTypeInfoAsync` → `IValidatableInfo.ValidateAsync` →
+`asyncAttr.GetValidationResultAsync()`. Models without `[ValidatableType]` fall
+back to `ValidateWithDefaultValidatorAsync` → `Validator.TryValidateObjectAsync()`.
+
+| # | Pattern | Page |
+|---|---------|------|
+| 1 | `MevUserRegistration` `[ValidatableType]` → MEV path | `MevRegistration` |
+| 2 | `MevOrder` `[ValidatableType]` + `IAsyncValidatableObject` → MEV path | `MevOrder` |
+| 3 | `SharedModels.UserRegistration` (no `[ValidatableType]`) → Fallback path | `FallbackRegistration` |
+| 4 | `SharedModels.Order` (no `[ValidatableType]`) → Fallback path | `FallbackOrder` |
+| 5 | Side-by-side MEV vs Fallback comparison | `MevVsFallbackComparison` |
 
 ---
 
@@ -231,19 +279,20 @@ async validation is needed.
 ## MVC Samples
 
 ### AsyncBasicSample
-MVC app with three entity controllers (`Registration`, `Event`, `Order`).
-Built-in `DataAnnotationsModelValidatorProvider` is cleared via
-`ModelValidatorProviders.Clear()` to prevent sync blocking during model
-binding. Controller POST actions are `async Task<IActionResult>` and manually
-call `Validator.TryValidateObjectAsync`, adding errors to `ModelState` so
-existing Razor tag helpers display them without view changes.
+MVC app with three entity controllers (`UserRegistration`, `Event`, `Order`).
+The built-in `DataAnnotationsModelValidator` now implements
+`IAsyncModelValidator`, so `ValidationVisitor.ValidateNodeAsync()` calls
+`ValidateAsync()` during model binding — async attributes and
+`IAsyncValidatableObject` run natively without blocking. Controller POST
+actions check `ModelState.IsValid` which is populated by the async pipeline.
+Existing Razor tag helpers display validation errors without view changes.
 
 ### AsyncValidationDemo
-DI-backed MVC app with `UserService`, duplicate detection, `Event` and `Order`
-validation, and infrastructure failure handling. Uses
-`HttpContext.RequestServices` as the `IServiceProvider` in `ValidationContext`.
-The `ErrorHandlingController` wraps async validation in try/catch and uses
-`UseExceptionHandler` for unhandled errors.
+DI-backed MVC app with `UserService`, duplicate detection, `Order`
+(`IAsyncValidatableObject`), and infrastructure failure handling. The async MVC
+pipeline populates `ModelState` during model binding via
+`IAsyncModelValidator.ValidateAsync()`. The `ErrorHandlingController` handles
+infrastructure errors via `UseExceptionHandler`.
 
 ---
 
@@ -459,6 +508,32 @@ Starts Kestrel on `http://localhost:5202`. Browse to `/registration`,
 `/event`, `/order` to test DI-backed async validation in Blazor forms. Try
 editing a field while validation is in progress to see `CancellationToken`
 cancel the in-flight check.
+
+#### FieldLevelValidationDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Blazor\FieldLevelValidationDemo\FieldLevelValidationDemo.csproj
+dotnet run --no-build --project Blazor\FieldLevelValidationDemo\FieldLevelValidationDemo.csproj
+```
+
+Starts Kestrel on `http://localhost:5210`. Browse to `/registration`, `/order`,
+`/event` for field-level async validation with per-field spinners.
+`/pending-faulted` shows `IsValidationPending` / `IsValidationFaulted` state
+tracking. `/comparison` shows side-by-side form-level vs field-level code.
+
+#### MevValidationDemo
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src
+dotnet build Blazor\MevValidationDemo\MevValidationDemo.csproj
+dotnet run --no-build --project Blazor\MevValidationDemo\MevValidationDemo.csproj
+```
+
+Starts Kestrel on `http://localhost:5214`. Browse to `/mev-registration` and
+`/mev-order` for MEV source-gen path validation. `/fallback-registration` and
+`/fallback-order` use SharedModels entities via the runtime Validator fallback.
+`/comparison` shows both paths side-by-side.
 
 ### Minimal API
 
@@ -695,7 +770,7 @@ local-packages/
 │       └── System.ComponentModel.Annotations.dll   ← Ref assembly (compiler type info)
 └── aspnetcore/
     ├── Microsoft.Extensions.Validation.dll          ← Async-aware leaf calls
-    ├── Microsoft.AspNetCore.Components.Forms.dll    ← EditContext.ValidateAsync()
+    ├── Microsoft.AspNetCore.Components.Forms.dll    ← EditContext.ValidateAsync(), AddValidationTask, IsValidationPending/Faulted, field-level async
     ├── Microsoft.AspNetCore.Mvc.DataAnnotations.dll ← IAsyncModelValidator
     ├── Microsoft.AspNetCore.Components.dll           ← Transitive dependency
     ├── Microsoft.AspNetCore.Mvc.Core.dll              ← Transitive dependency
@@ -708,7 +783,7 @@ local-packages/
 |-----|--------|------------------|
 | `System.ComponentModel.Annotations.dll` | `dotnet/runtime` (`async-validation` branch) | `AsyncValidationAttribute`, `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, `TryValidatePropertyAsync`, `TryValidateValueAsync` |
 | `Microsoft.Extensions.Validation.dll` | `dotnet/aspnetcore` (`async-validation` branch) | `ValidatablePropertyInfo`, `ValidatableTypeInfo` — `is AsyncValidationAttribute` branching + `IAsyncValidatableObject.ValidateAsync` support |
-| `Microsoft.AspNetCore.Components.Forms.dll` | `dotnet/aspnetcore` (`async-validation` branch) | `EditContext.ValidateAsync()`, `OnAsyncValidationRequested` event |
+| `Microsoft.AspNetCore.Components.Forms.dll` | `dotnet/aspnetcore` (`async-validation` branch) | `EditContext.ValidateAsync()`, `OnAsyncValidationRequested` event, `AddValidationTask()`, `IsValidationPending()`, `IsValidationFaulted()`, field-level `TryValidatePropertyAsync` via `OnFieldChanged` |
 | `Microsoft.AspNetCore.Mvc.DataAnnotations.dll` | `dotnet/aspnetcore` (`async-validation` branch) | `IAsyncModelValidator`, `DataAnnotationsModelValidator.ValidateAsync()` |
 
 ### How to Rebuild Local Packages
@@ -863,6 +938,8 @@ dotnet/runtime                          dotnet/aspnetcore
 
 ## Async API Surface
 
+### Core Runtime (`System.ComponentModel.Annotations`)
+
 - `AsyncValidationAttribute` — Abstract base for async validation attributes
 - `IAsyncValidatableObject` — Interface for object-level async validation
 - `Validator.TryValidateObjectAsync` — Async version of `TryValidateObject`
@@ -871,3 +948,13 @@ dotnet/runtime                          dotnet/aspnetcore
 - `Validator.ValidateObjectAsync` — Async version of `ValidateObject`
 - `Validator.ValidatePropertyAsync` — Async version of `ValidateProperty`
 - `Validator.ValidateValueAsync` — Async version of `ValidateValue`
+
+### Blazor EditContext (`Microsoft.AspNetCore.Components.Forms`)
+
+- `EditContext.ValidateAsync()` — Async form-level validation; cancels all pending field tasks first
+- `EditContext.AddValidationTask(field, task, cts)` — Tracks per-field async validation with auto-cancellation on re-type
+- `EditContext.IsValidationPending(field)` — Returns `true` while a field's async validation is in flight
+- `EditContext.IsValidationPending()` — Returns `true` if any field has a pending async task
+- `EditContext.IsValidationFaulted(field)` — Returns `true` if a field's async validation threw an exception
+- `EditContext.IsValidationFaulted()` — Returns `true` if any field has a faulted async task
+- `EditContext.OnAsyncValidationRequested` — Async delegate replacing `OnValidationRequested` for form submit

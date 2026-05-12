@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SharedModels.EntityClasses;
@@ -24,37 +21,14 @@ public class ErrorHandlingController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(UserRegistration model)
     {
-        try
+        // MVC's async validation pipeline populates ModelState during model binding.
+        if (!ModelState.IsValid)
         {
-            var results = new List<ValidationResult>();
-            var context = new ValidationContext(model, HttpContext.RequestServices, null);
-            bool isValid = await Validator.TryValidateObjectAsync(model, context, results, validateAllProperties: true);
-
-            if (!isValid)
-            {
-                foreach (var result in results)
-                {
-                    foreach (var member in result.MemberNames)
-                    {
-                        ModelState.AddModelError(member, result.ErrorMessage ?? "Validation failed.");
-                    }
-
-                    if (!result.MemberNames.Any())
-                    {
-                        ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Validation failed.");
-                    }
-                }
-
-                return View(model);
-            }
-
-            ViewBag.SuccessMessage = "✅ This should not appear for 'error-trigger'.";
             return View(model);
         }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
+
+        ViewBag.SuccessMessage = "✅ This should not appear for 'error-trigger'.";
+        return View(model);
     }
 
     [Route("ErrorHandling/Error")]

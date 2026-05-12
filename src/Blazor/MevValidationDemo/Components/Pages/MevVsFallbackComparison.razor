@@ -1,0 +1,195 @@
+@page "/comparison"
+@inject IServiceProvider ServiceProvider
+
+<h3>Side-by-Side: MEV vs Fallback Path</h3>
+<p>
+    Both panels use <code>&lt;DataAnnotationsValidator /&gt;</code> with the same async attributes
+    and the same <code>AddValidation()</code> registered. The <strong>only difference</strong> is
+    whether the model has <code>[ValidatableType]</code> — which determines whether
+    <code>DataAnnotationsValidator</code> uses the MEV source-gen path or the runtime fallback.
+</p>
+
+<div class="row">
+    @* ─── LEFT: MEV Path ─── *@
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <strong>MEV Path</strong>
+                <span class="badge bg-light text-dark ms-2">[ValidatableType]</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    <code>MevUserRegistration</code> → <code>TryValidateTypeInfoAsync</code> → <code>GetValidationResultAsync()</code>
+                </p>
+                <EditForm EditContext="@_editContextMev" OnSubmit="@HandleSubmitMev" FormName="cmpMevForm">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <div class="input-group">
+                            <InputText class="form-control" @bind-Value="_regMev.Username" />
+                            @if (_editContextMev.IsValidationPending(() => _regMev.Username))
+                            {
+                                <span class="input-group-text">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                </span>
+                            }
+                        </div>
+                        <ValidationMessage For="@(() => _regMev.Username)" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <div class="input-group">
+                            <InputText class="form-control" type="email" @bind-Value="_regMev.Email" />
+                            @if (_editContextMev.IsValidationPending(() => _regMev.Email))
+                            {
+                                <span class="input-group-text">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                </span>
+                            }
+                        </div>
+                        <ValidationMessage For="@(() => _regMev.Email)" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <InputText class="form-control" type="password" @bind-Value="_regMev.Password" />
+                        <ValidationMessage For="@(() => _regMev.Password)" />
+                    </div>
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSubmittingMev || _editContextMev.IsValidationPending())">
+                        @(_isSubmittingMev || _editContextMev.IsValidationPending() ? "Validating (MEV)..." : "Submit (MEV)")
+                    </button>
+                    <ValidationSummary class="mt-3" />
+                </EditForm>
+                @if (_messageMev is not null)
+                {
+                    <div class="alert @_alertClassMev mt-3">@_messageMev</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ─── RIGHT: Fallback Path ─── *@
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <strong>Fallback Path</strong>
+                <span class="badge bg-warning text-dark ms-2">No [ValidatableType]</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    <code>SharedModels.UserRegistration</code> → <code>ValidateWithDefaultValidatorAsync</code> → <code>TryValidateObjectAsync()</code>
+                </p>
+                <EditForm EditContext="@_editContextFb" OnSubmit="@HandleSubmitFb" FormName="cmpFbForm">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <div class="input-group">
+                            <InputText class="form-control" @bind-Value="_regFb.Username" />
+                            @if (_editContextFb.IsValidationPending(() => _regFb.Username))
+                            {
+                                <span class="input-group-text">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                </span>
+                            }
+                        </div>
+                        <ValidationMessage For="@(() => _regFb.Username)" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <div class="input-group">
+                            <InputText class="form-control" type="email" @bind-Value="_regFb.Email" />
+                            @if (_editContextFb.IsValidationPending(() => _regFb.Email))
+                            {
+                                <span class="input-group-text">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                </span>
+                            }
+                        </div>
+                        <ValidationMessage For="@(() => _regFb.Email)" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <InputText class="form-control" type="password" @bind-Value="_regFb.Password" />
+                        <ValidationMessage For="@(() => _regFb.Password)" />
+                    </div>
+                    <button type="submit" class="btn btn-secondary" disabled="@(_isSubmittingFb || _editContextFb.IsValidationPending())">
+                        @(_isSubmittingFb || _editContextFb.IsValidationPending() ? "Validating (Fallback)..." : "Submit (Fallback)")
+                    </button>
+                    <ValidationSummary class="mt-3" />
+                </EditForm>
+                @if (_messageFb is not null)
+                {
+                    <div class="alert @_alertClassFb mt-3">@_messageFb</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // ─── MEV panel ───
+    private readonly Models.MevUserRegistration _regMev = new()
+    {
+        Username = "admin",
+        Email = "admin@example.com",
+        Password = "SecureP@ss123"
+    };
+
+    private EditContext _editContextMev = null!;
+    private bool _isSubmittingMev;
+    private string? _messageMev;
+    private string _alertClassMev = "alert-info";
+
+    // ─── Fallback panel ───
+    private readonly UserRegistration _regFb = new()
+    {
+        Username = "admin",
+        Email = "admin@example.com",
+        Password = "SecureP@ss123"
+    };
+
+    private EditContext _editContextFb = null!;
+    private bool _isSubmittingFb;
+    private string? _messageFb;
+    private string _alertClassFb = "alert-info";
+
+    protected override void OnInitialized()
+    {
+        _editContextMev = new EditContext(_regMev);
+        _editContextMev.OnValidationStateChanged += (_, _) => InvokeAsync(StateHasChanged);
+
+        _editContextFb = new EditContext(_regFb);
+        _editContextFb.OnValidationStateChanged += (_, _) => InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleSubmitMev()
+    {
+        _isSubmittingMev = true;
+        _messageMev = null;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            bool isValid = await _editContextMev.ValidateAsync();
+            _messageMev = isValid
+                ? "✅ MEV: valid via GetValidationResultAsync"
+                : "❌ MEV: failed via GetValidationResultAsync";
+            _alertClassMev = isValid ? "alert-success" : "alert-danger";
+        }
+        finally { _isSubmittingMev = false; }
+    }
+
+    private async Task HandleSubmitFb()
+    {
+        _isSubmittingFb = true;
+        _messageFb = null;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            bool isValid = await _editContextFb.ValidateAsync();
+            _messageFb = isValid
+                ? "✅ Fallback: valid via TryValidateObjectAsync"
+                : "❌ Fallback: failed via TryValidateObjectAsync";
+            _alertClassFb = isValid ? "alert-success" : "alert-danger";
+        }
+        finally { _isSubmittingFb = false; }
+    }
+}

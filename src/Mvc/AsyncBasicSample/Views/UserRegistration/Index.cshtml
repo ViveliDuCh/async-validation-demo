@@ -4,10 +4,16 @@
 <h3>Scenario 1: User Registration with DI-backed Validation</h3>
 <p>
     <code>UserRegistration</code> uses <code>[UniqueUsername]</code>, <code>[UniqueEmail]</code>,
-    <code>[PasswordPolicy]</code>, and <code>[AsyncRegistrationScreen]</code>. The controller passes
-    <code>HttpContext.RequestServices</code> into <code>Validator.TryValidateObjectAsync()</code> so
-    the async validators can resolve <code>UserService</code> from DI.
+    <code>[PasswordPolicy]</code>, and <code>[AsyncRegistrationScreen]</code>. The MVC async
+    pipeline (<code>IAsyncModelValidator.ValidateAsync</code>) runs these natively during model binding.
 </p>
+<div class="alert alert-warning">
+    <strong>Note:</strong> Client-side jQuery validation runs <strong>before</strong> the form submits.
+    If a sync attribute (e.g., <code>[StringLength]</code> on Password) fails client-side, the form
+    is blocked from posting — so server-side async validators like <code>[UniqueUsername]</code> and
+    <code>[UniqueEmail]</code> won't run until all client-side errors are fixed. This is standard MVC
+    behavior: client-side validates sync rules instantly, while async rules require a server round-trip.
+</div>
 <p class="text-muted">
     Try <code>admin</code> / <code>admin@example.com</code> / <code>adminPass</code> or
     <code>x@blocked.com</code>.

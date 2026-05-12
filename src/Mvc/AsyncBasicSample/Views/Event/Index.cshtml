@@ -7,6 +7,11 @@
     <code>[AsyncScheduleCheck]</code>, and <code>IValidatableObject</code>. Try
     <code>Test Event</code> with a New Year's Day start date and an end date before the start date.
 </p>
+<div class="alert alert-warning">
+    <strong>Note:</strong> Client-side validation (jQuery) runs sync attributes first. If a sync rule
+    fails client-side, the form won't submit — so async attributes like <code>[ReservedTitleCheck]</code>
+    and <code>[AsyncScheduleCheck]</code> won't run until all client-side errors are fixed.
+</div>
 
 @if (ViewBag.SuccessMessage is not null)
 {

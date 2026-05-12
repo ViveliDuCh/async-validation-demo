@@ -1,0 +1,107 @@
+@page "/registration"
+@inject IServiceProvider ServiceProvider
+
+<h3>Field-Level Registration — DataAnnotationsValidator</h3>
+<p>
+    This page uses <code>&lt;DataAnnotationsValidator /&gt;</code> which now supports async validation
+    natively. When you <strong>edit a field and tab out</strong>, <code>Validator.TryValidatePropertyAsync</code>
+    runs that field's async attributes (like <code>[UniqueUsername]</code>) automatically — no manual
+    code needed. On submit, <code>EditContext.ValidateAsync()</code> runs full-object async validation.
+</p>
+
+<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="fieldRegForm">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label">Username</label>
+        <div class="input-group">
+            <InputText class="form-control" @bind-Value="_registration.Username" />
+            @if (_editContext.IsValidationPending(() => _registration.Username))
+            {
+                <span class="input-group-text">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                </span>
+            }
+        </div>
+        <ValidationMessage For="@(() => _registration.Username)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <div class="input-group">
+            <InputText class="form-control" type="email" @bind-Value="_registration.Email" />
+            @if (_editContext.IsValidationPending(() => _registration.Email))
+            {
+                <span class="input-group-text">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                </span>
+            }
+        </div>
+        <ValidationMessage For="@(() => _registration.Email)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <InputText class="form-control" type="password" @bind-Value="_registration.Password" />
+        <ValidationMessage For="@(() => _registration.Password)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@(_isSubmitting || _editContext.IsValidationPending())">
+        @if (_isSubmitting || _editContext.IsValidationPending())
+        {
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            @:Validating...
+        }
+        else
+        {
+            @:Submit
+        }
+    </button>
+
+    <ValidationSummary class="mt-3" />
+</EditForm>
+
+@if (_message is not null)
+{
+    <div class="alert @_alertClass mt-3">@_message</div>
+}
+
+@code {
+    private readonly UserRegistration _registration = new()
+    {
+        Username = "admin",
+        Email = "admin@example.com",
+        Password = "SecureP@ss123"
+    };
+
+    private EditContext _editContext = null!;
+    private bool _isSubmitting;
+    private string? _message;
+    private string _alertClass = "alert-info";
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_registration);
+        _editContext.OnValidationStateChanged += (_, _) => InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleSubmit()
+    {
+        _isSubmitting = true;
+        _message = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            bool isValid = await _editContext.ValidateAsync();
+            _message = isValid
+                ? "✅ All validation passed (sync + async, field + entity level)!"
+                : "❌ Validation failed — see errors above.";
+            _alertClass = isValid ? "alert-success" : "alert-danger";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

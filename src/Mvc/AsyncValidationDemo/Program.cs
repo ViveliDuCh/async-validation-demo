@@ -1,17 +1,22 @@
-// MVC Web App — Async port of SyncValidationDemo
-// Demonstrates DI integration, IAsyncValidatableObject, and infrastructure failure handling
-// using Validator.TryValidateObjectAsync inside controllers.
-// Built-in MVC sync validators are disabled so async validation does not block request threads.
+// MVC Web App — Async validation via the built-in MVC pipeline
+// The MVC DataAnnotationsModelValidator now implements IAsyncModelValidator,
+// so ValidationVisitor.ValidateNodeAsync() calls ValidateAsync() during model binding.
+// DI integration, IAsyncValidatableObject, and infrastructure failure handling
+// all work natively through the async-aware model binding pipeline.
 
 using SharedModels.ServiceClasses;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
-// Remove built-in sync validation to avoid blocking — we use async validation in controllers
+// Built-in DataAnnotationsModelValidator now supports IAsyncModelValidator —
+// no need to clear ModelValidatorProviders or call Validator.TryValidateObjectAsync manually.
 builder.Services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(options =>
 {
-    options.ModelValidatorProviders.Clear();
+    // Show entity-level validation errors (class attrs, IAsyncValidatableObject)
+    // even when property-level validation fails. Without this, MVC skips entity validators
+    // when any property fails — hiding [PasswordPolicy], [AsyncRegistrationScreen], etc.
+    options.ValidateComplexTypesIfChildValidationFails = true;
 });
 builder.Services.AddSingleton<UserService>();
 

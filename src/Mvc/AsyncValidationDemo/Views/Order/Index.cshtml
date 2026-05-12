@@ -5,10 +5,14 @@
 <p>
     <code>Order</code> combines <code>[AsyncProductExists]</code>,
     <code>[MaxOrderValue]</code>, <code>[AsyncInventoryCheck]</code>, and
-    <code>IAsyncValidatableObject</code>. The controller awaits
-    <code>Validator.TryValidateObjectAsync()</code> so both sync and async business rules run
-    without blocking the request thread.
+    <code>IAsyncValidatableObject</code>. The MVC async pipeline
+    (<code>IAsyncModelValidator.ValidateAsync</code>) runs these natively during model binding.
 </p>
+<div class="alert alert-warning">
+    <strong>Note:</strong> Client-side validation (jQuery) runs sync attributes first. If a sync rule
+    (e.g., <code>[Range]</code>) fails client-side, the form won't submit — so async attributes
+    and <code>IAsyncValidatableObject.ValidateAsync</code> won't run until all client-side errors are fixed.
+</div>
 <p class="text-muted">
     Try <code>Unknown</code> for the product, or push the total above <code>$50,000</code> /
     <code>$100,000</code>.

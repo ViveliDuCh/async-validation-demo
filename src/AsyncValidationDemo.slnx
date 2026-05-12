@@ -6,6 +6,8 @@
   <Folder Name="/Blazor/">
     <Project Path="Blazor/AsyncBasicSample/AsyncBasicSample.csproj" />
     <Project Path="Blazor/AsyncValidationDemo/AsyncValidationDemo.csproj" />
+    <Project Path="Blazor/FieldLevelValidationDemo/FieldLevelValidationDemo.csproj" />
+    <Project Path="Blazor/MevValidationDemo/MevValidationDemo.csproj" />
   </Folder>
   <Folder Name="/MinimalApi/">
     <Project Path="MinimalApi/AsyncBasicSample/AsyncBasicSample.csproj" />

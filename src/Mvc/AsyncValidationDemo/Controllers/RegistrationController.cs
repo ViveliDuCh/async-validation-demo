@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using SharedModels.EntityClasses;
 
@@ -23,25 +20,9 @@ public class RegistrationController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(UserRegistration model)
     {
-        var results = new List<ValidationResult>();
-        var context = new ValidationContext(model, HttpContext.RequestServices, null);
-        bool isValid = await Validator.TryValidateObjectAsync(model, context, results, validateAllProperties: true);
-
-        if (!isValid)
+        // MVC's async validation pipeline populates ModelState during model binding.
+        if (!ModelState.IsValid)
         {
-            foreach (var result in results)
-            {
-                foreach (var member in result.MemberNames)
-                {
-                    ModelState.AddModelError(member, result.ErrorMessage ?? "Validation failed.");
-                }
-
-                if (!result.MemberNames.Any())
-                {
-                    ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Validation failed.");
-                }
-            }
-
             return View(model);
         }
 
