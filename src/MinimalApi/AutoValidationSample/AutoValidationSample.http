@@ -101,29 +101,17 @@ Content-Type: application/json
 ### This demonstrates: automatic validation ≠ async validation
 ### ═══════════════════════════════════════════
 
-### ❌ Invalid SharedModels UserRegistration — duplicate username/email + password contains username
-POST {{host}}/api/register/invalid
+### ❌ SharedModels Scenario 1: User — username is already taken
+POST {{host}}/api/scenario1/user
 Content-Type: application/json
 
 {
-  "username": "admin",
-  "email": "admin@example.com",
-  "password": "adminPass"
+  "name": "Bob",
+  "username": "admin"
 }
 
-### ❌ Invalid SharedModels Event — reserved title + New Year's Day conflict + bad date range
-POST {{host}}/api/event/invalid
-Content-Type: application/json
-
-{
-  "title": "Test Event",
-  "startDate": "2027-01-01",
-  "endDate": "2026-12-31",
-  "delay": 100
-}
-
-### ❌ Invalid SharedModels Order — unknown product + total exceeds async/sync limits
-POST {{host}}/api/order/invalid
+### ❌ SharedModels Scenario 2: Order — unknown product + total exceeds sync/async limits
+POST {{host}}/api/scenario2/order
 Content-Type: application/json
 
 {
@@ -131,4 +119,24 @@ Content-Type: application/json
   "quantity": 1000,
   "unitPrice": 120,
   "delay": 100
+}
+
+### ❌ SharedModels Scenario 3: MoneyTransfer — same-account transfer + insufficient funds
+POST {{host}}/api/scenario3/transfer
+Content-Type: application/json
+
+{
+  "fromAccount": "checking",
+  "toAccount": "checking",
+  "amount": 1000
+}
+
+### ❌ SharedModels Scenario 4: Event — confirmed dates + TBD title + end date beyond service limit
+POST {{host}}/api/scenario4/event
+Content-Type: application/json
+
+{
+  "title": "TBD Kickoff",
+  "startDate": "2099-01-01",
+  "endDate": "2099-01-02"
 }

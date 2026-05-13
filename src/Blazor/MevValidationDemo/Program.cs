@@ -1,7 +1,7 @@
 // Blazor Web App — MEV (Microsoft.Extensions.Validation) Path Demo
-// Demonstrates AddValidation() source-gen path vs fallback Validator.TryValidateObjectAsync path.
-// [ValidatableType] local models use TryValidateTypeInfoAsync (MEV),
-// SharedModels entities use ValidateWithDefaultValidatorAsync (fallback).
+// Demonstrates AddValidation() source-gen path vs fallback Validator.TryValidateObjectAsync.
+// [ValidatableType] local models light up the MEV path for the scenario-based pages,
+// while SharedModels entities continue to exercise the runtime fallback path.
 
 using SharedModels.ServiceClasses;
 
@@ -13,7 +13,7 @@ builder.Services.AddRazorComponents()
 // in DataAnnotationsValidator for models that have [ValidatableType].
 builder.Services.AddValidation();
 
-// Register UserService for DI-backed async validation attributes
+// Register UserService for DI-backed async validation attributes.
 builder.Services.AddSingleton<UserService>();
 
 var app = builder.Build();

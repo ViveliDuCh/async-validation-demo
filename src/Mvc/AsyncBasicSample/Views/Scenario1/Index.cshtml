@@ -1,0 +1,40 @@
+@model User
+@{ ViewData["Title"] = "Scenario 1"; }
+
+<h3>Scenario 1: User</h3>
+<p>
+    <code>User</code> demonstrates mixed sync and async property validation with
+    <code>[IsValidName]</code> and <code>[UsernameAvailableAsync]</code>.
+</p>
+<div class="alert alert-warning">
+    <strong>Note:</strong> Client-side validation runs synchronous rules first. If a client-side rule
+    fails, the form is not posted, so server-side async validation will not run until those errors are fixed.
+</div>
+
+@if (ViewBag.SuccessMessage is not null)
+{
+    <div class="alert alert-success">@ViewBag.SuccessMessage</div>
+}
+
+<form asp-action="Index" method="post" class="col-md-6">
+    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Username" class="form-label"></label>
+        <input asp-for="Username" class="form-control" />
+        <span asp-validation-for="Username" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Validate</button>
+    <a asp-controller="Home" class="btn btn-outline-secondary ms-2">← Back</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

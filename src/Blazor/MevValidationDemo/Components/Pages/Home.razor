@@ -2,51 +2,48 @@
 
 <h3>MEV Validation Demo — Blazor Web App</h3>
 <p>
-    This app tests the <strong>MEV (Microsoft.Extensions.Validation)</strong> source-gen code path
-    in <code>DataAnnotationsValidator</code>. When <code>AddValidation()</code> is called and a
-    model has <code>[ValidatableType]</code>, the <code>DataAnnotationsValidator</code> uses
-    <code>TryValidateTypeInfoAsync</code> → <code>IValidatableInfo.ValidateAsync</code> →
-    <code>asyncAttr.GetValidationResultAsync()</code> instead of the fallback
-    <code>Validator.TryValidateObjectAsync()</code>.
+    This app compares the <strong>MEV (Microsoft.Extensions.Validation)</strong> source-gen path
+    against Blazor's runtime fallback validator across three scenarios: attribute-only user
+    validation, mixed async attributes + <code>IValidatableObject</code>, and
+    <code>IAsyncValidatableObject</code>.
 </p>
 
 <div class="alert alert-primary">
-    <strong>Key insight:</strong> The <strong>only</strong> difference between MEV and fallback pages
-    is whether the model has <code>[ValidatableType]</code>. Both use
-    <code>&lt;DataAnnotationsValidator /&gt;</code> and the same async validation attributes from
-    <code>SharedModels</code>. The <code>DataAnnotationsValidator</code> auto-selects the code path.
+    <strong>Key insight:</strong> Each MEV page uses a local <code>[ValidatableType]</code> model,
+    while each fallback page uses the corresponding <code>SharedModels</code> entity. The UI and
+    validation attributes stay aligned; <code>DataAnnotationsValidator</code> chooses the pipeline.
 </div>
 
-<h4>MEV Path (source-gen)</h4>
+<h4>Scenario 1 — User (<code>[IsValidName]</code> + <code>[UsernameAvailableAsync]</code>)</h4>
 <div class="list-group mb-3">
-    <a href="/mev-registration" class="list-group-item list-group-item-action list-group-item-primary">
-        <strong>MEV Registration:</strong> <code>MevUserRegistration</code> with
-        <code>[ValidatableType]</code> — <code>[UniqueUsername]</code>, <code>[UniqueEmail]</code>
-        validated via <code>GetValidationResultAsync()</code>
+    <a href="/mev-scenario-1-user" class="list-group-item list-group-item-action list-group-item-primary">
+        <strong>MEV User:</strong> <code>MevUser</code> with <code>[ValidatableType]</code>
     </a>
-    <a href="/mev-order" class="list-group-item list-group-item-action list-group-item-primary">
-        <strong>MEV Order:</strong> <code>MevOrder</code> with <code>[ValidatableType]</code> —
-        <code>[AsyncProductExists]</code> + <code>IAsyncValidatableObject</code> via MEV pipeline
+    <a href="/fallback-scenario-1-user" class="list-group-item list-group-item-action list-group-item-secondary">
+        <strong>Fallback User:</strong> <code>SharedModels.User</code> without <code>[ValidatableType]</code>
     </a>
-</div>
-
-<h4>Fallback Path (runtime Validator)</h4>
-<div class="list-group mb-3">
-    <a href="/fallback-registration" class="list-group-item list-group-item-action list-group-item-secondary">
-        <strong>Fallback Registration:</strong> <code>SharedModels.UserRegistration</code> (no
-        <code>[ValidatableType]</code>) — same attrs via <code>Validator.TryValidateObjectAsync()</code>
-    </a>
-    <a href="/fallback-order" class="list-group-item list-group-item-action list-group-item-secondary">
-        <strong>Fallback Order:</strong> <code>SharedModels.Order</code> (no
-        <code>[ValidatableType]</code>) — same <code>IAsyncValidatableObject</code> via runtime Validator
-    </a>
-</div>
-
-<h4>Comparison</h4>
-<div class="list-group mb-3">
     <a href="/comparison" class="list-group-item list-group-item-action list-group-item-success">
-        <strong>Side-by-Side:</strong> MEV <code>MevUserRegistration</code> vs Fallback
-        <code>SharedModels.UserRegistration</code> — proves auto-path-selection by <code>[ValidatableType]</code>
+        <strong>Comparison:</strong> side-by-side MEV vs fallback for <code>User</code>
+    </a>
+</div>
+
+<h4>Scenario 2 — Order (<code>IValidatableObject</code> + async attrs)</h4>
+<div class="list-group mb-3">
+    <a href="/mev-scenario-2-order" class="list-group-item list-group-item-action list-group-item-primary">
+        <strong>MEV Order:</strong> <code>MevOrder</code> with source-gen validation
+    </a>
+    <a href="/fallback-scenario-2-order" class="list-group-item list-group-item-action list-group-item-secondary">
+        <strong>Fallback Order:</strong> <code>SharedModels.Order</code> via runtime validator
+    </a>
+</div>
+
+<h4>Scenario 3 — Money Transfer (<code>IAsyncValidatableObject</code>)</h4>
+<div class="list-group mb-3">
+    <a href="/mev-scenario-3-transfer" class="list-group-item list-group-item-action list-group-item-primary">
+        <strong>MEV Transfer:</strong> <code>MevMoneyTransfer</code> with source-gen validation
+    </a>
+    <a href="/fallback-scenario-3-transfer" class="list-group-item list-group-item-action list-group-item-secondary">
+        <strong>Fallback Transfer:</strong> <code>SharedModels.MoneyTransfer</code> via runtime validator
     </a>
 </div>
 
@@ -63,15 +60,10 @@
         <tr class="table-primary">
             <td><code>AddValidation()</code> + <code>[ValidatableType]</code></td>
             <td><strong>MEV</strong></td>
-            <td><code>TryValidateTypeInfoAsync</code> → <code>IValidatableInfo.ValidateAsync</code> → <code>asyncAttr.GetValidationResultAsync()</code></td>
+            <td><code>TryValidateTypeInfoAsync</code> → generated validators → async members/interfaces</td>
         </tr>
         <tr class="table-secondary">
             <td><code>AddValidation()</code> + no <code>[ValidatableType]</code></td>
-            <td><strong>Fallback</strong></td>
-            <td><code>ValidateWithDefaultValidatorAsync</code> → <code>Validator.TryValidateObjectAsync()</code></td>
-        </tr>
-        <tr class="table-secondary">
-            <td>No <code>AddValidation()</code></td>
             <td><strong>Fallback</strong></td>
             <td><code>ValidateWithDefaultValidatorAsync</code> → <code>Validator.TryValidateObjectAsync()</code></td>
         </tr>

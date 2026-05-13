@@ -1,36 +1,30 @@
 @page "/cancellation"
 @implements IDisposable
 
-<h3>Scenario 5: CancellationToken Propagation</h3>
+<h3>Cancellation Demo: MoneyTransfer</h3>
 <p>
-    This page validates an <strong>Event</strong> model with delay-backed async checks and passes a
+    This page validates a <strong>MoneyTransfer</strong> model and passes a
     <code>CancellationToken</code> into <code>Validator.TryValidateObjectAsync</code>.
-    Start validation, then click <strong>Cancel</strong> to stop in-flight async validation without blocking the server thread.
+    Start validation, then click <strong>Cancel</strong> to stop the in-flight async transfer checks.
 </p>
 
 <EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="cancellationForm">
     <div class="mb-3">
-        <label class="form-label">Title</label>
-        <InputText class="form-control" @bind-Value="_event.Title" />
-        <ValidationMessage For="@(() => _event.Title)" />
+        <label class="form-label">From Account</label>
+        <InputText class="form-control" @bind-Value="_transfer.FromAccount" />
+        <ValidationMessage For="@(() => _transfer.FromAccount)" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label">Start Date</label>
-        <InputDate class="form-control" @bind-Value="_event.StartDate" />
-        <ValidationMessage For="@(() => _event.StartDate)" />
+        <label class="form-label">To Account</label>
+        <InputText class="form-control" @bind-Value="_transfer.ToAccount" />
+        <ValidationMessage For="@(() => _transfer.ToAccount)" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label">End Date</label>
-        <InputDate class="form-control" @bind-Value="_event.EndDate" />
-        <ValidationMessage For="@(() => _event.EndDate)" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Simulated I/O Delay (ms)</label>
-        <InputNumber class="form-control" @bind-Value="_event.Delay" />
-        <ValidationMessage For="@(() => _event.Delay)" />
+        <label class="form-label">Amount</label>
+        <InputNumber class="form-control" @bind-Value="_transfer.Amount" />
+        <ValidationMessage For="@(() => _transfer.Amount)" />
     </div>
 
     <div class="d-flex gap-2">
@@ -51,12 +45,11 @@
 }
 
 @code {
-    private readonly Event _event = new()
+    private readonly MoneyTransfer _transfer = new()
     {
-        Title = "TBD Planning",
-        StartDate = new DateTime(DateTime.Today.Year + 1, 1, 1),
-        EndDate = new DateTime(DateTime.Today.Year + 1, 1, 2),
-        Delay = 5000
+        FromAccount = "checking",
+        ToAccount = "checking",
+        Amount = 1000m
     };
 
     private EditContext _editContext = null!;
@@ -68,7 +61,7 @@
 
     protected override void OnInitialized()
     {
-        _editContext = new EditContext(_event);
+        _editContext = new EditContext(_transfer);
         _messageStore = new ValidationMessageStore(_editContext);
         _editContext.OnFieldChanged += OnFieldChanged;
     }
@@ -89,21 +82,21 @@
 
         _isSubmitting = true;
         _messageStore.Clear();
-        _message = "Validation started. Click Cancel to stop the in-flight async checks.";
+        _message = "Validation started. Click Cancel to stop the in-flight async transfer checks.";
         _alertClass = "alert-info";
         _editContext.NotifyValidationStateChanged();
         await InvokeAsync(StateHasChanged);
 
         var results = new List<ValidationResult>();
-        var context = new ValidationContext(_event);
+        var context = new ValidationContext(_transfer);
 
         try
         {
-            bool isValid = await Validator.TryValidateObjectAsync(_event, context, results, true, _cts.Token);
-            AddResultsToMessageStore(_event, results);
+            bool isValid = await Validator.TryValidateObjectAsync(_transfer, context, results, true, _cts.Token);
+            AddResultsToMessageStore(_transfer, results);
             _message = isValid
                 ? "✅ Validation completed without cancellation."
-                : "❌ Validation completed — see event errors above.";
+                : "❌ Validation completed — see transfer errors above.";
             _alertClass = isValid ? "alert-success" : "alert-danger";
         }
         catch (OperationCanceledException)

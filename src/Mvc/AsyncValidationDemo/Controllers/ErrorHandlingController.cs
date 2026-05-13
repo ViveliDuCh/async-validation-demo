@@ -19,7 +19,7 @@ public class ErrorHandlingController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(UserRegistration model)
+    public IActionResult Index(UserRegistration model)
     {
         // MVC's async validation pipeline populates ModelState during model binding.
         if (!ModelState.IsValid)

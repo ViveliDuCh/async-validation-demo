@@ -20,6 +20,10 @@ Console.WriteLine("Comparison: Original SharedModels vs ISchemaDescriptor-enable
     SchemaPrinter.PrintSchema(enhanced, "UserRegistrationWithDescriptor (ISchemaDescriptor — property + class attrs visible)");
 }
 
+Console.WriteLine("Note: SharedModels.User is intentionally not shown here because");
+Console.WriteLine("[UsernameAvailableAsync] does not implement ISchemaDescriptor. This sample only");
+Console.WriteLine("lights up attributes that opt into schema metadata directly.\n");
+
 Console.WriteLine("=== Simulation Complete ===");
 Console.WriteLine();
 Console.WriteLine("Key takeaway: Descriptor-enabled copies of the current UserRegistration");

@@ -40,6 +40,7 @@
     <Project Path="Options/Options.Shared/Options.Shared.csproj" />
     <Project Path="Options/AsyncLambdaConsole/AsyncLambdaConsole.csproj" />
     <Project Path="Options/Tier2.OptionsBlazor/Tier2.OptionsBlazor.csproj" />
+    <Project Path="Options/Tier2.OptionsMonitorBlazor/Tier2.OptionsMonitorBlazor.csproj" />
     <Project Path="Options/Tier2b.OptionsGeneratorBlazor/Tier2b.OptionsGeneratorBlazor.csproj" />
   </Folder>
   <Project Path="SharedModels/SharedModels.csproj" />

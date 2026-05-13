@@ -1,45 +1,39 @@
 @page "/comparison"
 @using System.Diagnostics
-@inject IServiceProvider ServiceProvider
 @implements IDisposable
 
-<h3>Side-by-Side: Form-Level vs Field-Level</h3>
+<h3>Side-by-Side: Manual Form-Level vs Built-In Field-Level</h3>
 <p>
-    Both panels validate the <strong>same</strong> <code>UserRegistration</code> model with the same
-    async attributes. The left uses the manual form-level pattern; the right uses
-    <code>&lt;DataAnnotationsValidator /&gt;</code> with automatic field-level async support.
+    Both panels validate the same <code>User</code> model. The left keeps the manual
+    form-level pattern with <code>Validator.TryValidateObjectAsync</code>; the right uses
+    <code>&lt;DataAnnotationsValidator /&gt;</code> plus <code>await _editContext.ValidateAsync()</code>.
 </p>
 
 <div class="row">
-    @* ─── LEFT PANEL: Form-Level (Manual) ─── *@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header bg-secondary text-white">
-                <strong>Form-Level (Manual)</strong>
-                <span class="badge bg-warning text-dark ms-2">~60 LOC boilerplate</span>
+                <strong>Manual form-level validation</strong>
+                <span class="badge bg-warning text-dark ms-2">More plumbing</span>
             </div>
             <div class="card-body">
-                <EditForm EditContext="@_editContextLeft" OnSubmit="@HandleSubmitLeft" FormName="manualForm">
+                <EditForm EditContext="@_editContextLeft" OnSubmit="@HandleSubmitLeft" FormName="manualUserForm">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <InputText class="form-control" @bind-Value="_userLeft.Name" />
+                        <ValidationMessage For="@(() => _userLeft.Name)" />
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">Username</label>
-                        <InputText class="form-control" @bind-Value="_regLeft.Username" />
-                        <ValidationMessage For="@(() => _regLeft.Username)" />
+                        <InputText class="form-control" @bind-Value="_userLeft.Username" />
+                        <ValidationMessage For="@(() => _userLeft.Username)" />
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <InputText class="form-control" type="email" @bind-Value="_regLeft.Email" />
-                        <ValidationMessage For="@(() => _regLeft.Email)" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <InputText class="form-control" type="password" @bind-Value="_regLeft.Password" />
-                        <ValidationMessage For="@(() => _regLeft.Password)" />
-                    </div>
-                    <button type="submit" class="btn btn-secondary">
+                    <button type="submit" class="btn btn-secondary" disabled="@_isSubmittingLeft">
                         @(_isSubmittingLeft ? "Validating asynchronously..." : "Submit")
                     </button>
                     <ValidationSummary class="mt-3" />
                 </EditForm>
+
                 @if (_messageLeft is not null)
                 {
                     <div class="alert @_alertClassLeft mt-3">@_messageLeft</div>
@@ -48,52 +42,51 @@
         </div>
     </div>
 
-    @* ─── RIGHT PANEL: Field-Level (DataAnnotationsValidator) ─── *@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <strong>Field-Level (DataAnnotationsValidator)</strong>
-                <span class="badge bg-success ms-2">~10 LOC boilerplate</span>
+                <strong>DataAnnotationsValidator</strong>
+                <span class="badge bg-success ms-2">Built-in pattern</span>
             </div>
             <div class="card-body">
-                <EditForm EditContext="@_editContextRight" OnSubmit="@HandleSubmitRight" FormName="autoForm">
+                <EditForm EditContext="@_editContextRight" OnSubmit="@HandleSubmitRight" FormName="builtInUserForm">
                     <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <InputText class="form-control" @bind-Value="_userRight.Name" />
+                        <ValidationMessage For="@(() => _userRight.Name)" />
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label">Username</label>
                         <div class="input-group">
-                            <InputText class="form-control" @bind-Value="_regRight.Username" />
-                            @if (_editContextRight.IsValidationPending(() => _regRight.Username))
+                            <InputText class="form-control" @bind-Value="_userRight.Username" />
+                            @if (_editContextRight.IsValidationPending(() => _userRight.Username))
                             {
                                 <span class="input-group-text">
                                     <span class="spinner-border spinner-border-sm" role="status"></span>
                                 </span>
                             }
                         </div>
-                        <ValidationMessage For="@(() => _regRight.Username)" />
+                        <ValidationMessage For="@(() => _userRight.Username)" />
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <div class="input-group">
-                            <InputText class="form-control" type="email" @bind-Value="_regRight.Email" />
-                            @if (_editContextRight.IsValidationPending(() => _regRight.Email))
-                            {
-                                <span class="input-group-text">
-                                    <span class="spinner-border spinner-border-sm" role="status"></span>
-                                </span>
-                            }
-                        </div>
-                        <ValidationMessage For="@(() => _regRight.Email)" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <InputText class="form-control" type="password" @bind-Value="_regRight.Password" />
-                        <ValidationMessage For="@(() => _regRight.Password)" />
-                    </div>
-                    <button type="submit" class="btn btn-primary" disabled="@_editContextRight.IsValidationPending()">
-                        @(_editContextRight.IsValidationPending() ? "Validating..." : "Submit")
+
+                    <button type="submit" class="btn btn-primary" disabled="@(_isSubmittingRight || _editContextRight.IsValidationPending())">
+                        @if (_isSubmittingRight || _editContextRight.IsValidationPending())
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            @:Validating...
+                        }
+                        else
+                        {
+                            @:Submit
+                        }
                     </button>
+
                     <ValidationSummary class="mt-3" />
                 </EditForm>
+
                 @if (_messageRight is not null)
                 {
                     <div class="alert @_alertClassRight mt-3">@_messageRight</div>
@@ -104,12 +97,16 @@
 </div>
 
 @code {
-    // ─── Left: Manual form-level pattern ───
-    private readonly UserRegistration _regLeft = new()
+    private readonly User _userLeft = new()
     {
-        Username = "admin",
-        Email = "admin@example.com",
-        Password = "SecureP@ss123"
+        Name = "Alice",
+        Username = "admin"
+    };
+
+    private readonly User _userRight = new()
+    {
+        Name = "Alice",
+        Username = "admin"
     };
 
     private EditContext _editContextLeft = null!;
@@ -119,28 +116,19 @@
     private string? _messageLeft;
     private string _alertClassLeft = "alert-info";
 
-    // ─── Right: Field-level DataAnnotationsValidator pattern ───
-    private readonly UserRegistration _regRight = new()
-    {
-        Username = "admin",
-        Email = "admin@example.com",
-        Password = "SecureP@ss123"
-    };
-
     private EditContext _editContextRight = null!;
+    private bool _isSubmittingRight;
     private string? _messageRight;
     private string _alertClassRight = "alert-info";
 
     protected override void OnInitialized()
     {
-        // Left: manual setup
-        _editContextLeft = new EditContext(_regLeft);
+        _editContextLeft = new EditContext(_userLeft);
         _messageStoreLeft = new ValidationMessageStore(_editContextLeft);
         _editContextLeft.OnFieldChanged += OnFieldChangedLeft;
 
-        // Right: DataAnnotationsValidator handles everything
-        _editContextRight = new EditContext(_regRight);
-        _editContextRight.OnValidationStateChanged += (_, _) => InvokeAsync(StateHasChanged);
+        _editContextRight = new EditContext(_userRight);
+        _editContextRight.OnValidationStateChanged += HandleValidationStateChangedRight;
     }
 
     private void OnFieldChangedLeft(object? sender, FieldChangedEventArgs e)
@@ -150,6 +138,9 @@
             _ctsLeft.Cancel();
         }
     }
+
+    private void HandleValidationStateChangedRight(object? sender, ValidationStateChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
 
     private async Task HandleSubmitLeft(EditContext _)
     {
@@ -164,22 +155,26 @@
         await InvokeAsync(StateHasChanged);
 
         var results = new List<ValidationResult>();
-        var context = new ValidationContext(_regLeft, ServiceProvider, null);
+        var context = new ValidationContext(_userLeft);
 
         try
         {
             var sw = Stopwatch.StartNew();
             bool isValid = await Validator.TryValidateObjectAsync(
-                _regLeft, context, results, true, _ctsLeft.Token);
+                _userLeft, context, results, true, _ctsLeft.Token);
             sw.Stop();
 
             foreach (var result in results)
             {
                 foreach (var member in result.MemberNames)
+                {
                     _messageStoreLeft.Add(_editContextLeft.Field(member), result.ErrorMessage!);
+                }
+
                 if (!result.MemberNames.Any())
-                    _messageStoreLeft.Add(
-                        new FieldIdentifier(_regLeft, string.Empty), result.ErrorMessage!);
+                {
+                    _messageStoreLeft.Add(new FieldIdentifier(_userLeft, string.Empty), result.ErrorMessage!);
+                }
             }
 
             _editContextLeft.NotifyValidationStateChanged();
@@ -203,16 +198,28 @@
 
     private async Task HandleSubmitRight()
     {
-        bool isValid = await _editContextRight.ValidateAsync();
-        _messageRight = isValid
-            ? "✅ Valid! (zero manual validation code)"
-            : "❌ Failed (zero manual validation code)";
-        _alertClassRight = isValid ? "alert-success" : "alert-danger";
+        _isSubmittingRight = true;
+        _messageRight = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            bool isValid = await _editContextRight.ValidateAsync();
+            _messageRight = isValid
+                ? "✅ Valid! (DataAnnotationsValidator + ValidateAsync())"
+                : "❌ Failed (DataAnnotationsValidator + ValidateAsync())";
+            _alertClassRight = isValid ? "alert-success" : "alert-danger";
+        }
+        finally
+        {
+            _isSubmittingRight = false;
+        }
     }
 
     public void Dispose()
     {
         _editContextLeft.OnFieldChanged -= OnFieldChangedLeft;
+        _editContextRight.OnValidationStateChanged -= HandleValidationStateChangedRight;
         _ctsLeft?.Cancel();
         _ctsLeft?.Dispose();
     }

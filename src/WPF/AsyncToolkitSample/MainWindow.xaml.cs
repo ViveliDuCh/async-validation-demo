@@ -8,9 +8,10 @@ namespace AsyncToolkitSample;
 
 public partial class MainWindow : Window
 {
-    public UserRegistrationViewModel UserRegistrationVM { get; } = new();
-    public EventViewModel EventVM { get; } = new();
+    public UserViewModel UserVM { get; } = new();
     public OrderViewModel OrderVM { get; } = new();
+    public MoneyTransferViewModel MoneyTransferVM { get; } = new();
+    public EventViewModel EventVM { get; } = new();
 
     public MainWindow()
     {
@@ -18,37 +19,20 @@ public partial class MainWindow : Window
         DataContext = this;
     }
 
-    private async void ValidateUserRegistration_Click(object sender, RoutedEventArgs e)
+    private async void ValidateUser_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            bool valid = await UserRegistrationVM.ValidateAllAsync();
-            UserRegistrationResult.Text = valid ? "✅ Valid!" : "❌ Validation failed (async, UI stayed responsive).";
+            bool valid = await UserVM.ValidateAllAsync();
+            UserResult.Text = valid ? "✅ Valid!" : "❌ Validation failed (async, UI stayed responsive).";
         }
         catch (OperationCanceledException)
         {
-            UserRegistrationResult.Text = "⏹️ Validation cancelled.";
+            UserResult.Text = "⏹️ Validation cancelled.";
         }
         catch (Exception ex)
         {
-            UserRegistrationResult.Text = $"⚠️ Validation error: {ex.Message}";
-        }
-    }
-
-    private async void ValidateEvent_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            bool valid = await EventVM.ValidateAllAsync();
-            EventResult.Text = valid ? "✅ Valid!" : "❌ Validation failed (async, UI stayed responsive).";
-        }
-        catch (OperationCanceledException)
-        {
-            EventResult.Text = "⏹️ Validation cancelled.";
-        }
-        catch (Exception ex)
-        {
-            EventResult.Text = $"⚠️ Validation error: {ex.Message}";
+            UserResult.Text = $"⚠️ Validation error: {ex.Message}";
         }
     }
 
@@ -69,4 +53,37 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ValidateMoneyTransfer_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            bool valid = await MoneyTransferVM.ValidateAllAsync();
+            MoneyTransferResult.Text = valid ? "✅ Valid!" : "❌ Validation failed (async, UI stayed responsive).";
+        }
+        catch (OperationCanceledException)
+        {
+            MoneyTransferResult.Text = "⏹️ Validation cancelled.";
+        }
+        catch (Exception ex)
+        {
+            MoneyTransferResult.Text = $"⚠️ Validation error: {ex.Message}";
+        }
+    }
+
+    private async void ValidateEvent_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            bool valid = await EventVM.ValidateAllAsync();
+            EventResult.Text = valid ? "✅ Valid!" : "❌ Validation failed (async, UI stayed responsive).";
+        }
+        catch (OperationCanceledException)
+        {
+            EventResult.Text = "⏹️ Validation cancelled.";
+        }
+        catch (Exception ex)
+        {
+            EventResult.Text = $"⚠️ Validation error: {ex.Message}";
+        }
+    }
 }

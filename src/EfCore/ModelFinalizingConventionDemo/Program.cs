@@ -2,10 +2,11 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using ModelFinalizingConventionDemo;
 using SharedModels.EntityClasses;
+using SharedModels.ValidationClasses;
 
 Console.WriteLine("╔════════════════════════════════════════════════════════════╗");
 Console.WriteLine("║  EF Core — Path B: IModelFinalizingConvention              ║");
-Console.WriteLine("║  Current SharedModels attribute scan (3 entities)          ║");
+Console.WriteLine("║  Current SharedModels attribute scan (4 entities)          ║");
 Console.WriteLine("╚════════════════════════════════════════════════════════════╝");
 Console.WriteLine();
 
@@ -15,6 +16,34 @@ using var db = new DemoDbContext(convention);
 var connection = db.Database.GetDbConnection();
 connection.Open();
 db.Database.EnsureCreated();
+
+db.AddRange(
+    new UserRegistration
+    {
+        Username = "demo-user",
+        Email = "demo@example.com",
+        Password = "SecureP@ss123"
+    },
+    new User
+    {
+        Name = "Alice",
+        Username = "alice"
+    },
+    new Event
+    {
+        Title = "Launch Event",
+        StartDate = DateTime.Today,
+        EndDate = DateTime.Today.AddDays(1)
+    },
+    new Order
+    {
+        ProductName = "Widget",
+        Quantity = 5,
+        UnitPrice = 25m,
+        Delay = 10
+    });
+
+db.SaveChanges();
 
 // ───────────────────────────────────────────
 // Scenario 1: Full Attribute Scan
@@ -32,6 +61,10 @@ else
 {
     Console.WriteLine("  ❌ No async attributes detected");
 }
+bool userAttributeDetected = convention.Log.Any(entry =>
+    entry.Contains("FOUND: User.Username") &&
+    entry.Contains(nameof(UsernameAvailableAsyncAttribute)));
+Console.WriteLine($"  User.Username [UsernameAvailableAsync] detected: {userAttributeDetected}");
 Console.WriteLine();
 
 // ───────────────────────────────────────────
@@ -75,9 +108,9 @@ foreach (var entityType in db.Model.GetEntityTypes())
 Console.WriteLine();
 
 // ───────────────────────────────────────────
-// Scenario 4: IAsyncValidatableObject interface correctly ignored
+// Scenario 4: IValidatableObject interface correctly ignored
 // ───────────────────────────────────────────
-Console.WriteLine("--- Scenario 4: Order's IAsyncValidatableObject Interface Is Ignored ---");
+Console.WriteLine("--- Scenario 4: Order's IValidatableObject Interface Is Ignored ---");
 Console.WriteLine();
 var orderEntity = db.Model.FindEntityType(typeof(Order))!;
 int orderAnnotationCount =
@@ -86,10 +119,10 @@ int orderAnnotationCount =
         .SelectMany(p => p.GetAnnotations())
         .Count(a => a.Name.StartsWith("AsyncValidation:"));
 
-Console.WriteLine($"  Order implements IAsyncValidatableObject: {typeof(IAsyncValidatableObject).IsAssignableFrom(typeof(Order))}");
-Console.WriteLine($"  Async annotations discovered for Order:   {orderAnnotationCount}");
+Console.WriteLine($"  Order implements IValidatableObject: {typeof(IValidatableObject).IsAssignableFrom(typeof(Order))}");
+Console.WriteLine($"  Async annotations discovered for Order: {orderAnnotationCount}");
 Console.WriteLine("  ✔ Convention stored metadata only for [AsyncProductExists] and [AsyncInventoryCheck].");
-Console.WriteLine("  ✔ IAsyncValidatableObject itself produced no convention metadata.");
+Console.WriteLine("  ✔ IValidatableObject itself produced no convention metadata.");
 Console.WriteLine();
 
 // ───────────────────────────────────────────

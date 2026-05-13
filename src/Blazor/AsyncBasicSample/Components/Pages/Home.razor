@@ -2,23 +2,25 @@
 
 <h3>Async BasicSample — Blazor Web App</h3>
 <p>
-    This app mirrors <strong>BasicAsyncSample</strong> from the console samples and uses the
-    <strong>async</strong> validation APIs.
+    This app mirrors the four API proposal scenarios from <strong>dotnet/runtime#128096</strong>
+    using the manual Blazor form pattern.
 </p>
 <p>
-    Each page manually calls <code>Validator.TryValidateObjectAsync</code> on submit and pushes the
-    results into the current <code>EditContext</code>. That keeps <code>ValidationMessage</code> and
-    <code>ValidationSummary</code> working while validation awaits async I/O without blocking the server thread.
+    Each page calls <code>Validator.TryValidateObjectAsync</code> on submit and copies the results
+    into a <code>ValidationMessageStore</code> so Blazor's built-in validation UI stays in sync.
 </p>
 
 <div class="list-group">
-    <a href="/registration" class="list-group-item list-group-item-action">
-        <strong>Scenario 1:</strong> Attribute-driven <code>UserRegistration</code> with DI-backed async checks
+    <a href="/scenario1" class="list-group-item list-group-item-action">
+        <strong>Scenario 1:</strong> <code>User</code> with <code>[IsValidName]</code> and <code>[UsernameAvailableAsync]</code>
     </a>
-    <a href="/event" class="list-group-item list-group-item-action">
-        <strong>Scenario 2:</strong> <code>Event</code> with <code>IValidatableObject</code> and async entity checks
+    <a href="/scenario2" class="list-group-item list-group-item-action">
+        <strong>Scenario 2:</strong> <code>Order</code> with <code>IValidatableObject</code> and <code>[AsyncProductExists]</code>
     </a>
-    <a href="/order" class="list-group-item list-group-item-action">
-        <strong>Scenario 3:</strong> <code>Order</code> with <code>IAsyncValidatableObject</code> cross-property validation
+    <a href="/scenario3" class="list-group-item list-group-item-action">
+        <strong>Scenario 3:</strong> <code>MoneyTransfer</code> with <code>IAsyncValidatableObject</code>
+    </a>
+    <a href="/scenario4" class="list-group-item list-group-item-action">
+        <strong>Scenario 4:</strong> <code>Event</code> with <code>[AsyncDateRangeValid]</code>
     </a>
 </div>

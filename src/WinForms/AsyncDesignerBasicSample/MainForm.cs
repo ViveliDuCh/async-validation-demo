@@ -2,87 +2,95 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using SharedModels.EntityClasses;
-using SharedModels.ServiceClasses;
 
 namespace AsyncDesignerBasicSample;
 
 /// <summary>
 /// WinForms designer-based async validation with ErrorProvider.
-/// Demonstrates UserRegistration, Event, and Order using designer-generated controls.
+/// Demonstrates the four API proposal scenarios using designer-generated controls.
 /// </summary>
 public partial class MainForm : Form
 {
-    private readonly SimpleServiceProvider _serviceProvider = new SimpleServiceProvider()
-        .Register(new UserService());
-    private readonly UserRegistration _registration = new()
+    private readonly User _user = new()
     {
-        Username = "admin",
-        Email = "admin@example.com",
-        Password = "SecureP@ss123"
-    };
-    private readonly Event _event = new()
-    {
-        Title = "Launch Party",
-        StartDate = new DateTime(2026, 12, 25),
-        EndDate = new DateTime(2026, 12, 20),
-        Delay = 3000
+        Name = "Bob",
+        Username = "admin"
     };
     private readonly Order _order = new()
     {
-        ProductName = "Widget",
-        Quantity = 10_000,
-        UnitPrice = 10m,
-        Delay = 3000
+        ProductName = "Gadget",
+        Quantity = 250,
+        UnitPrice = 250m,
+        Delay = 100
+    };
+    private readonly MoneyTransfer _moneyTransfer = new()
+    {
+        FromAccount = "checking",
+        ToAccount = "checking",
+        Amount = 1000m
+    };
+    private readonly Event _event = new()
+    {
+        Title = "TBD Kickoff",
+        StartDate = new DateTime(2026, 6, 1),
+        EndDate = new DateTime(2026, 6, 2)
     };
 
     public MainForm()
     {
         InitializeComponent();
 
-        txtRegistrationPassword.UseSystemPasswordChar = true;
-        txtRegistrationUsername.Validating += async (sender, args) =>
+        txtUserName.Validating += async (_, _) =>
         {
-            _registration.Username = txtRegistrationUsername.Text;
+            _user.Name = txtUserName.Text;
             await ValidationHelper.ValidatePropertyAsync(
                 _errorProvider,
-                txtRegistrationUsername,
-                _registration,
-                nameof(UserRegistration.Username),
-                txtRegistrationUsername.Text,
-                _serviceProvider);
+                txtUserName,
+                _user,
+                nameof(User.Name),
+                txtUserName.Text);
         };
-        txtRegistrationEmail.Validating += async (sender, args) =>
+
+        txtUserUsername.Validating += async (_, _) =>
         {
-            _registration.Email = txtRegistrationEmail.Text;
+            _user.Username = txtUserUsername.Text;
             await ValidationHelper.ValidatePropertyAsync(
                 _errorProvider,
-                txtRegistrationEmail,
-                _registration,
-                nameof(UserRegistration.Email),
-                txtRegistrationEmail.Text,
-                _serviceProvider);
-        };
-        txtRegistrationPassword.Validating += async (sender, args) =>
-        {
-            _registration.Password = txtRegistrationPassword.Text;
-            await ValidationHelper.ValidatePropertyAsync(
-                _errorProvider,
-                txtRegistrationPassword,
-                _registration,
-                nameof(UserRegistration.Password),
-                txtRegistrationPassword.Text,
-                _serviceProvider);
+                txtUserUsername,
+                _user,
+                nameof(User.Username),
+                txtUserUsername.Text);
         };
     }
 
-    private async void BtnValidateRegistration_Click(object? sender, EventArgs e)
+    private async void BtnValidateUser_Click(object? sender, EventArgs e)
     {
-        _registration.Username = txtRegistrationUsername.Text;
-        _registration.Email = txtRegistrationEmail.Text;
-        _registration.Password = txtRegistrationPassword.Text;
+        _user.Name = txtUserName.Text;
+        _user.Username = txtUserUsername.Text;
 
-        var (valid, results) = await ValidationHelper.ValidateObjectAsync(_registration, _serviceProvider);
-        lblRegistrationResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
+        var (valid, results) = await ValidationHelper.ValidateObjectAsync(_user);
+        lblUserResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
+    }
+
+    private async void BtnValidateOrder_Click(object? sender, EventArgs e)
+    {
+        _order.ProductName = txtOrderProduct.Text;
+        _order.Quantity = int.TryParse(txtOrderQuantity.Text, out var quantity) ? quantity : 0;
+        _order.UnitPrice = decimal.TryParse(txtOrderPrice.Text, out var price) ? price : 0m;
+        _order.Delay = int.TryParse(txtOrderDelay.Text, out var delay) ? delay : null;
+
+        var (valid, results) = await ValidationHelper.ValidateObjectAsync(_order);
+        lblOrderResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
+    }
+
+    private async void BtnValidateMoneyTransfer_Click(object? sender, EventArgs e)
+    {
+        _moneyTransfer.FromAccount = txtTransferFromAccount.Text;
+        _moneyTransfer.ToAccount = txtTransferToAccount.Text;
+        _moneyTransfer.Amount = decimal.TryParse(txtTransferAmount.Text, out var amount) ? amount : 0m;
+
+        var (valid, results) = await ValidationHelper.ValidateObjectAsync(_moneyTransfer);
+        lblTransferResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
     }
 
     private async void BtnValidateEvent_Click(object? sender, EventArgs e)
@@ -90,34 +98,8 @@ public partial class MainForm : Form
         _event.Title = txtEventTitle.Text;
         _event.StartDate = dtpEventStart.Value;
         _event.EndDate = dtpEventEnd.Value;
-        if (int.TryParse(txtEventDelay.Text, out int delay))
-        {
-            _event.Delay = delay;
-        }
 
         var (valid, results) = await ValidationHelper.ValidateObjectAsync(_event);
         lblEventResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
-    }
-
-    private async void BtnValidateOrder_Click(object? sender, EventArgs e)
-    {
-        _order.ProductName = txtOrderProduct.Text;
-        if (int.TryParse(txtOrderQuantity.Text, out int quantity))
-        {
-            _order.Quantity = quantity;
-        }
-
-        if (decimal.TryParse(txtOrderPrice.Text, out decimal price))
-        {
-            _order.UnitPrice = price;
-        }
-
-        if (int.TryParse(txtOrderDelay.Text, out int delay))
-        {
-            _order.Delay = delay;
-        }
-
-        var (valid, results) = await ValidationHelper.ValidateObjectAsync(_order);
-        lblOrderResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
     }
 }

@@ -3,58 +3,28 @@
 
 using System.ComponentModel.DataAnnotations;
 using SharedModels.EntityClasses;
-using SharedModels.ServiceClasses;
 
 namespace AsyncDesignerValidationDemo;
 
 /// <summary>
-/// WinForms designer-based async validation demo with DI,
-/// event/order validation, two-phase validation, and error handling.
+/// WinForms designer-based async validation demo organized around the four API proposal scenarios.
 /// </summary>
 public partial class MainForm : Form
 {
-    private readonly SimpleServiceProvider _serviceProvider;
-
     public MainForm()
     {
         InitializeComponent();
-        _serviceProvider = new SimpleServiceProvider()
-            .Register(new UserService());
-        txtRegPassword.UseSystemPasswordChar = true;
-        txtErrorPassword.UseSystemPasswordChar = true;
-        txtTwoPhasePassword.UseSystemPasswordChar = true;
     }
 
-    private async void BtnValidateReg_Click(object? sender, EventArgs e)
+    private async void BtnValidateUser_Click(object? sender, EventArgs e)
     {
-        var registration = new UserRegistration
+        var user = new User
         {
-            Username = txtRegUsername.Text,
-            Email = txtRegEmail.Text,
-            Password = txtRegPassword.Text
+            Name = txtUserName.Text,
+            Username = txtUserUsername.Text
         };
 
-        var context = new ValidationContext(registration, _serviceProvider, null);
-        var results = new List<ValidationResult>();
-        try
-        {
-            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
-            lblRegResult.Text = isValid
-                ? "✅ Valid!"
-                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
-        }
-        catch (OperationCanceledException)
-        {
-            lblRegResult.Text = "⏹️ Validation was cancelled.";
-        }
-        catch (InvalidOperationException ex)
-        {
-            lblRegResult.Text = $"⚠️ Infrastructure error: {ex.Message}";
-        }
-        catch (Exception ex)
-        {
-            lblRegResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
-        }
+        await ValidateAndShowAsync(user, new ValidationContext(user), lblUserResult);
     }
 
     private async void BtnValidateOrder_Click(object? sender, EventArgs e)
@@ -62,28 +32,24 @@ public partial class MainForm : Form
         var order = new Order
         {
             ProductName = txtOrderProduct.Text,
-            Quantity = int.TryParse(txtOrderQuantity.Text, out int quantity) ? quantity : 0,
-            UnitPrice = decimal.TryParse(txtOrderPrice.Text, out decimal unitPrice) ? unitPrice : 0m,
-            Delay = int.TryParse(txtOrderDelay.Text, out int delay) ? delay : null
+            Quantity = int.TryParse(txtOrderQuantity.Text, out var quantity) ? quantity : 0,
+            UnitPrice = decimal.TryParse(txtOrderPrice.Text, out var unitPrice) ? unitPrice : 0m,
+            Delay = int.TryParse(txtOrderDelay.Text, out var delay) ? delay : null
         };
 
-        var context = new ValidationContext(order);
-        var results = new List<ValidationResult>();
-        try
+        await ValidateAndShowAsync(order, new ValidationContext(order), lblOrderResult);
+    }
+
+    private async void BtnValidateMoneyTransfer_Click(object? sender, EventArgs e)
+    {
+        var transfer = new MoneyTransfer
         {
-            bool isValid = await Validator.TryValidateObjectAsync(order, context, results, true);
-            lblOrderResult.Text = isValid
-                ? "✅ Valid!"
-                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
-        }
-        catch (OperationCanceledException)
-        {
-            lblOrderResult.Text = "⏹️ Validation was cancelled.";
-        }
-        catch (Exception ex)
-        {
-            lblOrderResult.Text = $"⚠️ Validation error: {ex.Message}";
-        }
+            FromAccount = txtTransferFromAccount.Text,
+            ToAccount = txtTransferToAccount.Text,
+            Amount = decimal.TryParse(txtTransferAmount.Text, out var amount) ? amount : 0m
+        };
+
+        await ValidateAndShowAsync(transfer, new ValidationContext(transfer), lblTransferResult);
     }
 
     private async void BtnValidateEvent_Click(object? sender, EventArgs e)
@@ -92,93 +58,29 @@ public partial class MainForm : Form
         {
             Title = txtEventTitle.Text,
             StartDate = dtpEventStart.Value,
-            EndDate = dtpEventEnd.Value,
-            Delay = int.TryParse(txtEventDelay.Text, out int delay) ? delay : null
+            EndDate = dtpEventEnd.Value
         };
 
-        var context = new ValidationContext(eventModel);
-        var results = new List<ValidationResult>();
-        try
-        {
-            bool isValid = await Validator.TryValidateObjectAsync(eventModel, context, results, true);
-            lblEventResult.Text = isValid
-                ? "✅ Valid!"
-                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
-        }
-        catch (OperationCanceledException)
-        {
-            lblEventResult.Text = "⏹️ Validation was cancelled.";
-        }
-        catch (Exception ex)
-        {
-            lblEventResult.Text = $"⚠️ Validation error: {ex.Message}";
-        }
+        await ValidateAndShowAsync(eventModel, new ValidationContext(eventModel), lblEventResult);
     }
 
-    private async void BtnValidateError_Click(object? sender, EventArgs e)
+    private static async Task ValidateAndShowAsync(object model, ValidationContext context, Label resultLabel)
     {
-        var registration = new UserRegistration
-        {
-            Username = txtErrorUsername.Text,
-            Email = txtErrorEmail.Text,
-            Password = txtErrorPassword.Text
-        };
-
-        var context = new ValidationContext(registration, _serviceProvider, null);
         var results = new List<ValidationResult>();
         try
         {
-            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
-            lblErrorResult.Text = isValid
+            bool isValid = await Validator.TryValidateObjectAsync(model, context, results, true);
+            resultLabel.Text = isValid
                 ? "✅ Valid!"
                 : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
         }
-        catch (InvalidOperationException ex)
-        {
-            lblErrorResult.Text = $"⚠️ Infrastructure error caught: {ex.Message}";
-        }
         catch (OperationCanceledException)
         {
-            lblErrorResult.Text = "⏹️ Validation was cancelled.";
+            resultLabel.Text = "⏹️ Validation was cancelled.";
         }
         catch (Exception ex)
         {
-            lblErrorResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
-        }
-    }
-
-    private async void BtnValidateTwoPhase_Click(object? sender, EventArgs e)
-    {
-        var registration = new UserRegistration
-        {
-            Username = txtTwoPhaseUsername.Text,
-            Email = txtTwoPhaseEmail.Text,
-            Password = txtTwoPhasePassword.Text
-        };
-
-        var context = new ValidationContext(registration, _serviceProvider, null);
-        var results = new List<ValidationResult>();
-        try
-        {
-            bool isValid = await Validator.TryValidateObjectAsync(registration, context, results, true);
-
-            string message = isValid
-                ? "✅ Valid!"
-                : "❌ " + string.Join("\n", results.Select(r => r.ErrorMessage));
-            message += "\n(Note: async UniqueEmail check was skipped because sync EmailAddress failed first)";
-            lblTwoPhaseResult.Text = message;
-        }
-        catch (OperationCanceledException)
-        {
-            lblTwoPhaseResult.Text = "⏹️ Validation was cancelled.";
-        }
-        catch (InvalidOperationException ex)
-        {
-            lblTwoPhaseResult.Text = $"⚠️ Infrastructure error: {ex.Message}";
-        }
-        catch (Exception ex)
-        {
-            lblTwoPhaseResult.Text = $"⚠️ Unexpected validation error: {ex.Message}";
+            resultLabel.Text = $"⚠️ Validation error: {ex.Message}";
         }
     }
 }

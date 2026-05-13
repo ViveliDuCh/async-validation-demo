@@ -1,29 +1,36 @@
 @page "/pending-faulted"
-@inject IServiceProvider ServiceProvider
+@implements IDisposable
 
 <h3>Pending &amp; Faulted State — Per-Field Async Tracking</h3>
 <p>
-    These new <code>EditContext</code> APIs track per-field async validation state:
-    <code>IsValidationPending()</code> indicates a field's async check is in flight,
-    <code>IsValidationFaulted()</code> indicates a field's async check threw an exception.
+    These <code>EditContext</code> APIs track async validation state. This page uses the new
+    scenario models directly: <code>User</code> for pending state and <code>UserRegistration</code>
+    for the simulated infrastructure-failure path.
 </p>
 
 <hr />
 
-<h4>1. IsValidationPending — Loading Indicators</h4>
+<h4>1. IsValidationPending — Scenario 1 User</h4>
 <p>
-    Type in the Username or Email field, then tab out. The <code>[UniqueUsername]</code>
-    and <code>[UniqueEmail]</code> async attributes will run, showing a spinner while pending.
+    <code>User.Name</code> uses sync <code>[IsValidName]</code>, so it completes immediately.
+    <code>User.Username</code> uses async <code>[UsernameAvailableAsync]</code>, so it shows a
+    spinner while the availability check is running.
 </p>
 
 <EditForm EditContext="@_editContext1" OnSubmit="@HandleSubmit1" FormName="pendingForm">
     <DataAnnotationsValidator />
 
     <div class="mb-3">
+        <label class="form-label">Name</label>
+        <InputText class="form-control" @bind-Value="_user.Name" />
+        <ValidationMessage For="@(() => _user.Name)" />
+    </div>
+
+    <div class="mb-3">
         <label class="form-label">Username</label>
         <div class="input-group">
-            <InputText class="form-control" @bind-Value="_registration1.Username" />
-            @if (_editContext1.IsValidationPending(() => _registration1.Username))
+            <InputText class="form-control" @bind-Value="_user.Username" />
+            @if (_editContext1.IsValidationPending(() => _user.Username))
             {
                 <span class="input-group-text text-primary">
                     <span class="spinner-border spinner-border-sm" role="status"></span>
@@ -31,35 +38,14 @@
                 </span>
             }
         </div>
-        <ValidationMessage For="@(() => _registration1.Username)" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Email</label>
-        <div class="input-group">
-            <InputText class="form-control" type="email" @bind-Value="_registration1.Email" />
-            @if (_editContext1.IsValidationPending(() => _registration1.Email))
-            {
-                <span class="input-group-text text-primary">
-                    <span class="spinner-border spinner-border-sm" role="status"></span>
-                    <span class="ms-1">Checking...</span>
-                </span>
-            }
-        </div>
-        <ValidationMessage For="@(() => _registration1.Email)" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Password</label>
-        <InputText class="form-control" type="password" @bind-Value="_registration1.Password" />
-        <ValidationMessage For="@(() => _registration1.Password)" />
+        <ValidationMessage For="@(() => _user.Username)" />
     </div>
 
     @if (_editContext1.IsValidationPending())
     {
         <div class="alert alert-info">
             <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-            Async validation in progress for one or more fields...
+            Async validation is in progress for one or more fields...
         </div>
     }
 
@@ -77,11 +63,11 @@
 
 <hr class="my-4" />
 
-<h4>2. IsValidationFaulted — Infrastructure Error Detection</h4>
+<h4>2. IsValidationFaulted — Simulated Infrastructure Error</h4>
 <p>
-    The username <code>error-trigger</code> causes <code>UserService</code> to throw an
-    <code>InvalidOperationException</code>. The <code>DataAnnotationsValidator</code> catches
-    this via <code>ObserveValidationTaskAsync</code> and marks the field as <strong>faulted</strong>.
+    <code>User</code> has no faulted path, so this section keeps <code>UserRegistration</code> with
+    username <code>error-trigger</code>. That causes <code>UserService</code> to throw, which lets
+    <code>DataAnnotationsValidator</code> mark the field as <strong>faulted</strong>.
 </p>
 
 <EditForm EditContext="@_editContext2" OnSubmit="@HandleSubmit2" FormName="faultedForm">
@@ -90,46 +76,42 @@
     <div class="mb-3">
         <label class="form-label">Username</label>
         <div class="input-group">
-            <InputText class="form-control" @bind-Value="_registration2.Username" />
-            @if (_editContext2.IsValidationPending(() => _registration2.Username))
+            <InputText class="form-control" @bind-Value="_registration.Username" />
+            @if (_editContext2.IsValidationPending(() => _registration.Username))
             {
                 <span class="input-group-text text-primary">
                     <span class="spinner-border spinner-border-sm" role="status"></span>
                 </span>
             }
-            @if (_editContext2.IsValidationFaulted(() => _registration2.Username))
+            @if (_editContext2.IsValidationFaulted(() => _registration.Username))
             {
-                <span class="input-group-text text-danger">
-                    ⚠️ Faulted
-                </span>
+                <span class="input-group-text text-danger">⚠️ Faulted</span>
             }
         </div>
-        <ValidationMessage For="@(() => _registration2.Username)" />
+        <ValidationMessage For="@(() => _registration.Username)" />
     </div>
 
     <div class="mb-3">
         <label class="form-label">Email</label>
-        <InputText class="form-control" type="email" @bind-Value="_registration2.Email" />
-        <ValidationMessage For="@(() => _registration2.Email)" />
+        <InputText class="form-control" type="email" @bind-Value="_registration.Email" />
+        <ValidationMessage For="@(() => _registration.Email)" />
     </div>
 
     <div class="mb-3">
         <label class="form-label">Password</label>
-        <InputText class="form-control" type="password" @bind-Value="_registration2.Password" />
-        <ValidationMessage For="@(() => _registration2.Password)" />
+        <InputText class="form-control" type="password" @bind-Value="_registration.Password" />
+        <ValidationMessage For="@(() => _registration.Password)" />
     </div>
 
     @if (_editContext2.IsValidationFaulted())
     {
         <div class="alert alert-danger">
-            <strong>⚠️ Validation infrastructure error:</strong> One or more fields had their async
-            validation fail due to an infrastructure exception (e.g., database unreachable).
+            <strong>⚠️ Validation infrastructure error:</strong> one or more async validators threw
+            instead of returning a validation message.
         </div>
     }
 
-    <button type="submit" class="btn btn-danger">
-        Submit (will trigger error)
-    </button>
+    <button type="submit" class="btn btn-danger">Submit (will trigger error)</button>
 
     <ValidationSummary class="mt-3" />
 </EditForm>
@@ -140,14 +122,13 @@
 }
 
 @code {
-    private readonly UserRegistration _registration1 = new()
+    private readonly User _user = new()
     {
-        Username = "admin",
-        Email = "admin@example.com",
-        Password = "SecureP@ss123"
+        Name = "Alice",
+        Username = "admin"
     };
 
-    private readonly UserRegistration _registration2 = new()
+    private readonly UserRegistration _registration = new()
     {
         Username = "error-trigger",
         Email = "new@example.com",
@@ -163,19 +144,25 @@
 
     protected override void OnInitialized()
     {
-        _editContext1 = new EditContext(_registration1);
-        _editContext1.OnValidationStateChanged += (_, _) => InvokeAsync(StateHasChanged);
+        _editContext1 = new EditContext(_user);
+        _editContext1.OnValidationStateChanged += HandleValidationStateChanged1;
 
-        _editContext2 = new EditContext(_registration2);
-        _editContext2.OnValidationStateChanged += (_, _) => InvokeAsync(StateHasChanged);
+        _editContext2 = new EditContext(_registration);
+        _editContext2.OnValidationStateChanged += HandleValidationStateChanged2;
     }
+
+    private void HandleValidationStateChanged1(object? sender, ValidationStateChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    private void HandleValidationStateChanged2(object? sender, ValidationStateChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
 
     private async Task HandleSubmit1()
     {
         bool isValid = await _editContext1.ValidateAsync();
         _message1 = isValid
-            ? "✅ All validation passed!"
-            : "❌ Validation failed — see errors above.";
+            ? "✅ Pending-state demo passed."
+            : "❌ Pending-state demo failed — see the validation messages above.";
         _alertClass1 = isValid ? "alert-success" : "alert-danger";
     }
 
@@ -184,7 +171,13 @@
         bool isValid = await _editContext2.ValidateAsync();
         _message2 = isValid
             ? "✅ Validation passed (unexpected if error-trigger was used)."
-            : "❌ Validation failed — see errors above.";
+            : "❌ Validation failed — see the validation messages above.";
         _alertClass2 = isValid ? "alert-success" : "alert-danger";
+    }
+
+    public void Dispose()
+    {
+        _editContext1.OnValidationStateChanged -= HandleValidationStateChanged1;
+        _editContext2.OnValidationStateChanged -= HandleValidationStateChanged2;
     }
 }

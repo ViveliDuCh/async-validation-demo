@@ -1,0 +1,89 @@
+@page "/monitor"
+@inject IOptionsMonitor<CloudInfoOptions> OptionsMonitor
+@implements IDisposable
+
+<h3>Live Monitor — <code>IOptionsMonitor&lt;T&gt;</code></h3>
+<p>
+    This tab uses <code>IOptionsMonitor&lt;T&gt;</code> which reloads from
+    <code>appsettings.json</code> on every change. Edit the JSON file, save it,
+    then <strong>refresh this page</strong> (or click the button below) to see
+    the updated values.
+</p>
+
+<div class="card mt-3">
+    <div class="card-header bg-primary text-white">
+        CloudInfoOptions (live — refreshes on config change)
+    </div>
+    <div class="card-body">
+        <ul class="list-unstyled mb-0">
+            <li><strong>Storage:</strong> @currentOptions.Storage</li>
+            <li><strong>Region:</strong> @currentOptions.Region</li>
+            <li><strong>Endpoint:</strong> @currentOptions.Endpoint</li>
+        </ul>
+    </div>
+</div>
+
+<button class="btn btn-outline-primary mt-3" @onclick="Refresh">
+    🔄 Refresh from IOptionsMonitor
+</button>
+
+@if (_lastRefresh is not null)
+{
+    <p class="text-muted mt-2">Last refreshed: @_lastRefresh</p>
+}
+
+@if (_changeDetected)
+{
+    <div class="alert alert-success mt-3">
+        <strong>Change detected!</strong> <code>IOptionsMonitor.OnChange</code> fired —
+        the config file was reloaded.
+    </div>
+}
+
+<hr class="my-4" />
+
+<h4>How It Works</h4>
+<ul>
+    <li><code>IOptions&lt;T&gt;.Value</code> — cached at first access, never updates</li>
+    <li><code>IOptionsMonitor&lt;T&gt;.CurrentValue</code> — re-reads from config on each access</li>
+    <li><code>IOptionsMonitor&lt;T&gt;.OnChange()</code> — callback fires when the underlying
+        config source changes (e.g., file watcher on <code>appsettings.json</code>)</li>
+</ul>
+<p>
+    <strong>Note:</strong> The async startup validation (<code>ValidateOnStartAsync</code>)
+    only runs once at startup. <code>IOptionsMonitor</code> does NOT re-validate on
+    config changes — it just reloads the values. Re-validation on change would require
+    a custom <code>OnChange</code> handler that calls <code>Validator.TryValidateObjectAsync</code>.
+</p>
+
+@code {
+    private CloudInfoOptions currentOptions = new();
+    private string? _lastRefresh;
+    private bool _changeDetected;
+    private IDisposable? _changeListener;
+
+    protected override void OnInitialized()
+    {
+        currentOptions = OptionsMonitor.CurrentValue;
+        _lastRefresh = DateTime.Now.ToString("HH:mm:ss.fff");
+
+        _changeListener = OptionsMonitor.OnChange(updatedOptions =>
+        {
+            currentOptions = updatedOptions;
+            _changeDetected = true;
+            _lastRefresh = DateTime.Now.ToString("HH:mm:ss.fff");
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void Refresh()
+    {
+        currentOptions = OptionsMonitor.CurrentValue;
+        _lastRefresh = DateTime.Now.ToString("HH:mm:ss.fff");
+    }
+
+    public void Dispose()
+    {
+        _changeListener?.Dispose();
+    }
+}

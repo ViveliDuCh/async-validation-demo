@@ -4,19 +4,18 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Threading;
-using System.Threading.Tasks;
 using SharedModels.ValidationClasses;
 
 namespace SharedModels.EntityClasses;
 
 /// <summary>
-/// Case 3: IAsyncValidatableObject — async interface with sync + async attributes.
-/// [MaxOrderValue] provides a sync hard-limit check ($100K), while ValidateAsync()
-/// adds a softer async business rule ($50K) requiring external service verification.
+/// API Proposal Scenario 2: IValidatableObject — sync interface with sync + async attributes.
+/// [MaxOrderValue] provides a sync hard-limit check ($100K), while Validate()
+/// adds a sync cross-property business rule ($50K) simulating an inventory check.
 /// </summary>
 [MaxOrderValue(100_000)]
 [AsyncInventoryCheck]
-public class Order : IAsyncValidatableObject
+public class Order : IValidatableObject
 {
     /// <summary>Gets or sets the product name.</summary>
     [Required]
@@ -38,32 +37,23 @@ public class Order : IAsyncValidatableObject
     public int? Delay { get; set; }
 
     /// <summary>
-    /// Async inline entity-level validation via IAsyncValidatableObject.
+    /// Sync inline entity-level validation via IValidatableObject.
     /// Cross-property check: total cost must not exceed the $50,000 business limit.
+    /// Simulates a sync inventory check.
     /// </summary>
-    public async ValueTask<IEnumerable<ValidationResult>> ValidateAsync(
-        ValidationContext validationContext,
-        CancellationToken cancellationToken)
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        var results = new List<ValidationResult>();
-
-        if (Delay is null)
+        if (Delay is not null)
         {
-            results.Add(new ValidationResult("Delay is not configured."));
-            return results;
+            Thread.Sleep((int)Delay); // Simulates sync inventory check (blocks thread)
         }
-
-        // Simulate async external pricing/approval service call
-        await Task.Delay((int)Delay, cancellationToken);
 
         decimal totalCost = Quantity * UnitPrice;
         if (totalCost > 50_000m)
         {
-            results.Add(new ValidationResult(
-                $"Total cost ({totalCost:C}) exceeds the $50,000 business limit.",
-                new[] { nameof(Quantity), nameof(UnitPrice) }));
+            yield return new ValidationResult(
+                $"Total cost ({totalCost:C}) exceeds the $50,000 limit.",
+                new[] { nameof(Quantity), nameof(UnitPrice) });
         }
-
-        return results;
     }
 }

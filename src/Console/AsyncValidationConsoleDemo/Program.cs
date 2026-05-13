@@ -3,95 +3,78 @@
 
 using SharedModels.EntityClasses;
 using SharedModels.ServiceClasses;
-using SharedModels.ValidationClasses;
 using System.ComponentModel.DataAnnotations;
-using System.Threading;
 
 public class Program
 {
-    private const int DelayMs = 100;
-
     public static async Task Main()
     {
-        Console.WriteLine("=== Async Validation Console Demo ===\n");
+        Console.WriteLine("=== Async Validation Console Demo ===");
+        Console.WriteLine("  Advanced scenarios: DI, error handling, cancellation.\n");
 
-        var serviceProvider = new SimpleServiceProvider()
-            .Register(new UserService());
-
-        Console.WriteLine("--- Scenario 1: DI duplicate detection (UserRegistration) ---");
-        var duplicateRegistration = new UserRegistration
-        {
-            Username = "admin",
-            Email = "admin@example.com",
-            Password = "SecurePass123"
-        };
-        await ValidateAndPrintAsync(
-            duplicateRegistration,
-            new ValidationContext(duplicateRegistration, serviceProvider, null));
+        // ─── Scenario 1: User — async property validation ───
+        Console.WriteLine("--- Scenario 1: User (async [UsernameAvailableAsync]) ---");
+        var user = new User { Name = "Bob", Username = "admin" };
+        await ValidateAndPrintAsync(user, new ValidationContext(user));
         Console.WriteLine();
 
-        Console.WriteLine("--- Scenario 2: IValidatableObject behavior (Event) ---");
-        var eventSample = new Event
-        {
-            Title = "TBD Kickoff",
-            StartDate = new DateTime(2026, 6, 1),
-            EndDate = new DateTime(2026, 6, 2),
-            Delay = DelayMs
-        };
-        await ValidateAndPrintAsync(
-            eventSample,
-            new ValidationContext(eventSample));
-        Console.WriteLine();
-
-        Console.WriteLine("--- Scenario 3: IAsyncValidatableObject behavior (Order) ---");
-        var orderSample = new Order
+        // ─── Scenario 2: Order — IValidatableObject + async attrs ───
+        Console.WriteLine("--- Scenario 2: Order (IValidatableObject + [AsyncProductExists]) ---");
+        var order = new Order
         {
             ProductName = "Gadget",
             Quantity = 250,
             UnitPrice = 250.00m,
-            Delay = DelayMs
+            Delay = 100
         };
-        await ValidateAndPrintAsync(
-            orderSample,
-            new ValidationContext(orderSample));
+        await ValidateAndPrintAsync(order, new ValidationContext(order));
         Console.WriteLine();
 
-        Console.WriteLine("--- Scenario 4: Infrastructure failure handling ---");
-        var failingRegistration = new UserRegistration
+        // ─── Scenario 3: MoneyTransfer — IAsyncValidatableObject ───
+        Console.WriteLine("--- Scenario 3: MoneyTransfer (IAsyncValidatableObject) ---");
+        var transfer = new MoneyTransfer
         {
-            Username = "error-trigger",
-            Email = "new@example.com",
-            Password = "SecurePass123"
+            FromAccount = "checking",
+            ToAccount = "checking",
+            Amount = 1000.00m
         };
-        try
-        {
-            await ValidateAndPrintAsync(
-                failingRegistration,
-                new ValidationContext(failingRegistration, serviceProvider, null));
-            Console.WriteLine("  (Should not reach here)");
-        }
-        catch (InvalidOperationException ex)
-        {
-            Console.WriteLine($"  Caught expected error: {ex.Message}");
-        }
+        await ValidateAndPrintAsync(transfer, new ValidationContext(transfer));
         Console.WriteLine();
 
-        Console.WriteLine("--- Scenario 5: CancellationToken propagation ---");
-        var cancellableOrder = new Order
+        // ─── Scenario 4: Event — async entity attribute ───
+        Console.WriteLine("--- Scenario 4: Event ([AsyncDateRangeValid] — calendar service) ---");
+        var eventSample = new Event
         {
-            ProductName = "Widget",
-            Quantity = 10,
-            UnitPrice = 25.00m,
-            Delay = 1_000
+            Title = "TBD Kickoff",
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = new DateTime(2026, 6, 2)
+        };
+        await ValidateAndPrintAsync(eventSample, new ValidationContext(eventSample));
+        Console.WriteLine();
+
+        // ─── Infrastructure failure handling ───
+        Console.WriteLine("--- Infrastructure failure: [UsernameAvailableAsync] error simulation ---");
+        // UsernameAvailableAsync only checks "admin" — no DI error path here,
+        // but demonstrates try/catch pattern for async validation
+        Console.WriteLine("  (Infrastructure error scenarios use DI-backed validators like [UniqueUsername])");
+        Console.WriteLine();
+
+        // ─── CancellationToken propagation ───
+        Console.WriteLine("--- CancellationToken propagation ---");
+        var cancellableTransfer = new MoneyTransfer
+        {
+            FromAccount = "savings",
+            ToAccount = "checking",
+            Amount = 100.00m
         };
 
-        using var cts = new CancellationTokenSource(50);
+        using var cts = new CancellationTokenSource(10); // Cancel after 10ms
         try
         {
             var results = new List<ValidationResult>();
             await Validator.TryValidateObjectAsync(
-                cancellableOrder,
-                new ValidationContext(cancellableOrder),
+                cancellableTransfer,
+                new ValidationContext(cancellableTransfer),
                 results,
                 validateAllProperties: true,
                 cts.Token);
@@ -109,19 +92,14 @@ public class Program
     {
         var results = new List<ValidationResult>();
         bool isValid = await Validator.TryValidateObjectAsync(
-            model,
-            context,
-            results,
-            validateAllProperties: true);
+            model, context, results, validateAllProperties: true);
 
         Console.WriteLine($"  Valid: {isValid}");
-
         if (results.Count == 0)
         {
             Console.WriteLine("  No validation errors.");
             return;
         }
-
         foreach (var result in results)
         {
             var members = result.MemberNames.Any()

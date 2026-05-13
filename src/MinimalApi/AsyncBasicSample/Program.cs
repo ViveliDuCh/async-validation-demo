@@ -1,24 +1,22 @@
 // Minimal API — Async port of BasicAsyncSample
-// Demonstrates how async validation can await costly I/O without blocking the request thread.
-// Each POST endpoint awaits Validator.TryValidateObjectAsync and returns errors or success.
+// Demonstrates the 4 async validation proposal scenarios without blocking request threads.
 
 using SharedModels.EntityClasses;
-using SharedModels.ServiceClasses;
 using System.ComponentModel.DataAnnotations;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSingleton<UserService>();
 var app = builder.Build();
 
 app.MapGet("/", () => Results.Ok(new
 {
     Name = "AsyncBasicSample — Minimal API",
-    Description = "Async validation for attribute-only, IValidatableObject, and IAsyncValidatableObject models without blocking server threads",
+    Description = "Minimal API endpoints aligned to the 4 async validation proposal scenarios",
     Endpoints = new[]
     {
-        new { Method = "POST", Path = "/api/register/invalid", Scenario = "1 — UserRegistration with DI-backed async validation" },
-        new { Method = "POST", Path = "/api/event/invalid", Scenario = "2 — Event with IValidatableObject + async attributes" },
-        new { Method = "POST", Path = "/api/order/invalid", Scenario = "3 — Order with IAsyncValidatableObject + async attributes" }
+        new { Method = "POST", Path = "/api/scenario1/user", Scenario = "1 — User (mixed sync + async property attributes)" },
+        new { Method = "POST", Path = "/api/scenario2/order", Scenario = "2 — Order (IValidatableObject + async attributes)" },
+        new { Method = "POST", Path = "/api/scenario3/transfer", Scenario = "3 — MoneyTransfer (IAsyncValidatableObject)" },
+        new { Method = "POST", Path = "/api/scenario4/event", Scenario = "4 — Event (IValidatableObject + async entity attribute)" }
     }
 }));
 
@@ -46,26 +44,31 @@ static async Task<IResult> ValidateAndRespondAsync<T>(
 }
 
 // ───────────────────────────────────────────
-// UserRegistration combines DI-backed async uniqueness checks, sync password policy,
-// and async registration screening without blocking the request thread.
-// POST /api/register/invalid  { "username": "admin", "email": "admin@example.com", "password": "adminPass" }
+// Scenario 1: User uses mixed sync + async property validation.
+// POST /api/scenario1/user  { "name": "Bob", "username": "admin" }
 // ───────────────────────────────────────────
-app.MapPost("/api/register/invalid", async (UserRegistration registration, IServiceProvider sp) =>
-    await ValidateAndRespondAsync(registration, "UserRegistration with DI-backed async validation", sp));
+app.MapPost("/api/scenario1/user", async (User user) =>
+    await ValidateAndRespondAsync(user, "Scenario 1 — User (mixed sync + async property attributes)"));
 
 // ───────────────────────────────────────────
-// Event uses IValidatableObject plus sync/async entity rules:
-// reserved titles, date ordering, and schedule conflicts.
-// POST /api/event/invalid  { "title": "Test Event", "startDate": "2027-01-01", "endDate": "2026-12-31", "delay": 3000 }
+// Scenario 2: Order uses IValidatableObject plus async product/inventory checks.
+// POST /api/scenario2/order  { "productName": "Unknown", "quantity": 1000, "unitPrice": 120, "delay": 100 }
 // ───────────────────────────────────────────
-app.MapPost("/api/event/invalid", async (Event ev) =>
-    await ValidateAndRespondAsync(ev, "Event with IValidatableObject + async attributes"));
+app.MapPost("/api/scenario2/order", async (Order order) =>
+    await ValidateAndRespondAsync(order, "Scenario 2 — Order (IValidatableObject + async attributes)"));
 
 // ───────────────────────────────────────────
-// Order uses async catalog/inventory checks plus sync/async order-total limits.
-// POST /api/order/invalid  { "productName": "Unknown", "quantity": 1000, "unitPrice": 120, "delay": 3000 }
+// Scenario 3: MoneyTransfer uses IAsyncValidatableObject for async cross-property validation.
+// POST /api/scenario3/transfer  { "fromAccount": "checking", "toAccount": "checking", "amount": 1000 }
 // ───────────────────────────────────────────
-app.MapPost("/api/order/invalid", async (Order order) =>
-    await ValidateAndRespondAsync(order, "Order with IAsyncValidatableObject + async attributes"));
+app.MapPost("/api/scenario3/transfer", async (MoneyTransfer transfer) =>
+    await ValidateAndRespondAsync(transfer, "Scenario 3 — MoneyTransfer (IAsyncValidatableObject)"));
+
+// ───────────────────────────────────────────
+// Scenario 4: Event uses IValidatableObject plus an async entity-level attribute.
+// POST /api/scenario4/event  { "title": "TBD Kickoff", "startDate": "2099-01-01", "endDate": "2099-01-02" }
+// ───────────────────────────────────────────
+app.MapPost("/api/scenario4/event", async (Event ev) =>
+    await ValidateAndRespondAsync(ev, "Scenario 4 — Event (IValidatableObject + async entity attribute)"));
 
 app.Run();

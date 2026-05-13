@@ -2,45 +2,43 @@
 
 <h3>Field-Level Async Validation — Blazor Web App</h3>
 <p>
-    This app demonstrates the <strong>new field-level async validation</strong> added to Blazor's
-    <code>DataAnnotationsValidator</code> and <code>EditContext</code>. Unlike the existing
-    form-level samples that manually call <code>Validator.TryValidateObjectAsync</code> on submit,
-    these pages use <code>&lt;DataAnnotationsValidator /&gt;</code> which now <strong>automatically</strong>
-    validates each field asynchronously when its value changes.
+    This app is organized around the four API proposal scenarios. Each scenario page uses the
+    same Blazor pattern: <code>&lt;DataAnnotationsValidator /&gt;</code>, <code>OnSubmit</code>, and
+    <code>await _editContext.ValidateAsync()</code>. Pages with async property attributes also show
+    <code>IsValidationPending()</code> spinners while those checks are in flight.
 </p>
 
 <div class="alert alert-primary">
-    <strong>Key difference:</strong> Existing Blazor samples validate the entire model on submit
-    (form-level). This app validates individual fields on change (field-level) using
-    <code>Validator.TryValidatePropertyAsync</code> — powered by the new <code>EditContext</code>
-    APIs: <code>AddValidationTask</code>, <code>IsValidationPending</code>, and
-    <code>IsValidationFaulted</code>.
+    <strong>Key idea:</strong> <code>DataAnnotationsValidator</code> now handles async validation
+    directly. Field changes can run async property validators, and submit can run full-model async
+    validation without the manual plumbing older samples needed.
 </div>
 
 <div class="list-group">
-    <a href="/registration" class="list-group-item list-group-item-action">
-        <strong>Registration:</strong> <code>UserRegistration</code> with DI-backed
-        <code>[UniqueUsername]</code> and <code>[UniqueEmail]</code> — async field validation
-        triggers on field change with per-field pending spinners
+    <a href="/scenario1" class="list-group-item list-group-item-action">
+        <strong>Scenario 1:</strong> <code>User</code> — no interface, sync <code>[IsValidName]</code>
+        plus async <code>[UsernameAvailableAsync]</code>
     </a>
-    <a href="/order" class="list-group-item list-group-item-action">
-        <strong>Order:</strong> <code>Order</code> (<code>IAsyncValidatableObject</code>) —
-        field-level <code>[AsyncProductExists]</code> + form-level cross-property
-        <code>ValidateAsync()</code>
+    <a href="/scenario2" class="list-group-item list-group-item-action">
+        <strong>Scenario 2:</strong> <code>Order</code> — <code>IValidatableObject</code> with async
+        <code>[AsyncProductExists]</code> on <code>ProductName</code> and full-model submit validation
     </a>
-    <a href="/event" class="list-group-item list-group-item-action">
-        <strong>Event:</strong> <code>Event</code> (<code>IValidatableObject</code>) —
-        field-level <code>[ReservedTitleCheck]</code> async property check + sync entity
-        <code>Validate()</code>
+    <a href="/scenario3" class="list-group-item list-group-item-action">
+        <strong>Scenario 3:</strong> <code>MoneyTransfer</code> —
+        <code>IAsyncValidatableObject</code>; no async property attributes, async work happens on
+        submit
+    </a>
+    <a href="/scenario4" class="list-group-item list-group-item-action">
+        <strong>Scenario 4:</strong> <code>Event</code> — async class-level
+        <code>[AsyncDateRangeValid]</code> with sync inline <code>IValidatableObject</code> logic
     </a>
     <a href="/pending-faulted" class="list-group-item list-group-item-action">
-        <strong>Pending &amp; Faulted:</strong> <code>IsValidationPending()</code> per-field
-        spinners and <code>IsValidationFaulted()</code> per-field error badges — demonstrates
-        the new state-tracking APIs
+        <strong>Pending &amp; Faulted:</strong> focused demos for <code>IsValidationPending()</code>
+        and <code>IsValidationFaulted()</code>
     </a>
     <a href="/comparison" class="list-group-item list-group-item-action">
-        <strong>Comparison:</strong> Side-by-side form-level (manual, ~60 LOC) vs field-level
-        (<code>DataAnnotationsValidator</code>, ~10 LOC) — same model, same attributes, less code
+        <strong>Comparison:</strong> manual form-level validation vs the built-in
+        <code>DataAnnotationsValidator</code> approach using the same <code>User</code> model
     </a>
 </div>
 
@@ -55,11 +53,11 @@
     <tbody>
         <tr>
             <td><code>ValidateAsync()</code></td>
-            <td>Async form-level validation (replaces manual <code>TryValidateObjectAsync</code>)</td>
+            <td>Async submit validation for the whole model</td>
         </tr>
         <tr>
             <td><code>AddValidationTask(field, task, cts)</code></td>
-            <td>Tracks per-field async validation with auto-cancellation on re-type</td>
+            <td>Tracks async validation work and cancels superseded field checks</td>
         </tr>
         <tr>
             <td><code>IsValidationPending(field)</code></td>
@@ -71,7 +69,7 @@
         </tr>
         <tr>
             <td><code>OnAsyncValidationRequested</code></td>
-            <td>Async delegate replacing <code>OnValidationRequested</code> for form submit</td>
+            <td>Async submit hook used by the validator pipeline</td>
         </tr>
     </tbody>
 </table>

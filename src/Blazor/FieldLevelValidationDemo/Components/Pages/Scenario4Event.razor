@@ -1,0 +1,107 @@
+@page "/scenario4"
+@implements IDisposable
+
+<h3>Scenario 4 — Event</h3>
+<p>
+    <code>Event</code> demonstrates the fourth API proposal scenario: an async entity-level
+    attribute (<code>[AsyncDateRangeValid]</code>) plus sync inline validation via
+    <code>IValidatableObject</code>. Because the async validator is applied to the class, the async
+    pending state shows up during submit rather than beside an individual field.
+</p>
+
+<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="scenario4Form">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label">Title</label>
+        <InputText class="form-control" @bind-Value="_event.Title" />
+        <ValidationMessage For="@(() => _event.Title)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Start Date</label>
+        <InputDate class="form-control" @bind-Value="_event.StartDate" />
+        <ValidationMessage For="@(() => _event.StartDate)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">End Date</label>
+        <InputDate class="form-control" @bind-Value="_event.EndDate" />
+        <ValidationMessage For="@(() => _event.EndDate)" />
+    </div>
+
+    @if (_editContext.IsValidationPending())
+    {
+        <div class="alert alert-info">
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            <code>[AsyncDateRangeValid]</code> is running for the full model...
+        </div>
+    }
+
+    <button type="submit" class="btn btn-primary" disabled="@(_isSubmitting || _editContext.IsValidationPending())">
+        @if (_isSubmitting || _editContext.IsValidationPending())
+        {
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            @:Validating...
+        }
+        else
+        {
+            @:Submit
+        }
+    </button>
+
+    <ValidationSummary class="mt-3" />
+</EditForm>
+
+@if (_message is not null)
+{
+    <div class="alert @_alertClass mt-3">@_message</div>
+}
+
+@code {
+    private readonly Event _event = new()
+    {
+        Title = "Product Launch",
+        StartDate = DateTime.Today.AddMonths(1),
+        EndDate = DateTime.Today.AddYears(2)
+    };
+
+    private EditContext _editContext = null!;
+    private bool _isSubmitting;
+    private string? _message;
+    private string _alertClass = "alert-info";
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_event);
+        _editContext.OnValidationStateChanged += HandleValidationStateChanged;
+    }
+
+    private void HandleValidationStateChanged(object? sender, ValidationStateChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    private async Task HandleSubmit()
+    {
+        _isSubmitting = true;
+        _message = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            bool isValid = await _editContext.ValidateAsync();
+            _message = isValid
+                ? "✅ Scenario 4 passed — async date-range and sync event checks both succeeded."
+                : "❌ Scenario 4 failed — see the validation messages above.";
+            _alertClass = isValid ? "alert-success" : "alert-danger";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _editContext.OnValidationStateChanged -= HandleValidationStateChanged;
+    }
+}

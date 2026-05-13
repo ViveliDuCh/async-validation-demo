@@ -9,10 +9,10 @@ public class OrderViewModel : ValidatableViewModelBase
 {
     private readonly Order _order = new()
     {
-        ProductName = "Widget",
-        Quantity = 10_000,
-        UnitPrice = 10m,
-        Delay = 3000
+        ProductName = "Gadget",
+        Quantity = 250,
+        UnitPrice = 250m,
+        Delay = 100
     };
 
     public string? ProductName

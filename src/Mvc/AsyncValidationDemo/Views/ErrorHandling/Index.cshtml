@@ -4,9 +4,9 @@
 <h3>Infrastructure Failure Propagation</h3>
 <p>
     When username is <code>"error-trigger"</code>, <code>[UniqueUsername]</code> throws
-    <code>InvalidOperationException</code> during <code>Validator.TryValidateObjectAsync</code>.
-    The exception propagates as a <strong>500 Internal Server Error</strong> handled by
-    <code>UseExceptionHandler</code>.
+    <code>InvalidOperationException</code> during MVC's
+    <code>IAsyncModelValidator.ValidateAsync</code> pipeline. The exception propagates as a
+    <strong>500 Internal Server Error</strong> handled by <code>UseExceptionHandler</code>.
 </p>
 
 <form asp-action="Index" method="post" class="col-md-6">

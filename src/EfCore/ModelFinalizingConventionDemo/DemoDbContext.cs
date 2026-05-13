@@ -8,6 +8,7 @@ public class DemoDbContext : DbContext
     private readonly SharedModelsConvention _convention;
 
     public DbSet<UserRegistration> UserRegistrations { get; set; }
+    public DbSet<User> Users { get; set; }
     public DbSet<Event> Events { get; set; }
     public DbSet<Order> Orders { get; set; }
 
@@ -29,11 +30,17 @@ public class DemoDbContext : DbContext
             e.Property(x => x.Username).IsRequired();
         });
 
+        modelBuilder.Entity<User>(e =>
+        {
+            e.HasKey(x => x.Username);
+            e.Property(x => x.Name).IsRequired();
+            e.Property(x => x.Username).IsRequired();
+        });
+
         modelBuilder.Entity<Event>(e =>
         {
             e.HasKey("Title");
             e.Property(x => x.Title).IsRequired();
-            e.Ignore(x => x.Delay);
         });
 
         modelBuilder.Entity<Order>(e =>

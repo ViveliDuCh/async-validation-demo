@@ -9,18 +9,17 @@ using SharedModels.ValidationClasses;
 namespace SharedModels.EntityClasses;
 
 /// <summary>
-/// Case 2: IValidatableObject — sync interface with sync + async attributes.
-/// [ReservedTitleCheck] demonstrates the sync-over-async fallback pattern (Case 4).
+/// API Proposal Scenarios 1 + 4: IValidatableObject with async entity-level attribute.
+/// [AsyncDateRangeValid] simulates a calendar service call to get maxDateAllowed,
+/// then validates both start &lt; end and end &lt;= maxDateAllowed.
 /// IValidatableObject.Validate() provides additional sync entity-level inline logic.
 /// </summary>
-[DateRange(nameof(StartDate), nameof(EndDate))]
-[AsyncScheduleCheck]
+[AsyncDateRangeValid(nameof(StartDate), nameof(EndDate))]
 public class Event : IValidatableObject
 {
     /// <summary>Gets or sets the event title.</summary>
     [Required]
     [StringLength(200)]
-    [ReservedTitleCheck]
     public string? Title { get; set; }
 
     /// <summary>Gets or sets the event start date.</summary>
@@ -30,10 +29,6 @@ public class Event : IValidatableObject
     /// <summary>Gets or sets the event end date.</summary>
     [Required]
     public DateTime? EndDate { get; set; }
-
-    /// <summary>Gets or sets the simulated I/O delay in milliseconds.</summary>
-    [Required]
-    public int? Delay { get; set; }
 
     /// <summary>
     /// Sync inline entity-level validation via IValidatableObject.

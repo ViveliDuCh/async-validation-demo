@@ -1,156 +1,98 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.ComponentModel.DataAnnotations;
 using SharedModels.EntityClasses;
-using SharedModels.ServiceClasses;
 
 namespace AsyncBasicSample;
 
 /// <summary>
 /// WinForms async DataAnnotations validation with ErrorProvider.
-/// Demonstrates async validation for UserRegistration, Event, and Order.
+/// Demonstrates the four API proposal scenarios.
 /// </summary>
 public partial class MainForm : Form
 {
     private readonly ErrorProvider _errorProvider = new();
-    private readonly SimpleServiceProvider _serviceProvider = new SimpleServiceProvider()
-        .Register(new UserService());
-    private readonly UserRegistration _registration = new()
+    private readonly User _user = new()
     {
-        Username = "admin",
-        Email = "admin@example.com",
-        Password = "SecureP@ss123"
-    };
-    private readonly Event _event = new()
-    {
-        Title = "Launch Party",
-        StartDate = new DateTime(2026, 12, 25),
-        EndDate = new DateTime(2026, 12, 20),
-        Delay = 3000
+        Name = "Bob",
+        Username = "admin"
     };
     private readonly Order _order = new()
     {
-        ProductName = "Widget",
-        Quantity = 10_000,
-        UnitPrice = 10m,
-        Delay = 3000
+        ProductName = "Gadget",
+        Quantity = 250,
+        UnitPrice = 250m,
+        Delay = 100
+    };
+    private readonly MoneyTransfer _moneyTransfer = new()
+    {
+        FromAccount = "checking",
+        ToAccount = "checking",
+        Amount = 1000m
+    };
+    private readonly Event _event = new()
+    {
+        Title = "TBD Kickoff",
+        StartDate = new DateTime(2026, 6, 1),
+        EndDate = new DateTime(2026, 6, 2)
     };
 
     private TabControl _tabControl = null!;
 
     public MainForm()
     {
-        Text = "WinForms AsyncBasicSample — Async ErrorProvider + Validator";
-        Size = new System.Drawing.Size(650, 500);
+        Text = "WinForms AsyncBasicSample — 4 API Proposal Scenarios";
+        Size = new System.Drawing.Size(700, 520);
         _errorProvider.ContainerControl = this;
 
         _tabControl = new TabControl { Dock = DockStyle.Fill };
         Controls.Add(_tabControl);
 
-        _tabControl.TabPages.Add(CreateRegistrationTab());
-        _tabControl.TabPages.Add(CreateEventTab());
+        _tabControl.TabPages.Add(CreateUserTab());
         _tabControl.TabPages.Add(CreateOrderTab());
+        _tabControl.TabPages.Add(CreateMoneyTransferTab());
+        _tabControl.TabPages.Add(CreateEventTab());
     }
 
-    private TabPage CreateRegistrationTab()
+    private TabPage CreateUserTab()
     {
-        var tab = new TabPage("UserRegistration");
+        var tab = new TabPage("Scenario 1 (User)");
         var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10) };
 
-        panel.Controls.Add(new Label { Text = "DI + Async Duplicate Detection (UniqueUsername + UniqueEmail)", AutoSize = true });
+        panel.Controls.Add(new Label { Text = "No interface — sync [IsValidName] + async [UsernameAvailableAsync].", AutoSize = true });
 
-        var txtUsername = CreateField(panel, "Username:", _registration.Username ?? "");
-        txtUsername.Validating += async (s, e) =>
+        var txtName = CreateField(panel, "Name:", _user.Name ?? string.Empty);
+        txtName.Validating += async (_, _) =>
         {
-            _registration.Username = txtUsername.Text;
+            _user.Name = txtName.Text;
+            await ValidationHelper.ValidatePropertyAsync(
+                _errorProvider,
+                txtName,
+                _user,
+                nameof(User.Name),
+                txtName.Text);
+        };
+
+        var txtUsername = CreateField(panel, "Username:", _user.Username ?? string.Empty);
+        txtUsername.Validating += async (_, _) =>
+        {
+            _user.Username = txtUsername.Text;
             await ValidationHelper.ValidatePropertyAsync(
                 _errorProvider,
                 txtUsername,
-                _registration,
-                nameof(UserRegistration.Username),
-                txtUsername.Text,
-                _serviceProvider);
-        };
-
-        var txtEmail = CreateField(panel, "Email:", _registration.Email ?? "");
-        txtEmail.Validating += async (s, e) =>
-        {
-            _registration.Email = txtEmail.Text;
-            await ValidationHelper.ValidatePropertyAsync(
-                _errorProvider,
-                txtEmail,
-                _registration,
-                nameof(UserRegistration.Email),
-                txtEmail.Text,
-                _serviceProvider);
-        };
-
-        var txtPassword = CreateField(panel, "Password:", _registration.Password ?? "");
-        txtPassword.UseSystemPasswordChar = true;
-        txtPassword.Validating += async (s, e) =>
-        {
-            _registration.Password = txtPassword.Text;
-            await ValidationHelper.ValidatePropertyAsync(
-                _errorProvider,
-                txtPassword,
-                _registration,
-                nameof(UserRegistration.Password),
-                txtPassword.Text,
-                _serviceProvider);
+                _user,
+                nameof(User.Username),
+                txtUsername.Text);
         };
 
         var btnValidate = new Button { Text = "Validate All (Async)", AutoSize = true };
-        var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed };
-        btnValidate.Click += async (s, e) =>
+        var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };
+        btnValidate.Click += async (_, _) =>
         {
-            _registration.Username = txtUsername.Text;
-            _registration.Email = txtEmail.Text;
-            _registration.Password = txtPassword.Text;
+            _user.Name = txtName.Text;
+            _user.Username = txtUsername.Text;
 
-            var (valid, results) = await ValidationHelper.ValidateObjectAsync(_registration, _serviceProvider);
-            lblResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
-        };
-        panel.Controls.Add(btnValidate);
-        panel.Controls.Add(lblResult);
-
-        tab.Controls.Add(panel);
-        return tab;
-    }
-
-    private TabPage CreateEventTab()
-    {
-        var tab = new TabPage("Event");
-        var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10) };
-
-        panel.Controls.Add(new Label { Text = "IValidatableObject + [ReservedTitleCheck], [DateRange], [AsyncScheduleCheck]", AutoSize = true });
-
-        var txtTitle = CreateField(panel, "Title:", _event.Title ?? "");
-        var txtStart = CreateField(panel, "Start Date:", _event.StartDate?.ToString("yyyy-MM-dd") ?? "");
-        var txtEnd = CreateField(panel, "End Date:", _event.EndDate?.ToString("yyyy-MM-dd") ?? "");
-        var txtDelay = CreateField(panel, "Delay (ms):", _event.Delay?.ToString() ?? "3000");
-
-        var btnValidate = new Button { Text = "Validate All (Async)", AutoSize = true };
-        var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed };
-        btnValidate.Click += async (s, e) =>
-        {
-            _event.Title = txtTitle.Text;
-            if (DateTime.TryParse(txtStart.Text, out var startDate))
-            {
-                _event.StartDate = startDate;
-            }
-
-            if (DateTime.TryParse(txtEnd.Text, out var endDate))
-            {
-                _event.EndDate = endDate;
-            }
-
-            if (int.TryParse(txtDelay.Text, out int delay))
-            {
-                _event.Delay = delay;
-            }
-
-            var (valid, results) = await ValidationHelper.ValidateObjectAsync(_event);
+            var (valid, results) = await ValidationHelper.ValidateObjectAsync(_user);
             lblResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
         };
         panel.Controls.Add(btnValidate);
@@ -162,37 +104,84 @@ public partial class MainForm : Form
 
     private TabPage CreateOrderTab()
     {
-        var tab = new TabPage("Order");
+        var tab = new TabPage("Scenario 2 (Order)");
         var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10) };
 
-        panel.Controls.Add(new Label { Text = "IAsyncValidatableObject + [AsyncProductExists], [MaxOrderValue], [AsyncInventoryCheck]", AutoSize = true });
+        panel.Controls.Add(new Label { Text = "IValidatableObject — async [AsyncProductExists]/[AsyncInventoryCheck] + sync Validate().", AutoSize = true });
 
-        var txtProduct = CreateField(panel, "Product:", _order.ProductName ?? "");
+        var txtProduct = CreateField(panel, "Product Name:", _order.ProductName ?? string.Empty);
         var txtQuantity = CreateField(panel, "Quantity:", _order.Quantity.ToString());
         var txtPrice = CreateField(panel, "Unit Price:", _order.UnitPrice.ToString());
-        var txtDelay = CreateField(panel, "Delay (ms):", _order.Delay?.ToString() ?? "3000");
+        var txtDelay = CreateField(panel, "Delay (ms):", _order.Delay?.ToString() ?? string.Empty);
 
         var btnValidate = new Button { Text = "Validate All (Async)", AutoSize = true };
-        var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed };
-        btnValidate.Click += async (s, e) =>
+        var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };
+        btnValidate.Click += async (_, _) =>
         {
             _order.ProductName = txtProduct.Text;
-            if (int.TryParse(txtQuantity.Text, out int quantity))
-            {
-                _order.Quantity = quantity;
-            }
-
-            if (decimal.TryParse(txtPrice.Text, out decimal price))
-            {
-                _order.UnitPrice = price;
-            }
-
-            if (int.TryParse(txtDelay.Text, out int delay))
-            {
-                _order.Delay = delay;
-            }
+            _order.Quantity = int.TryParse(txtQuantity.Text, out var quantity) ? quantity : 0;
+            _order.UnitPrice = decimal.TryParse(txtPrice.Text, out var price) ? price : 0m;
+            _order.Delay = int.TryParse(txtDelay.Text, out var delay) ? delay : null;
 
             var (valid, results) = await ValidationHelper.ValidateObjectAsync(_order);
+            lblResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
+        };
+        panel.Controls.Add(btnValidate);
+        panel.Controls.Add(lblResult);
+
+        tab.Controls.Add(panel);
+        return tab;
+    }
+
+    private TabPage CreateMoneyTransferTab()
+    {
+        var tab = new TabPage("Scenario 3 (MoneyTransfer)");
+        var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10) };
+
+        panel.Controls.Add(new Label { Text = "IAsyncValidatableObject — async cross-property validation via ValidateAsync().", AutoSize = true });
+
+        var txtFrom = CreateField(panel, "From Account:", _moneyTransfer.FromAccount ?? string.Empty);
+        var txtTo = CreateField(panel, "To Account:", _moneyTransfer.ToAccount ?? string.Empty);
+        var txtAmount = CreateField(panel, "Amount:", _moneyTransfer.Amount.ToString());
+
+        var btnValidate = new Button { Text = "Validate All (Async)", AutoSize = true };
+        var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };
+        btnValidate.Click += async (_, _) =>
+        {
+            _moneyTransfer.FromAccount = txtFrom.Text;
+            _moneyTransfer.ToAccount = txtTo.Text;
+            _moneyTransfer.Amount = decimal.TryParse(txtAmount.Text, out var amount) ? amount : 0m;
+
+            var (valid, results) = await ValidationHelper.ValidateObjectAsync(_moneyTransfer);
+            lblResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
+        };
+        panel.Controls.Add(btnValidate);
+        panel.Controls.Add(lblResult);
+
+        tab.Controls.Add(panel);
+        return tab;
+    }
+
+    private TabPage CreateEventTab()
+    {
+        var tab = new TabPage("Scenario 4 (Event)");
+        var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10) };
+
+        panel.Controls.Add(new Label { Text = "Async [AsyncDateRangeValid] + sync IValidatableObject rules.", AutoSize = true });
+
+        var txtTitle = CreateField(panel, "Title:", _event.Title ?? string.Empty);
+        var dtpStart = CreateDateField(panel, "Start Date:", _event.StartDate ?? DateTime.Today);
+        var dtpEnd = CreateDateField(panel, "End Date:", _event.EndDate ?? DateTime.Today);
+
+        var btnValidate = new Button { Text = "Validate All (Async)", AutoSize = true };
+        var lblResult = new Label { AutoSize = true, ForeColor = System.Drawing.Color.DarkRed, MaximumSize = new System.Drawing.Size(600, 0) };
+        btnValidate.Click += async (_, _) =>
+        {
+            _event.Title = txtTitle.Text;
+            _event.StartDate = dtpStart.Value;
+            _event.EndDate = dtpEnd.Value;
+
+            var (valid, results) = await ValidationHelper.ValidateObjectAsync(_event);
             lblResult.Text = valid ? "✅ Valid!" : "❌ " + string.Join("; ", results.Select(r => r.ErrorMessage));
         };
         panel.Controls.Add(btnValidate);
@@ -208,5 +197,18 @@ public partial class MainForm : Form
         var txt = new TextBox { Text = defaultValue, Width = 400 };
         panel.Controls.Add(txt);
         return txt;
+    }
+
+    private static DateTimePicker CreateDateField(FlowLayoutPanel panel, string label, DateTime value)
+    {
+        panel.Controls.Add(new Label { Text = label, AutoSize = true });
+        var picker = new DateTimePicker
+        {
+            Width = 200,
+            Format = DateTimePickerFormat.Short,
+            Value = value
+        };
+        panel.Controls.Add(picker);
+        return picker;
     }
 }

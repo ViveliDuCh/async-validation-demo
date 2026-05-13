@@ -1,0 +1,36 @@
+@page "/"
+@inject IOptions<CloudInfoOptions> CloudInfoOptions
+
+<h3>Startup Snapshot — <code>IOptions&lt;T&gt;</code></h3>
+<p>
+    This tab shows the <code>CloudInfoOptions</code> values captured at startup via
+    <code>IOptions&lt;T&gt;.Value</code>. These are <strong>cached</strong> — editing
+    <code>appsettings.json</code> while the app is running will NOT update this page.
+    The values were validated asynchronously at startup via
+    <code>ValidateDataAnnotationsAsync</code> + <code>ValidateOnStartAsync</code>.
+</p>
+
+<div class="card mt-3">
+    <div class="card-header bg-secondary text-white">CloudInfoOptions (startup snapshot — frozen)</div>
+    <div class="card-body">
+        <ul class="list-unstyled mb-0">
+            <li><strong>Storage:</strong> @cloudInfo?.Storage</li>
+            <li><strong>Region:</strong> @cloudInfo?.Region</li>
+            <li><strong>Endpoint:</strong> @cloudInfo?.Endpoint</li>
+        </ul>
+    </div>
+</div>
+
+<div class="alert alert-info mt-3">
+    <strong>Tip:</strong> Navigate to the <a href="/monitor">Live (IOptionsMonitor)</a> tab to see
+    values that update when you edit <code>appsettings.json</code>.
+</div>
+
+@code {
+    private CloudInfoOptions? cloudInfo;
+
+    protected override void OnInitialized()
+    {
+        cloudInfo = CloudInfoOptions.Value;
+    }
+}

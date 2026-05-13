@@ -11,10 +11,9 @@ public partial class EventViewModel : ObservableValidator
 {
     private readonly Event _event = new()
     {
-        Title = "Launch Party",
-        StartDate = new DateTime(2026, 12, 25),
-        EndDate = new DateTime(2026, 12, 20),
-        Delay = 3000
+        Title = "TBD Kickoff",
+        StartDate = new DateTime(2026, 6, 1),
+        EndDate = new DateTime(2026, 6, 2)
     };
 
     [Required]
@@ -34,12 +33,6 @@ public partial class EventViewModel : ObservableValidator
     {
         get => _event.EndDate;
         set => SetProperty(_event.EndDate, value, _event, static (item, endDate) => item.EndDate = endDate);
-    }
-
-    public int? Delay
-    {
-        get => _event.Delay;
-        set => SetProperty(_event.Delay, value, _event, static (item, delay) => item.Delay = delay);
     }
 
     public async Task<bool> ValidateAllAsync()

@@ -1,0 +1,134 @@
+@page "/scenario3"
+@implements IDisposable
+
+<h3>Scenario 3: MoneyTransfer — IAsyncValidatableObject</h3>
+<p>
+    <code>MoneyTransfer</code> implements <code>IAsyncValidatableObject</code> so cross-property validation
+    can await external work without blocking the request thread. This page manually bridges the results
+    back into Blazor's <code>EditContext</code>.
+</p>
+
+<EditForm EditContext="@_editContext" OnSubmit="@HandleSubmit" FormName="scenario3Form">
+    <div class="mb-3">
+        <label class="form-label">From Account</label>
+        <InputText class="form-control" @bind-Value="_transfer.FromAccount" />
+        <ValidationMessage For="@(() => _transfer.FromAccount)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">To Account</label>
+        <InputText class="form-control" @bind-Value="_transfer.ToAccount" />
+        <ValidationMessage For="@(() => _transfer.ToAccount)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Amount</label>
+        <InputNumber class="form-control" @bind-Value="_transfer.Amount" />
+        <ValidationMessage For="@(() => _transfer.Amount)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        @(_isSubmitting ? "Validating asynchronously..." : "Submit")
+    </button>
+
+    <ValidationSummary class="mt-3" />
+</EditForm>
+
+@if (_message is not null)
+{
+    <div class="alert @_alertClass mt-3">@_message</div>
+}
+
+@code {
+    private readonly MoneyTransfer _transfer = new()
+    {
+        FromAccount = "checking",
+        ToAccount = "checking",
+        Amount = 1000m
+    };
+
+    private EditContext _editContext = null!;
+    private ValidationMessageStore _messageStore = null!;
+    private CancellationTokenSource? _cts;
+    private bool _isSubmitting;
+    private string? _message;
+    private string _alertClass = "alert-info";
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_transfer);
+        _messageStore = new ValidationMessageStore(_editContext);
+        _editContext.OnFieldChanged += OnFieldChanged;
+    }
+
+    private void OnFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        if (_cts is not null && !_cts.IsCancellationRequested)
+        {
+            _cts.Cancel();
+        }
+    }
+
+    private async Task HandleSubmit(EditContext _)
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+
+        _isSubmitting = true;
+        _messageStore.Clear();
+        _message = null;
+        _editContext.NotifyValidationStateChanged();
+        await InvokeAsync(StateHasChanged);
+
+        var results = new List<ValidationResult>();
+        var context = new ValidationContext(_transfer);
+
+        try
+        {
+            bool isValid = await Validator.TryValidateObjectAsync(_transfer, context, results, true, _cts.Token);
+
+            AddResultsToMessageStore(_editContext, _messageStore, _transfer, results);
+            _message = isValid
+                ? "✅ Transfer valid!"
+                : "❌ Validation failed — see transfer errors above.";
+            _alertClass = isValid ? "alert-success" : "alert-danger";
+        }
+        catch (OperationCanceledException)
+        {
+            _messageStore.Clear();
+            _editContext.NotifyValidationStateChanged();
+            _message = "⚠️ Validation cancelled — a field value changed.";
+            _alertClass = "alert-warning";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private static void AddResultsToMessageStore(EditContext editContext, ValidationMessageStore messageStore, object model, IEnumerable<ValidationResult> results)
+    {
+        foreach (var result in results)
+        {
+            foreach (var member in result.MemberNames)
+            {
+                messageStore.Add(editContext.Field(member), result.ErrorMessage!);
+            }
+
+            if (!result.MemberNames.Any())
+            {
+                messageStore.Add(new FieldIdentifier(model, string.Empty), result.ErrorMessage!);
+            }
+        }
+
+        editContext.NotifyValidationStateChanged();
+    }
+
+    public void Dispose()
+    {
+        _editContext.OnFieldChanged -= OnFieldChanged;
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

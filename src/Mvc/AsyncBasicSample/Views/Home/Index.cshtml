@@ -2,49 +2,56 @@
 
 <h2>MVC Async Validation Samples</h2>
 <p>
-    Each page demonstrates a validation scenario using the <strong>full MVC pattern</strong>:
-    Controller + Razor View + Tag Helper error display. Validation attributes from
-    <code>SharedModels</code> run <strong>asynchronously</strong> with <code>Task.Delay</code>
-    (async, non-blocking), and controllers manually call
-    <code>Validator.TryValidateObjectAsync</code>.
+    These pages demonstrate the four API proposal scenarios through the built-in MVC async
+    validation pipeline. <code>IAsyncModelValidator.ValidateAsync</code> populates
+    <code>ModelState</code> during model binding, and each sample uses standard Razor forms with
+    validation tag helpers.
 </p>
 
 <div class="row">
     <div class="col-md-6 mb-3">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">User Registration</h5>
+                <h5 class="card-title">Scenario 1: User</h5>
                 <p class="card-text">
-                    DI-backed async uniqueness validation with <code>[UniqueUsername]</code>,
-                    <code>[UniqueEmail]</code>, <code>[PasswordPolicy]</code>, and
-                    <code>[AsyncRegistrationScreen]</code>.
+                    Mixed sync and async property validation with <code>[IsValidName]</code> and
+                    <code>[UsernameAvailableAsync]</code>.
                 </p>
-                <a asp-controller="UserRegistration" class="btn btn-primary">Open Form →</a>
+                <a asp-controller="Scenario1" class="btn btn-primary">Open Scenario →</a>
             </div>
         </div>
     </div>
     <div class="col-md-6 mb-3">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">Event Validation</h5>
+                <h5 class="card-title">Scenario 2: Order</h5>
                 <p class="card-text">
-                    <code>Event</code> mixes <code>IValidatableObject</code> with
-                    <code>[ReservedTitleCheck]</code>, <code>[DateRange]</code>, and
-                    <code>[AsyncScheduleCheck]</code>.
+                    Async attributes plus <code>IValidatableObject</code> cross-property business rules.
                 </p>
-                <a asp-controller="Event" class="btn btn-primary">Open Form →</a>
+                <a asp-controller="Scenario2" class="btn btn-primary">Open Scenario →</a>
             </div>
         </div>
     </div>
     <div class="col-md-6 mb-3">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">Order Validation</h5>
+                <h5 class="card-title">Scenario 3: MoneyTransfer</h5>
                 <p class="card-text">
-                    <code>Order</code> uses async catalog/inventory checks plus sync/async
-                    total-value limits through <code>IAsyncValidatableObject</code>.
+                    Async cross-property validation through <code>IAsyncValidatableObject</code>.
                 </p>
-                <a asp-controller="Order" class="btn btn-primary">Open Form →</a>
+                <a asp-controller="Scenario3" class="btn btn-primary">Open Scenario →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Scenario 4: Event</h5>
+                <p class="card-text">
+                    Async entity-level validation with <code>[AsyncDateRangeValid]</code> and
+                    <code>IValidatableObject</code>.
+                </p>
+                <a asp-controller="Scenario4" class="btn btn-primary">Open Scenario →</a>
             </div>
         </div>
     </div>

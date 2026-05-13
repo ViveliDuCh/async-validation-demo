@@ -20,21 +20,18 @@ partial class MainForm
     {
         components = new System.ComponentModel.Container();
         _tabControl = new TabControl();
-        _tabRegistration = new TabPage();
+        _tabUser = new TabPage();
         _tabOrder = new TabPage();
+        _tabMoneyTransfer = new TabPage();
         _tabEvent = new TabPage();
-        _tabErrorHandling = new TabPage();
-        _tabTwoPhase = new TabPage();
 
-        lblRegHeader = new Label();
-        lblRegUsername = new Label();
-        txtRegUsername = new TextBox();
-        lblRegEmail = new Label();
-        txtRegEmail = new TextBox();
-        lblRegPassword = new Label();
-        txtRegPassword = new TextBox();
-        btnValidateReg = new Button();
-        lblRegResult = new Label();
+        lblUserHeader = new Label();
+        lblUserName = new Label();
+        txtUserName = new TextBox();
+        lblUserUsername = new Label();
+        txtUserUsername = new TextBox();
+        btnValidateUser = new Button();
+        lblUserResult = new Label();
 
         lblOrderHeader = new Label();
         lblOrderProduct = new Label();
@@ -48,6 +45,16 @@ partial class MainForm
         btnValidateOrder = new Button();
         lblOrderResult = new Label();
 
+        lblTransferHeader = new Label();
+        lblTransferFromAccount = new Label();
+        txtTransferFromAccount = new TextBox();
+        lblTransferToAccount = new Label();
+        txtTransferToAccount = new TextBox();
+        lblTransferAmount = new Label();
+        txtTransferAmount = new TextBox();
+        btnValidateMoneyTransfer = new Button();
+        lblTransferResult = new Label();
+
         lblEventHeader = new Label();
         lblEventTitle = new Label();
         txtEventTitle = new TextBox();
@@ -55,114 +62,84 @@ partial class MainForm
         dtpEventStart = new DateTimePicker();
         lblEventEnd = new Label();
         dtpEventEnd = new DateTimePicker();
-        lblEventDelay = new Label();
-        txtEventDelay = new TextBox();
         btnValidateEvent = new Button();
         lblEventResult = new Label();
-
-        lblErrorHeader = new Label();
-        lblErrorUsername = new Label();
-        txtErrorUsername = new TextBox();
-        lblErrorEmail = new Label();
-        txtErrorEmail = new TextBox();
-        lblErrorPassword = new Label();
-        txtErrorPassword = new TextBox();
-        btnValidateError = new Button();
-        lblErrorResult = new Label();
-
-        lblTwoPhaseHeader = new Label();
-        lblTwoPhaseUsername = new Label();
-        txtTwoPhaseUsername = new TextBox();
-        lblTwoPhaseEmail = new Label();
-        txtTwoPhaseEmail = new TextBox();
-        lblTwoPhasePassword = new Label();
-        txtTwoPhasePassword = new TextBox();
-        btnValidateTwoPhase = new Button();
-        lblTwoPhaseResult = new Label();
 
         SuspendLayout();
 
         _tabControl.Dock = DockStyle.Fill;
-        _tabControl.TabPages.AddRange(new TabPage[] { _tabRegistration, _tabOrder, _tabEvent, _tabErrorHandling, _tabTwoPhase });
+        _tabControl.TabPages.AddRange(new TabPage[] { _tabUser, _tabOrder, _tabMoneyTransfer, _tabEvent });
 
-        _tabRegistration.Text = "Registration";
-        _tabRegistration.Padding = new Padding(10);
+        _tabUser.Text = "Scenario 1 (User)";
+        _tabUser.Padding = new Padding(10);
 
-        lblRegHeader.Text = "DI + Async Duplicate Detection (UniqueUsername + UniqueEmail)";
-        lblRegHeader.AutoSize = true;
-        lblRegHeader.Location = new System.Drawing.Point(15, 15);
-        lblRegHeader.Font = new System.Drawing.Font(lblRegHeader.Font, System.Drawing.FontStyle.Bold);
+        lblUserHeader.Text = "No interface — sync [IsValidName] + async [UsernameAvailableAsync].";
+        lblUserHeader.AutoSize = true;
+        lblUserHeader.Location = new System.Drawing.Point(15, 15);
+        lblUserHeader.Font = new System.Drawing.Font(lblUserHeader.Font, System.Drawing.FontStyle.Bold);
 
-        lblRegUsername.Text = "Username:";
-        lblRegUsername.AutoSize = true;
-        lblRegUsername.Location = new System.Drawing.Point(15, 45);
-        txtRegUsername.Text = "admin";
-        txtRegUsername.Width = 400;
-        txtRegUsername.Location = new System.Drawing.Point(15, 65);
+        lblUserName.Text = "Name:";
+        lblUserName.AutoSize = true;
+        lblUserName.Location = new System.Drawing.Point(15, 45);
+        txtUserName.Text = "Bob";
+        txtUserName.Width = 400;
+        txtUserName.Location = new System.Drawing.Point(15, 65);
 
-        lblRegEmail.Text = "Email:";
-        lblRegEmail.AutoSize = true;
-        lblRegEmail.Location = new System.Drawing.Point(15, 95);
-        txtRegEmail.Text = "admin@example.com";
-        txtRegEmail.Width = 400;
-        txtRegEmail.Location = new System.Drawing.Point(15, 115);
+        lblUserUsername.Text = "Username:";
+        lblUserUsername.AutoSize = true;
+        lblUserUsername.Location = new System.Drawing.Point(15, 95);
+        txtUserUsername.Text = "admin";
+        txtUserUsername.Width = 400;
+        txtUserUsername.Location = new System.Drawing.Point(15, 115);
 
-        lblRegPassword.Text = "Password:";
-        lblRegPassword.AutoSize = true;
-        lblRegPassword.Location = new System.Drawing.Point(15, 145);
-        txtRegPassword.Text = "SecureP@ss123";
-        txtRegPassword.Width = 400;
-        txtRegPassword.Location = new System.Drawing.Point(15, 165);
+        btnValidateUser.Text = "Validate (Async)";
+        btnValidateUser.AutoSize = true;
+        btnValidateUser.Location = new System.Drawing.Point(15, 150);
+        btnValidateUser.Click += BtnValidateUser_Click;
 
-        btnValidateReg.Text = "Validate (Async)";
-        btnValidateReg.AutoSize = true;
-        btnValidateReg.Location = new System.Drawing.Point(15, 200);
-        btnValidateReg.Click += BtnValidateReg_Click;
+        lblUserResult.AutoSize = true;
+        lblUserResult.ForeColor = System.Drawing.Color.DarkRed;
+        lblUserResult.Location = new System.Drawing.Point(15, 185);
+        lblUserResult.MaximumSize = new System.Drawing.Size(550, 0);
 
-        lblRegResult.AutoSize = true;
-        lblRegResult.ForeColor = System.Drawing.Color.DarkRed;
-        lblRegResult.Location = new System.Drawing.Point(15, 235);
-        lblRegResult.MaximumSize = new System.Drawing.Size(550, 0);
-
-        _tabRegistration.Controls.AddRange(new Control[]
+        _tabUser.Controls.AddRange(new Control[]
         {
-            lblRegHeader, lblRegUsername, txtRegUsername, lblRegEmail, txtRegEmail,
-            lblRegPassword, txtRegPassword, btnValidateReg, lblRegResult
+            lblUserHeader, lblUserName, txtUserName, lblUserUsername, txtUserUsername, btnValidateUser, lblUserResult
         });
 
-        _tabOrder.Text = "Order";
+        _tabOrder.Text = "Scenario 2 (Order)";
         _tabOrder.Padding = new Padding(10);
 
-        lblOrderHeader.Text = "IAsyncValidatableObject — Order ([AsyncProductExists], [MaxOrderValue], [AsyncInventoryCheck])";
+        lblOrderHeader.Text = "IValidatableObject — async attributes + sync Validate() business rule.";
         lblOrderHeader.AutoSize = true;
         lblOrderHeader.Location = new System.Drawing.Point(15, 15);
         lblOrderHeader.Font = new System.Drawing.Font(lblOrderHeader.Font, System.Drawing.FontStyle.Bold);
 
-        lblOrderProduct.Text = "Product:";
+        lblOrderProduct.Text = "Product Name:";
         lblOrderProduct.AutoSize = true;
         lblOrderProduct.Location = new System.Drawing.Point(15, 45);
-        txtOrderProduct.Text = "Widget";
+        txtOrderProduct.Text = "Gadget";
         txtOrderProduct.Width = 300;
         txtOrderProduct.Location = new System.Drawing.Point(15, 65);
 
         lblOrderQuantity.Text = "Quantity:";
         lblOrderQuantity.AutoSize = true;
         lblOrderQuantity.Location = new System.Drawing.Point(15, 95);
-        txtOrderQuantity.Text = "10000";
+        txtOrderQuantity.Text = "250";
         txtOrderQuantity.Width = 150;
         txtOrderQuantity.Location = new System.Drawing.Point(15, 115);
 
         lblOrderPrice.Text = "Unit Price:";
         lblOrderPrice.AutoSize = true;
         lblOrderPrice.Location = new System.Drawing.Point(15, 145);
-        txtOrderPrice.Text = "10";
+        txtOrderPrice.Text = "250";
         txtOrderPrice.Width = 150;
         txtOrderPrice.Location = new System.Drawing.Point(15, 165);
 
         lblOrderDelay.Text = "Delay (ms):";
         lblOrderDelay.AutoSize = true;
         lblOrderDelay.Location = new System.Drawing.Point(15, 195);
-        txtOrderDelay.Text = "3000";
+        txtOrderDelay.Text = "100";
         txtOrderDelay.Width = 150;
         txtOrderDelay.Location = new System.Drawing.Point(15, 215);
 
@@ -182,10 +159,55 @@ partial class MainForm
             lblOrderPrice, txtOrderPrice, lblOrderDelay, txtOrderDelay, btnValidateOrder, lblOrderResult
         });
 
-        _tabEvent.Text = "Event";
+        _tabMoneyTransfer.Text = "Scenario 3 (MoneyTransfer)";
+        _tabMoneyTransfer.Padding = new Padding(10);
+
+        lblTransferHeader.Text = "IAsyncValidatableObject — async cross-property validation via ValidateAsync().";
+        lblTransferHeader.AutoSize = true;
+        lblTransferHeader.Location = new System.Drawing.Point(15, 15);
+        lblTransferHeader.Font = new System.Drawing.Font(lblTransferHeader.Font, System.Drawing.FontStyle.Bold);
+
+        lblTransferFromAccount.Text = "From Account:";
+        lblTransferFromAccount.AutoSize = true;
+        lblTransferFromAccount.Location = new System.Drawing.Point(15, 45);
+        txtTransferFromAccount.Text = "checking";
+        txtTransferFromAccount.Width = 400;
+        txtTransferFromAccount.Location = new System.Drawing.Point(15, 65);
+
+        lblTransferToAccount.Text = "To Account:";
+        lblTransferToAccount.AutoSize = true;
+        lblTransferToAccount.Location = new System.Drawing.Point(15, 95);
+        txtTransferToAccount.Text = "checking";
+        txtTransferToAccount.Width = 400;
+        txtTransferToAccount.Location = new System.Drawing.Point(15, 115);
+
+        lblTransferAmount.Text = "Amount:";
+        lblTransferAmount.AutoSize = true;
+        lblTransferAmount.Location = new System.Drawing.Point(15, 145);
+        txtTransferAmount.Text = "1000";
+        txtTransferAmount.Width = 150;
+        txtTransferAmount.Location = new System.Drawing.Point(15, 165);
+
+        btnValidateMoneyTransfer.Text = "Validate (Async)";
+        btnValidateMoneyTransfer.AutoSize = true;
+        btnValidateMoneyTransfer.Location = new System.Drawing.Point(15, 200);
+        btnValidateMoneyTransfer.Click += BtnValidateMoneyTransfer_Click;
+
+        lblTransferResult.AutoSize = true;
+        lblTransferResult.ForeColor = System.Drawing.Color.DarkRed;
+        lblTransferResult.Location = new System.Drawing.Point(15, 235);
+        lblTransferResult.MaximumSize = new System.Drawing.Size(550, 0);
+
+        _tabMoneyTransfer.Controls.AddRange(new Control[]
+        {
+            lblTransferHeader, lblTransferFromAccount, txtTransferFromAccount, lblTransferToAccount, txtTransferToAccount,
+            lblTransferAmount, txtTransferAmount, btnValidateMoneyTransfer, lblTransferResult
+        });
+
+        _tabEvent.Text = "Scenario 4 (Event)";
         _tabEvent.Padding = new Padding(10);
 
-        lblEventHeader.Text = "IValidatableObject — Event ([ReservedTitleCheck], [DateRange], [AsyncScheduleCheck])";
+        lblEventHeader.Text = "Async [AsyncDateRangeValid] + sync IValidatableObject validation.";
         lblEventHeader.AutoSize = true;
         lblEventHeader.Location = new System.Drawing.Point(15, 15);
         lblEventHeader.Font = new System.Drawing.Font(lblEventHeader.Font, System.Drawing.FontStyle.Bold);
@@ -193,162 +215,64 @@ partial class MainForm
         lblEventTitle.Text = "Title:";
         lblEventTitle.AutoSize = true;
         lblEventTitle.Location = new System.Drawing.Point(15, 45);
-        txtEventTitle.Text = "Launch Party";
+        txtEventTitle.Text = "TBD Kickoff";
         txtEventTitle.Width = 400;
         txtEventTitle.Location = new System.Drawing.Point(15, 65);
 
         lblEventStart.Text = "Start Date:";
         lblEventStart.AutoSize = true;
         lblEventStart.Location = new System.Drawing.Point(15, 95);
-        dtpEventStart.Value = new DateTime(2026, 12, 25);
+        dtpEventStart.Format = DateTimePickerFormat.Short;
+        dtpEventStart.Value = new DateTime(2026, 6, 1);
         dtpEventStart.Width = 200;
         dtpEventStart.Location = new System.Drawing.Point(15, 115);
 
         lblEventEnd.Text = "End Date:";
         lblEventEnd.AutoSize = true;
         lblEventEnd.Location = new System.Drawing.Point(15, 145);
-        dtpEventEnd.Value = new DateTime(2026, 12, 20);
+        dtpEventEnd.Format = DateTimePickerFormat.Short;
+        dtpEventEnd.Value = new DateTime(2026, 6, 2);
         dtpEventEnd.Width = 200;
         dtpEventEnd.Location = new System.Drawing.Point(15, 165);
 
-        lblEventDelay.Text = "Delay (ms):";
-        lblEventDelay.AutoSize = true;
-        lblEventDelay.Location = new System.Drawing.Point(15, 195);
-        txtEventDelay.Text = "3000";
-        txtEventDelay.Width = 150;
-        txtEventDelay.Location = new System.Drawing.Point(15, 215);
-
         btnValidateEvent.Text = "Validate (Async)";
         btnValidateEvent.AutoSize = true;
-        btnValidateEvent.Location = new System.Drawing.Point(15, 250);
+        btnValidateEvent.Location = new System.Drawing.Point(15, 200);
         btnValidateEvent.Click += BtnValidateEvent_Click;
 
         lblEventResult.AutoSize = true;
         lblEventResult.ForeColor = System.Drawing.Color.DarkRed;
-        lblEventResult.Location = new System.Drawing.Point(15, 285);
+        lblEventResult.Location = new System.Drawing.Point(15, 235);
         lblEventResult.MaximumSize = new System.Drawing.Size(550, 0);
 
         _tabEvent.Controls.AddRange(new Control[]
         {
             lblEventHeader, lblEventTitle, txtEventTitle, lblEventStart, dtpEventStart,
-            lblEventEnd, dtpEventEnd, lblEventDelay, txtEventDelay, btnValidateEvent, lblEventResult
-        });
-
-        _tabErrorHandling.Text = "Error Handling";
-        _tabErrorHandling.Padding = new Padding(10);
-
-        lblErrorHeader.Text = "Infrastructure Failure — 'error-trigger' throws exception";
-        lblErrorHeader.AutoSize = true;
-        lblErrorHeader.Location = new System.Drawing.Point(15, 15);
-        lblErrorHeader.Font = new System.Drawing.Font(lblErrorHeader.Font, System.Drawing.FontStyle.Bold);
-
-        lblErrorUsername.Text = "Username:";
-        lblErrorUsername.AutoSize = true;
-        lblErrorUsername.Location = new System.Drawing.Point(15, 45);
-        txtErrorUsername.Text = "error-trigger";
-        txtErrorUsername.Width = 400;
-        txtErrorUsername.Location = new System.Drawing.Point(15, 65);
-
-        lblErrorEmail.Text = "Email:";
-        lblErrorEmail.AutoSize = true;
-        lblErrorEmail.Location = new System.Drawing.Point(15, 95);
-        txtErrorEmail.Text = "new@example.com";
-        txtErrorEmail.Width = 400;
-        txtErrorEmail.Location = new System.Drawing.Point(15, 115);
-
-        lblErrorPassword.Text = "Password:";
-        lblErrorPassword.AutoSize = true;
-        lblErrorPassword.Location = new System.Drawing.Point(15, 145);
-        txtErrorPassword.Text = "SecureP@ss123";
-        txtErrorPassword.Width = 400;
-        txtErrorPassword.Location = new System.Drawing.Point(15, 165);
-
-        btnValidateError.Text = "Validate (Async)";
-        btnValidateError.AutoSize = true;
-        btnValidateError.Location = new System.Drawing.Point(15, 200);
-        btnValidateError.Click += BtnValidateError_Click;
-
-        lblErrorResult.AutoSize = true;
-        lblErrorResult.ForeColor = System.Drawing.Color.DarkRed;
-        lblErrorResult.Location = new System.Drawing.Point(15, 235);
-        lblErrorResult.MaximumSize = new System.Drawing.Size(550, 0);
-
-        _tabErrorHandling.Controls.AddRange(new Control[]
-        {
-            lblErrorHeader, lblErrorUsername, txtErrorUsername, lblErrorEmail, txtErrorEmail,
-            lblErrorPassword, txtErrorPassword, btnValidateError, lblErrorResult
-        });
-
-        _tabTwoPhase.Text = "Two-Phase";
-        _tabTwoPhase.Padding = new Padding(10);
-
-        lblTwoPhaseHeader.Text = "Two-Phase: sync [EmailAddress] fails → async [UniqueEmail] skipped";
-        lblTwoPhaseHeader.AutoSize = true;
-        lblTwoPhaseHeader.Location = new System.Drawing.Point(15, 15);
-        lblTwoPhaseHeader.Font = new System.Drawing.Font(lblTwoPhaseHeader.Font, System.Drawing.FontStyle.Bold);
-
-        lblTwoPhaseUsername.Text = "Username:";
-        lblTwoPhaseUsername.AutoSize = true;
-        lblTwoPhaseUsername.Location = new System.Drawing.Point(15, 45);
-        txtTwoPhaseUsername.Text = "newuser";
-        txtTwoPhaseUsername.Width = 400;
-        txtTwoPhaseUsername.Location = new System.Drawing.Point(15, 65);
-
-        lblTwoPhaseEmail.Text = "Email:";
-        lblTwoPhaseEmail.AutoSize = true;
-        lblTwoPhaseEmail.Location = new System.Drawing.Point(15, 95);
-        txtTwoPhaseEmail.Text = "not-an-email";
-        txtTwoPhaseEmail.Width = 400;
-        txtTwoPhaseEmail.Location = new System.Drawing.Point(15, 115);
-
-        lblTwoPhasePassword.Text = "Password:";
-        lblTwoPhasePassword.AutoSize = true;
-        lblTwoPhasePassword.Location = new System.Drawing.Point(15, 145);
-        txtTwoPhasePassword.Text = "SecureP@ss123";
-        txtTwoPhasePassword.Width = 400;
-        txtTwoPhasePassword.Location = new System.Drawing.Point(15, 165);
-
-        btnValidateTwoPhase.Text = "Validate (Async)";
-        btnValidateTwoPhase.AutoSize = true;
-        btnValidateTwoPhase.Location = new System.Drawing.Point(15, 200);
-        btnValidateTwoPhase.Click += BtnValidateTwoPhase_Click;
-
-        lblTwoPhaseResult.AutoSize = true;
-        lblTwoPhaseResult.ForeColor = System.Drawing.Color.DarkRed;
-        lblTwoPhaseResult.Location = new System.Drawing.Point(15, 235);
-        lblTwoPhaseResult.MaximumSize = new System.Drawing.Size(550, 0);
-
-        _tabTwoPhase.Controls.AddRange(new Control[]
-        {
-            lblTwoPhaseHeader, lblTwoPhaseUsername, txtTwoPhaseUsername, lblTwoPhaseEmail, txtTwoPhaseEmail,
-            lblTwoPhasePassword, txtTwoPhasePassword, btnValidateTwoPhase, lblTwoPhaseResult
+            lblEventEnd, dtpEventEnd, btnValidateEvent, lblEventResult
         });
 
         AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new System.Drawing.Size(700, 550);
         Controls.Add(_tabControl);
-        Text = "WinForms AsyncDesignerValidationDemo — Designer + DI + Async";
+        Text = "WinForms AsyncDesignerValidationDemo — 4 API Proposal Scenarios";
 
         ResumeLayout(false);
     }
 
     private TabControl _tabControl;
-    private TabPage _tabRegistration;
+    private TabPage _tabUser;
     private TabPage _tabOrder;
+    private TabPage _tabMoneyTransfer;
     private TabPage _tabEvent;
-    private TabPage _tabErrorHandling;
-    private TabPage _tabTwoPhase;
 
-    private Label lblRegHeader;
-    private Label lblRegUsername;
-    private TextBox txtRegUsername;
-    private Label lblRegEmail;
-    private TextBox txtRegEmail;
-    private Label lblRegPassword;
-    private TextBox txtRegPassword;
-    private Button btnValidateReg;
-    private Label lblRegResult;
+    private Label lblUserHeader;
+    private Label lblUserName;
+    private TextBox txtUserName;
+    private Label lblUserUsername;
+    private TextBox txtUserUsername;
+    private Button btnValidateUser;
+    private Label lblUserResult;
 
     private Label lblOrderHeader;
     private Label lblOrderProduct;
@@ -362,6 +286,16 @@ partial class MainForm
     private Button btnValidateOrder;
     private Label lblOrderResult;
 
+    private Label lblTransferHeader;
+    private Label lblTransferFromAccount;
+    private TextBox txtTransferFromAccount;
+    private Label lblTransferToAccount;
+    private TextBox txtTransferToAccount;
+    private Label lblTransferAmount;
+    private TextBox txtTransferAmount;
+    private Button btnValidateMoneyTransfer;
+    private Label lblTransferResult;
+
     private Label lblEventHeader;
     private Label lblEventTitle;
     private TextBox txtEventTitle;
@@ -369,28 +303,6 @@ partial class MainForm
     private DateTimePicker dtpEventStart;
     private Label lblEventEnd;
     private DateTimePicker dtpEventEnd;
-    private Label lblEventDelay;
-    private TextBox txtEventDelay;
     private Button btnValidateEvent;
     private Label lblEventResult;
-
-    private Label lblErrorHeader;
-    private Label lblErrorUsername;
-    private TextBox txtErrorUsername;
-    private Label lblErrorEmail;
-    private TextBox txtErrorEmail;
-    private Label lblErrorPassword;
-    private TextBox txtErrorPassword;
-    private Button btnValidateError;
-    private Label lblErrorResult;
-
-    private Label lblTwoPhaseHeader;
-    private Label lblTwoPhaseUsername;
-    private TextBox txtTwoPhaseUsername;
-    private Label lblTwoPhaseEmail;
-    private TextBox txtTwoPhaseEmail;
-    private Label lblTwoPhasePassword;
-    private TextBox txtTwoPhasePassword;
-    private Button btnValidateTwoPhase;
-    private Label lblTwoPhaseResult;
 }

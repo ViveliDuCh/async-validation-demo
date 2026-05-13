@@ -9,10 +9,9 @@ public class EventViewModel : ValidatableViewModelBase
 {
     private readonly Event _event = new()
     {
-        Title = "Launch Party",
-        StartDate = new DateTime(2026, 12, 25),
-        EndDate = new DateTime(2026, 12, 20),
-        Delay = 3000
+        Title = "TBD Kickoff",
+        StartDate = new DateTime(2026, 6, 1),
+        EndDate = new DateTime(2026, 6, 2)
     };
 
     public string? Title
@@ -31,12 +30,6 @@ public class EventViewModel : ValidatableViewModelBase
     {
         get => _event.EndDate;
         set { _event.EndDate = value; OnPropertyChanged(); }
-    }
-
-    public int? Delay
-    {
-        get => _event.Delay;
-        set { _event.Delay = value; OnPropertyChanged(); }
     }
 
     protected override object GetValidationTarget() => _event;

@@ -2,45 +2,65 @@
 
 <h2>MVC Async Validation Demo</h2>
 <p>
-    Demonstrates DI integration, <code>IAsyncValidatableObject</code> cross-property validation,
-    and infrastructure failure handling — all using <strong>asynchronous</strong> validation
-    with <code>Task.Delay</code> and <code>Validator.TryValidateObjectAsync</code> instead of
-    blocking the server thread.
+    This sample combines the four API proposal scenarios with a DI-backed infrastructure error demo.
+    MVC's async validation pipeline populates <code>ModelState</code> during model binding through
+    <code>IAsyncModelValidator.ValidateAsync</code>.
 </p>
 
 <div class="row">
-    <div class="col-md-4 mb-3">
-        <div class="card">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">User Registration</h5>
+                <h5 class="card-title">Scenario 1: User</h5>
                 <p class="card-text">
-                    DI-backed <code>[UniqueUsername]</code> + <code>[UniqueEmail]</code>.
-                    Controllers pass <code>HttpContext.RequestServices</code> into the
-                    async validation context.
+                    Mixed sync and async property validation with <code>[IsValidName]</code> and
+                    <code>[UsernameAvailableAsync]</code>.
                 </p>
-                <a asp-controller="Registration" class="btn btn-primary">Open Form →</a>
+                <a asp-controller="Scenario1" class="btn btn-primary">Open Scenario →</a>
             </div>
         </div>
     </div>
-    <div class="col-md-4 mb-3">
-        <div class="card">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">Order Validation</h5>
+                <h5 class="card-title">Scenario 2: Order</h5>
                 <p class="card-text">
-                    <code>Order</code> combines async catalog/inventory checks with sync and async
-                    order-total limits via <code>IAsyncValidatableObject</code>.
+                    Async attributes plus <code>IValidatableObject</code> cross-property business rules.
                 </p>
-                <a asp-controller="Order" class="btn btn-primary">Open Form →</a>
+                <a asp-controller="Scenario2" class="btn btn-primary">Open Scenario →</a>
             </div>
         </div>
     </div>
-    <div class="col-md-4 mb-3">
-        <div class="card">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Scenario 3: MoneyTransfer</h5>
+                <p class="card-text">
+                    Async cross-property validation through <code>IAsyncValidatableObject</code>.
+                </p>
+                <a asp-controller="Scenario3" class="btn btn-primary">Open Scenario →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Scenario 4: Event</h5>
+                <p class="card-text">
+                    Async entity-level validation with <code>[AsyncDateRangeValid]</code> and
+                    <code>IValidatableObject</code>.
+                </p>
+                <a asp-controller="Scenario4" class="btn btn-primary">Open Scenario →</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100 border-danger">
             <div class="card-body">
                 <h5 class="card-title">Error Handling</h5>
                 <p class="card-text">
-                    Infrastructure failure propagation — <code>[UniqueUsername]</code> throws
-                    when username is "error-trigger" during async validation.
+                    DI-backed <code>UserRegistration</code> validation throws when username is
+                    <code>error-trigger</code>, demonstrating error propagation through the middleware pipeline.
                 </p>
                 <a asp-controller="ErrorHandling" class="btn btn-danger">Open Form →</a>
             </div>

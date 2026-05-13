@@ -5,7 +5,6 @@
 
 using AutoValidationSample.Models;
 using SharedModels.EntityClasses;
-using SharedModels.ServiceClasses;
 using System.ComponentModel.DataAnnotations;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,7 +12,6 @@ var builder = WebApplication.CreateBuilder(args);
 // Keep automatic validation for local models that do not need async I/O.
 // It is convenient, but it does not make blocking validation attributes asynchronous.
 builder.Services.AddValidation();
-builder.Services.AddSingleton<UserService>();
 
 var app = builder.Build();
 
@@ -28,9 +26,10 @@ app.MapGet("/", () => Results.Ok(new
         new { Method = "POST", Path = "/orders", Scenario = "IValidatableObject custom validation" },
         new { Method = "POST", Path = "/products", Scenario = "DisableValidation() — bypasses validation" },
         new { Method = "POST", Path = "/contact", Scenario = "Localization-ready error message keys" },
-        new { Method = "POST", Path = "/api/register/invalid", Scenario = "SharedModels UserRegistration (async-validated)" },
-        new { Method = "POST", Path = "/api/event/invalid", Scenario = "SharedModels Event (async-validated)" },
-        new { Method = "POST", Path = "/api/order/invalid", Scenario = "SharedModels Order (async-validated)" }
+        new { Method = "POST", Path = "/api/scenario1/user", Scenario = "SharedModels Scenario 1 — User (manual async validation)" },
+        new { Method = "POST", Path = "/api/scenario2/order", Scenario = "SharedModels Scenario 2 — Order (manual async validation)" },
+        new { Method = "POST", Path = "/api/scenario3/transfer", Scenario = "SharedModels Scenario 3 — MoneyTransfer (manual async validation)" },
+        new { Method = "POST", Path = "/api/scenario4/event", Scenario = "SharedModels Scenario 4 — Event (manual async validation)" }
     }
 }));
 
@@ -110,31 +109,46 @@ static async Task<IResult> ValidateSharedModelAsync<T>(
 // as async validation: we opt out, await Validator.TryValidateObjectAsync, and avoid blocking.
 // ═══════════════════════════════════════════
 
-app.MapPost("/api/register/invalid", async (UserRegistration registration, IServiceProvider sp) =>
-    await ValidateSharedModelAsync(registration, "SharedModels UserRegistration (async-validated)", validatedRegistration => new
+app.MapPost("/api/scenario1/user", async (User user) =>
+    await ValidateSharedModelAsync(user, "SharedModels Scenario 1 — User (manual async validation)", validatedUser => new
     {
-        Scenario = "SharedModels UserRegistration (async-validated)",
+        Scenario = "SharedModels Scenario 1 — User (manual async validation)",
         Valid = true,
-        validatedRegistration.Username,
-        validatedRegistration.Email
-    }, sp))
-    .DisableValidation();
-
-app.MapPost("/api/event/invalid", async (Event ev) =>
-    await ValidateSharedModelAsync(ev, "SharedModels Event (async-validated)", validatedEvent => new
-    {
-        Scenario = "SharedModels Event (async-validated)",
-        Valid = true,
-        validatedEvent.Title
+        validatedUser.Name,
+        validatedUser.Username
     }))
     .DisableValidation();
 
-app.MapPost("/api/order/invalid", async (Order order) =>
-    await ValidateSharedModelAsync(order, "SharedModels Order (async-validated)", validatedOrder => new
+app.MapPost("/api/scenario2/order", async (Order order) =>
+    await ValidateSharedModelAsync(order, "SharedModels Scenario 2 — Order (manual async validation)", validatedOrder => new
     {
-        Scenario = "SharedModels Order (async-validated)",
+        Scenario = "SharedModels Scenario 2 — Order (manual async validation)",
         Valid = true,
-        validatedOrder.ProductName
+        validatedOrder.ProductName,
+        validatedOrder.Quantity,
+        validatedOrder.UnitPrice
+    }))
+    .DisableValidation();
+
+app.MapPost("/api/scenario3/transfer", async (MoneyTransfer transfer) =>
+    await ValidateSharedModelAsync(transfer, "SharedModels Scenario 3 — MoneyTransfer (manual async validation)", validatedTransfer => new
+    {
+        Scenario = "SharedModels Scenario 3 — MoneyTransfer (manual async validation)",
+        Valid = true,
+        validatedTransfer.FromAccount,
+        validatedTransfer.ToAccount,
+        validatedTransfer.Amount
+    }))
+    .DisableValidation();
+
+app.MapPost("/api/scenario4/event", async (Event ev) =>
+    await ValidateSharedModelAsync(ev, "SharedModels Scenario 4 — Event (manual async validation)", validatedEvent => new
+    {
+        Scenario = "SharedModels Scenario 4 — Event (manual async validation)",
+        Valid = true,
+        validatedEvent.Title,
+        validatedEvent.StartDate,
+        validatedEvent.EndDate
     }))
     .DisableValidation();
 
