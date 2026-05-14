@@ -42,6 +42,8 @@
     <Project Path="Options/Tier2.OptionsBlazor/Tier2.OptionsBlazor.csproj" />
     <Project Path="Options/Tier2.OptionsMonitorBlazor/Tier2.OptionsMonitorBlazor.csproj" />
     <Project Path="Options/Tier2b.OptionsGeneratorBlazor/Tier2b.OptionsGeneratorBlazor.csproj" />
+    <Project Path="Options/MixedSyncAsyncConsole/MixedSyncAsyncConsole.csproj" />
+    <Project Path="Options/CrossTypeParallelConsole/CrossTypeParallelConsole.csproj" />
   </Folder>
   <Project Path="SharedModels/SharedModels.csproj" />
 </Solution>
