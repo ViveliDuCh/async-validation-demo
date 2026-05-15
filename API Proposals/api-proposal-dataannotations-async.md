@@ -1,6 +1,4 @@
-# [API Proposal]: Async Validation Support for System.ComponentModel.DataAnnotations
-
-## Background and motivation
+### Background and motivation
 
 `System.ComponentModel.DataAnnotations` validation has been synchronous since its introduction in .NET Framework 3.5 SP1 (2008). The `Validator` class, `ValidationAttribute.IsValid`, `IValidatableObject`, and `ValidationContext` (all added in .NET Framework 4.0) form a fully synchronous pipeline. [Across the .NET product suite](https://github.com/jeffhandley/dataannotations-validation/blob/main/chapters/11-integration-history.md), DataAnnotations has been integrated into 11 distinct application models: MVC, Blazor, Options, EF Core conventions, OpenAPI schema, Minimal APIs via `Microsoft.Extensions.Validation`, CommunityToolkit.Mvvm `ObservableValidator`, the Options validation source generator, .NET Aspire, and the foundational `Validator` class itself. Every one is synchronous at the DataAnnotations level.
 
@@ -15,14 +13,14 @@ Modern applications frequently need to validate against external resources (data
 - ASP.NET Core MVC does **not** use `Validator.TryValidateObject()`. It has its own pipeline via `DataAnnotationsModelValidator` → `ValidationAttribute.GetValidationResult()`. Changes to `Validator` alone do not automatically benefit MVC. 
 - Meanwhile, `Microsoft.Extensions.Validation` (.NET 10) is async at the orchestration level but calls `IsValid()` synchronously at the leaf which makes it the closest to async-ready.
 
-**Prior art:** The [`oroztocil/validation-demo`](https://github.com/dotnet/aspnetcore/tree/oroztocil/validation-demo) branch in `dotnet/aspnetcore` prototyped `AsyncValidationAttribute` and `IAsyncValidatableObject` in `Microsoft.Extensions.Validation` to prove the pipeline could handle async. This proposal moves the canonical types into the core `System.ComponentModel.Annotations` library so all downstream consumers converge on a single async validation model.
+**Prior art:** The `oroztocil/validation-demo` branch in `dotnet/aspnetcore` prototyped `AsyncValidationAttribute` and `IAsyncValidatableObject` in `Microsoft.Extensions.Validation` to prove the pipeline could handle async. This proposal moves the canonical types into the core `System.ComponentModel.Annotations` library so all downstream consumers converge on a single async validation model.
 
 **References:**
-- [DataAnnotations Validation: Maintainer's Guide](https://github.com/jeffhandley/dataannotations-validation) (Jeff Handley)
+- [DataAnnotations Validation — Maintainer's Guide](https://github.com/jeffhandley/dataannotations-validation) (Jeff Handley)
 - [Halter's consolidated design gist](https://gist.github.com/halter73/f4d0974da579fb78d17bd2e6d9f78173)
-- Related: [dotnet/aspnetcore#46349](https://github.com/dotnet/aspnetcore/issues/46349), [dotnet/aspnetcore#60724](https://github.com/dotnet/aspnetcore/pull/60724)
+- Related: [dotnet/runtime#121536](https://github.com/dotnet/runtime/issues/121536) [dotnet/aspnetcore#46349](https://github.com/dotnet/aspnetcore/issues/46349), [dotnet/aspnetcore#60724](https://github.com/dotnet/aspnetcore/pull/60724)
 
-## API Proposal
+### API Proposal
 
 > **Note:** This API surface matches the [feasibility prototype](https://github.com/ViveliDuCh/runtime/tree/async-validation).
 
@@ -138,7 +136,11 @@ Modern applications frequently need to validate against external resources (data
 
 Prototype: https://github.com/ViveliDuCh/runtime/tree/async-validation
 
-## API Usage
+
+
+### API Usage
+
+See full samples covering the following scenarios [here](https://github.com/ViveliDuCh/async-validation-demo/tree/api-proposal-samples).
 
 ### Scenario 1: No interface, mixed async and sync property- and entity-level attributes
 
@@ -449,7 +451,7 @@ valid = Validator.TryValidateObject(
 // Validator.TryValidateObject(userWithAsyncOnlyAttr, ...) → NotSupportedException
 ```
 
-## Alternative Designs
+### Alternative Designs
 
 **Option A: Virtual `IsValidAsync` on `ValidationAttribute` directly (no subclass)**
     
@@ -467,14 +469,14 @@ valid = Validator.TryValidateObject(
   
   - Less discoverable. Users must know to implement an interface AND inherit `ValidationAttribute`. The subclass approach is more idiomatic for DataAnnotations.
 
-## Notes/Risks
+### Notes/Risks
 
 - The new `Validator.*Async` methods follow the established `XAsync` naming pattern with distinct signatures (return `ValueTask`). No ambiguity with existing sync methods. All additions are additive, no existing APIs changed.
 - Sync `Validator.TryValidateObject` discovering an `AsyncValidationAttribute` will throw `NotSupportedException` instead of silently succeeding. This is **by design**: it surfaces the mismatch between sync callers and async-only attributes.
 - Async validators run concurrently across properties and in parallel per property. If any sync attribute fails, async attributes on that property are skipped (no wasted I/O). Validators must not rely on execution order and must be safe for concurrent execution.
 - **Scope:** This proposal covers the core `System.ComponentModel.DataAnnotations` APIs (Phase 1). Downstream consumers (M.E.Validation, Blazor, Options, MVC) adopt independently per the [design gist](https://gist.github.com/halter73/f4d0974da579fb78d17bd2e6d9f78173) and [integration point analysis](https://github.com/jeffhandley/dataannotations-validation/blob/main/appendices/appendix-a-integration-points.md). MVC is explicitly deferred; sync-only consumers that encounter async-only attributes get a clear error directing them to the async APIs.
 
-## Open Questions
+### Open Questions
 
 1. `IAsyncValidatableObject` return type: `ValueTask<IEnumerable<>>` vs `IAsyncEnumerable<>`
 2. `ValueTask<T>` vs `Task<T>` for async validation methods

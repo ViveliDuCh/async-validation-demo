@@ -1,5 +1,6 @@
 @page "/monitor"
 @inject IOptionsMonitor<CloudInfoOptions> OptionsMonitor
+@inject ValidationLogService ValidationLog
 @implements IDisposable
 
 <h3>Live Monitor — <code>IOptionsMonitor&lt;T&gt;</code></h3>
@@ -7,7 +8,8 @@
     This tab uses <code>IOptionsMonitor&lt;T&gt;</code> which reloads from
     <code>appsettings.json</code> on every change. Edit the JSON file, save it,
     then <strong>refresh this page</strong> (or click the button below) to see
-    the updated values.
+    the updated values. With <code>RevalidateOnChangeAsync()</code>, async
+    validation runs both at startup AND on every config reload.
 </p>
 
 <div class="card mt-3">
@@ -36,9 +38,50 @@
 {
     <div class="alert alert-success mt-3">
         <strong>Change detected!</strong> <code>IOptionsMonitor.OnChange</code> fired —
-        the config file was reloaded.
+        the config file was reloaded. Async re-validation ran via
+        <code>RevalidateOnChangeAsync()</code>.
     </div>
 }
+
+<div class="card mt-4">
+    <div class="card-header bg-dark text-white">
+        📋 Async Validation Log
+        <span class="badge bg-light text-dark ms-2">@_logEntries.Count events</span>
+    </div>
+    <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+        @if (_logEntries.Count == 0)
+        {
+            <p class="text-muted p-3 mb-0">No validation events yet. Edit <code>appsettings.json</code> to trigger re-validation.</p>
+        }
+        else
+        {
+            <table class="table table-sm table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">Time</th>
+                        <th style="width: 220px;">Source</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in _logEntries.AsEnumerable().Reverse())
+                    {
+                        <tr>
+                            <td><code>@entry.Timestamp.ToString("HH:mm:ss.fff")</code></td>
+                            <td><code>@entry.Source</code></td>
+                            <td>@entry.Message</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+<p class="text-muted mt-2">
+    <strong>Why this proves async:</strong> Each entry shows <code>IsValidAsync</code> executing with
+    ~100ms async delay (simulated network probe). If the sync <code>IsValid</code> path ran instead,
+    it would throw <code>NotSupportedException</code> — the log would never appear.
+</p>
 
 <hr class="my-4" />
 
@@ -48,12 +91,15 @@
     <li><code>IOptionsMonitor&lt;T&gt;.CurrentValue</code> — re-reads from config on each access</li>
     <li><code>IOptionsMonitor&lt;T&gt;.OnChange()</code> — callback fires when the underlying
         config source changes (e.g., file watcher on <code>appsettings.json</code>)</li>
+    <li><code>IOptionsMonitor&lt;T&gt;.OnChangeAsync()</code> — async callback fires after
+        sync callbacks, used by <code>RevalidateOnChangeAsync()</code> to re-run
+        <code>IAsyncValidateOptions&lt;T&gt;</code> validators on every config reload</li>
 </ul>
 <p>
-    <strong>Note:</strong> The async startup validation (<code>ValidateOnStartAsync</code>)
-    only runs once at startup. <code>IOptionsMonitor</code> does NOT re-validate on
-    config changes — it just reloads the values. Re-validation on change would require
-    a custom <code>OnChange</code> handler that calls <code>Validator.TryValidateObjectAsync</code>.
+    <strong>Note:</strong> With <code>RevalidateOnChangeAsync()</code>, async validation
+    runs both at startup AND on every config reload. Failures are routed to the
+    <code>onRevalidationFailed</code> callback (e.g., logging, circuit-breaking)
+    rather than throwing, since config changes are asynchronous events.
 </p>
 
 @code {
@@ -61,29 +107,42 @@
     private string? _lastRefresh;
     private bool _changeDetected;
     private IDisposable? _changeListener;
+    private IReadOnlyList<ValidationLogEntry> _logEntries = [];
 
     protected override void OnInitialized()
     {
         currentOptions = OptionsMonitor.CurrentValue;
         _lastRefresh = DateTime.Now.ToString("HH:mm:ss.fff");
+        _logEntries = ValidationLog.GetEntries();
 
         _changeListener = OptionsMonitor.OnChange(updatedOptions =>
         {
             currentOptions = updatedOptions;
             _changeDetected = true;
             _lastRefresh = DateTime.Now.ToString("HH:mm:ss.fff");
+            _logEntries = ValidationLog.GetEntries();
             InvokeAsync(StateHasChanged);
         });
+
+        ValidationLog.OnEntryAdded += OnLogEntryAdded;
+    }
+
+    private void OnLogEntryAdded()
+    {
+        _logEntries = ValidationLog.GetEntries();
+        InvokeAsync(StateHasChanged);
     }
 
     private void Refresh()
     {
         currentOptions = OptionsMonitor.CurrentValue;
         _lastRefresh = DateTime.Now.ToString("HH:mm:ss.fff");
+        _logEntries = ValidationLog.GetEntries();
     }
 
     public void Dispose()
     {
         _changeListener?.Dispose();
+        ValidationLog.OnEntryAdded -= OnLogEntryAdded;
     }
 }

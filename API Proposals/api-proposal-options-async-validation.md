@@ -1,8 +1,6 @@
-# [API Proposal]: Async Options Validation for Microsoft.Extensions.Options
+### Background and motivation
 
-## Background and motivation
-
-The Options validation pipeline (`IValidateOptions<T>` → `DataAnnotationValidateOptions<T>` → `Validator.TryValidateObject`) is entirely synchronous. With the proposed async `Validator` APIs in `System.ComponentModel.DataAnnotations` ([companion proposal](api-proposal-dataannotations-async.md)), the core validation engine can await I/O-bound validation, but the Options pipeline can't consume it because every layer is sync:
+The Options validation pipeline (`IValidateOptions<T>` → `DataAnnotationValidateOptions<T>` → `Validator.TryValidateObject`) is entirely synchronous. With the proposed async `Validator` APIs in `System.ComponentModel.DataAnnotations` ([companion proposal](https://github.com/dotnet/runtime/issues/128096)), the core validation engine can await I/O-bound validation, but the Options pipeline can't consume it because every layer is sync:
 
 ```
 IOptions<T>.Value          ← property (can't be async)
@@ -15,7 +13,8 @@ IOptions<T>.Value          ← property (can't be async)
 
 **Strategy: Bypass, Don't Infect.** Instead of making `OptionsFactory.Create()` async (which cascades into `IOptions<T>.Value`, a property that can't return `Task`), we create a **parallel async pipeline** that runs during `Host.StartAsync()`. The sync `Create()` path is untouched (zero breaking changes).
 
-**Relationship to `Microsoft.Extensions.Validation`:** `Microsoft.Extensions.Validation` (Minimal API endpoint validation) and `IAsyncValidateOptions<T>` (Options startup validation) are complementary, not overlapping. The former validates request payloads at runtime; the latter validates configuration at startup. Both consume the same `AsyncValidationAttribute` / `Validator.TryValidateObjectAsync()` APIs from the [companion proposal](api-proposal-dataannotations-async.md). The [aspnetcore prototype](https://github.com/dotnet/aspnetcore/compare/main...ViveliDuCh:aspnetcore:async-validation) demonstrates M.E.Validation adopting `AsyncValidationAttribute` with ~20 lines of changes, and Minimal APIs inheriting async support with zero additional changes. Prior art: [`oroztocil/validation-demo`](https://github.com/dotnet/aspnetcore/tree/oroztocil/validation-demo).
+**Relationship to `Microsoft.Extensions.Validation`:** `Microsoft.Extensions.Validation` (Minimal API endpoint validation) and `IAsyncValidateOptions<T>` (Options startup validation) are complementary, not overlapping. The former validates request payloads at runtime; the latter validates configuration at startup. Both consume the same `AsyncValidationAttribute` / `Validator.TryValidateObjectAsync()` APIs from the [companion proposal](https://github.com/dotnet/runtime/issues/128096). 
+- The [aspnetcore prototype](https://github.com/ViveliDuCh/aspnetcore/tree/async-validation) demonstrates M.E.Validation adopting `AsyncValidationAttribute` with ~20 lines of changes, and Minimal APIs inheriting async support with zero additional changes.  **Prior art:** The [`oroztocil/validation-demo`](https://github.com/dotnet/aspnetcore/tree/oroztocil/validation-demo) branch in `dotnet/aspnetcore` prototyped `AsyncValidationAttribute` and `IAsyncValidatableObject` in `Microsoft.Extensions.Validation` to prove the pipeline could handle async. 
 
 **Notable consumer:** .NET Aspire is a significant and growing consumer of `ValidateDataAnnotations()` + `ValidateOnStart()`. Any changes to `Options.DataAnnotations` or the Options validation source generator directly affect the Aspire developer experience. The async counterparts (`ValidateDataAnnotationsAsync()` + `ValidateOnStartAsync()`) benefit Aspire immediately.
 
@@ -23,7 +22,7 @@ IOptions<T>.Value          ← property (can't be async)
 
 Related: [dotnet/aspnetcore#46349](https://github.com/dotnet/aspnetcore/issues/46349)
 
-## API Proposal
+### API Proposal
 
 ### Microsoft.Extensions.Options
 
@@ -199,7 +198,7 @@ public async ValueTask<ValidateOptionsResult> ValidateAsync(
 
 Prototype: https://github.com/ViveliDuCh/runtime/tree/async-validation
 
-## API Usage
+### API Usage
 
 ### Scenario 1: Async DataAnnotations at startup (bypass approach)
 
@@ -294,7 +293,9 @@ builder.Services.AddOptions<SmtpSettings>()
     .ValidateOnStartAsync();          // triggers async validators
 ```
 
-## Alternative Designs
+
+
+### Alternative Designs
 
 ### `CreateAsync()` approach: making `OptionsFactory.Create()` itself async
 
@@ -318,7 +319,7 @@ Instead of bypassing the factory, make the factory's validation step async. This
 
 The **bypass approach** avoids all of these problems by separating creation from validation. `OptionsFactory.Create()` runs normally (configure + post-configure, no async validators registered), and the async pipeline validates the resulting cached instance during `Host.StartAsync()`.
 
-## Risks
+### Risks
 
 - All additions are additive: new interfaces, new classes, new extension methods. No overload ambiguity, `ValidateDataAnnotationsAsync` and `ValidateOnStartAsync` have distinct names from their sync counterparts.
 - `ValidateDataAnnotationsAsync` registers ONLY `IAsyncValidateOptions<T>`, not `IValidateOptions<T>`. This means sync `OptionsFactory.Create()` will NOT run async-only attributes. This is by design: async attributes should only run in the async pipeline. Developers using `ValidateDataAnnotationsAsync` without `ValidateOnStartAsync` will get no validation of async attributes, the API docs should make this pairing clear.
