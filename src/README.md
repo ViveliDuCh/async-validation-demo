@@ -75,12 +75,16 @@ src/
 │
 └── Options/
     ├── Options.Shared/                  ← CloudInfoOptions POCO + AsyncStorageExistsAttribute + ValidationLogService
-    ├── AsyncLambdaConsole/              ← Inline async lambda validation at startup
-    ├── MixedSyncAsyncConsole/           ← Mixed sync + async on same OptionsBuilder + nested [ValidateObjectMembers]
-    ├── CrossTypeParallelConsole/        ← Cross-options-type parallel startup validation (2 types via Task.WhenAll)
-    ├── Tier2.OptionsBlazor/             ← Bypass approach (reflection-based)
-    ├── Tier2.OptionsMonitorBlazor/      ← IOptionsMonitor + RevalidateOnChangeAsync (live config reload)
-    └── Tier2b.OptionsGeneratorBlazor/   ← Source generator approach (AOT-friendly)
+    ├── ConsoleAppSamples/
+    │   ├── AsyncLambdaConsole/          ← Inline async lambda validation at startup
+    │   ├── MixedSyncAsyncConsole/       ← Mixed sync + async on same OptionsBuilder + nested [ValidateObjectMembers]
+    │   ├── CrossTypeParallelConsole/    ← Cross-options-type parallel startup validation (2 types via Task.WhenAll)
+    │   ├── SyncFallbackConsole/         ← Sync pipeline throws on async-only attributes; async pipeline fixes it
+    │   └── SourceGenScenariosConsole/   ← Source-gen validation matrix for mixed, cross-type, nested, and startup scenarios
+    ├── BlazorSamples/
+    │   ├── Tier2.OptionsBlazor/         ← Bypass approach (reflection-based)
+    │   ├── Tier2.OptionsMonitorBlazor/  ← IOptionsMonitor + RevalidateOnChangeAsync (live config reload)
+    │   └── Tier2b.OptionsGeneratorBlazor/ ← Source generator approach (AOT-friendly)
 ```
 
 ---
@@ -292,8 +296,9 @@ Attributes implement `ISchemaDescriptor` for self-describing schema metadata.
 ## Options Samples
 
 Demonstrates async validation of `IOptions<T>` configuration at application
-startup, mixed sync+async pipelines, cross-type parallel validation, and
-live config reload re-validation with `IOptionsMonitor<T>`.
+startup, mixed sync+async pipelines, sync-fallback failure cases in the sync
+pipeline, source-generator-specific validation scenarios, cross-type parallel
+validation, and live config reload re-validation with `IOptionsMonitor<T>`.
 
 ### Options.Shared
 Standalone class library containing the shared POCO (`CloudInfoOptions`),
@@ -322,6 +327,19 @@ Console app registering **two independent options types** (`DatabaseSettings`,
 concurrently via `Task.WhenAll` (~200ms instead of ~400ms). Three scenarios:
 both valid (parallel timing proof), single-type failure, and aggregate failure
 from both types.
+
+### SyncFallbackConsole
+Console app demonstrating `NotSupportedException` when the sync pipeline hits
+an async-only attribute. Three scenarios: (A) reflection sync path throws,
+(B) source-gen sync path throws, and (C) the fix — switch to the async
+pipeline. Covers both reflection and source-gen patterns.
+
+### SourceGenScenariosConsole
+Console app covering the source-gen equivalents of `MixedSyncAsyncConsole` and
+`CrossTypeParallelConsole`. Seven scenarios: mixed sync+async attrs, dual-mode
+attr sync fallback, same-property two-phase, cross-property non-short-circuit
+(contrasts with reflection behavior), cross-type parallel via `Task.WhenAll`,
+nested `[ValidateObjectMembers]`, and startup failure.
 
 ### Tier2.OptionsBlazor (Bypass Approach)
 Uses `.ValidateDataAnnotationsAsync().ValidateOnStartAsync()` extension methods.
@@ -631,8 +649,8 @@ enabled schemas for the refactored SharedModels entities with richer metadata.
 #### AsyncLambdaConsole
 
 ```powershell
-# Working directory: C:\REPOS\async-validation-demo\src\Options\AsyncLambdaConsole
-cd C:\REPOS\async-validation-demo\src\Options\AsyncLambdaConsole
+# Working directory: C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\AsyncLambdaConsole
+cd C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\AsyncLambdaConsole
 dotnet build
 dotnet run --no-build
 ```
@@ -653,8 +671,8 @@ Class library only — referenced by the Options Blazor and console samples.
 #### MixedSyncAsyncConsole
 
 ```powershell
-# Working directory: C:\REPOS\async-validation-demo\src\Options\MixedSyncAsyncConsole
-cd C:\REPOS\async-validation-demo\src\Options\MixedSyncAsyncConsole
+# Working directory: C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\MixedSyncAsyncConsole
+cd C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\MixedSyncAsyncConsole
 dotnet build
 dotnet run --no-build
 ```
@@ -667,8 +685,8 @@ SMTP host).
 #### CrossTypeParallelConsole
 
 ```powershell
-# Working directory: C:\REPOS\async-validation-demo\src\Options\CrossTypeParallelConsole
-cd C:\REPOS\async-validation-demo\src\Options\CrossTypeParallelConsole
+# Working directory: C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\CrossTypeParallelConsole
+cd C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\CrossTypeParallelConsole
 dotnet build
 dotnet run --no-build
 ```
@@ -677,11 +695,40 @@ Console app. Must be run from its project directory (requires `appsettings.json`
 Expected output: 3 scenarios — both types valid with parallel timing (~200ms),
 single-type failure (cache unreachable), and aggregate failure from both types.
 
+#### SyncFallbackConsole
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\SyncFallbackConsole
+cd C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\SyncFallbackConsole
+dotnet build
+dotnet run --no-build
+```
+
+Console app. Must be run from its project directory (requires `appsettings.json`).
+Expected output: 3 scenarios — reflection sync throws `NotSupportedException`,
+source-gen sync throws `NotSupportedException`, and the async pipeline fix
+works for both.
+
+#### SourceGenScenariosConsole
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\SourceGenScenariosConsole
+cd C:\REPOS\async-validation-demo\src\Options\ConsoleAppSamples\SourceGenScenariosConsole
+dotnet build
+dotnet run --no-build
+```
+
+Console app. Must be run from its project directory (requires `appsettings.json`).
+Expected output: 7 scenarios covering the source-gen validation matrix — mixed
+sync+async attrs, dual-mode sync fallback, same-property two-phase,
+cross-property non-short-circuit (vs reflection), cross-type parallel via
+`Task.WhenAll`, nested `[ValidateObjectMembers]`, and startup failure.
+
 #### Tier2.OptionsBlazor
 
 ```powershell
-# Working directory: C:\REPOS\async-validation-demo\src\Options\Tier2.OptionsBlazor
-cd C:\REPOS\async-validation-demo\src\Options\Tier2.OptionsBlazor
+# Working directory: C:\REPOS\async-validation-demo\src\Options\BlazorSamples\Tier2.OptionsBlazor
+cd C:\REPOS\async-validation-demo\src\Options\BlazorSamples\Tier2.OptionsBlazor
 dotnet build
 dotnet run --no-build
 ```
@@ -693,8 +740,8 @@ passed.
 #### Tier2.OptionsMonitorBlazor
 
 ```powershell
-# Working directory: C:\REPOS\async-validation-demo\src\Options\Tier2.OptionsMonitorBlazor
-cd C:\REPOS\async-validation-demo\src\Options\Tier2.OptionsMonitorBlazor
+# Working directory: C:\REPOS\async-validation-demo\src\Options\BlazorSamples\Tier2.OptionsMonitorBlazor
+cd C:\REPOS\async-validation-demo\src\Options\BlazorSamples\Tier2.OptionsMonitorBlazor
 dotnet build
 dotnet run --no-build
 ```
@@ -708,8 +755,8 @@ validators and the validation log updates in real time. The console shows
 #### Tier2b.OptionsGeneratorBlazor
 
 ```powershell
-# Working directory: C:\REPOS\async-validation-demo\src\Options\Tier2b.OptionsGeneratorBlazor
-cd C:\REPOS\async-validation-demo\src\Options\Tier2b.OptionsGeneratorBlazor
+# Working directory: C:\REPOS\async-validation-demo\src\Options\BlazorSamples\Tier2b.OptionsGeneratorBlazor
+cd C:\REPOS\async-validation-demo\src\Options\BlazorSamples\Tier2b.OptionsGeneratorBlazor
 dotnet build
 dotnet run --no-build
 ```
@@ -759,21 +806,22 @@ from its project directory.
 
 ### Options
 
-- **`AsyncLambdaConsole` must run from its project directory.** It requires
-  `appsettings.json` which is only found when the working directory is the
-  project folder.
-- **Console and Blazor Options apps must run from their project directories.**
-  `MixedSyncAsyncConsole`, `CrossTypeParallelConsole`, `Tier2.OptionsBlazor`,
-  `Tier2.OptionsMonitorBlazor`, and `Tier2b.OptionsGeneratorBlazor` all depend
-  on `appsettings.json` at the working directory level.
+- **Options console and Blazor apps must run from their project directories.**
+  `AsyncLambdaConsole`, `MixedSyncAsyncConsole`, `CrossTypeParallelConsole`,
+  `SyncFallbackConsole`, `SourceGenScenariosConsole`,
+  `Tier2.OptionsBlazor`, `Tier2.OptionsMonitorBlazor`, and
+  `Tier2b.OptionsGeneratorBlazor` all depend on `appsettings.json` at the
+  working directory level.
 - **Hosting layer does not call `IAsyncStartupValidator` automatically.** The
   stock .NET 11 preview SDK hosting infrastructure does not yet know about
   `IAsyncStartupValidator`. Both Tier2 and Tier2b `Program.cs` files manually
   call `await app.Services.GetService<IAsyncStartupValidator>()?.ValidateAsync()`
   as a workaround.
-- **Tier 2b: no two-phase short-circuit.** The source generator validates each
-  property independently via `TryValidateValueAsync()`, so sync failures on one
-  property do not prevent async checks on other properties.
+- **Source gen: no cross-property two-phase short-circuit.** The source
+  generator validates each property independently via `TryValidateValueAsync()`,
+  so sync failures on one property do not prevent async checks on other
+  properties. This is a structural difference from the reflection path, which
+  uses `TryValidateObjectAsync()` to batch all sync checks first.
 
 ---
 

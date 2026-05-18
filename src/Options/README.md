@@ -7,22 +7,30 @@ All samples use the **local-packages** DLLs built from the
 
 ## Scenario Coverage Matrix
 
-| Issue Scenario | Description | Sample |
-|---------------|-------------|--------|
-| **1** | Async DataAnnotations at startup | [`Tier2.OptionsBlazor`](Tier2.OptionsBlazor/) |
-| **1** | Async DataAnnotations + OptionsMonitor | [`Tier2.OptionsMonitorBlazor`](Tier2.OptionsMonitorBlazor/) |
-| **2** | Async lambda with DI dependency | [`AsyncLambdaConsole`](AsyncLambdaConsole/) |
-| **3** | Source generator `[OptionsValidator]` + `IAsyncValidateOptions<T>` | [`Tier2b.OptionsGeneratorBlazor`](Tier2b.OptionsGeneratorBlazor/) |
-| **4** | Mixed sync + async on same `OptionsBuilder` | [`MixedSyncAsyncConsole`](MixedSyncAsyncConsole/) ✨ |
+| Issue Scenario | Description | Pattern | Sample |
+|---------------|-------------|---------|--------|
+| **1** | Async DataAnnotations at startup | Reflection | [`Tier2.OptionsBlazor`](BlazorSamples/Tier2.OptionsBlazor/) |
+| **1** | Async DataAnnotations + `OptionsMonitor` reload/revalidation | Reflection | [`Tier2.OptionsMonitorBlazor`](BlazorSamples/Tier2.OptionsMonitorBlazor/) |
+| **2** | Async lambda with DI dependency | Reflection | [`AsyncLambdaConsole`](ConsoleAppSamples/AsyncLambdaConsole/) |
+| **3** | Source generator `[OptionsValidator]` + `IAsyncValidateOptions<T>` | Source Gen | [`Tier2b.OptionsGeneratorBlazor`](BlazorSamples/Tier2b.OptionsGeneratorBlazor/) |
+| **4** | Mixed sync + async on the same `OptionsBuilder` + nested `[ValidateObjectMembers]` | Reflection | [`MixedSyncAsyncConsole`](ConsoleAppSamples/MixedSyncAsyncConsole/) |
+| **5** | Sync pipeline hits async-only `AsyncStorageExistsAttribute` and throws `NotSupportedException`; fix is to switch to the async pipeline | Both | [`SyncFallbackConsole`](ConsoleAppSamples/SyncFallbackConsole/) |
+| **6** | Cross-property two-phase short-circuit: a sync failure anywhere in object validation prevents async attrs from running | Reflection | [`MixedSyncAsyncConsole`](ConsoleAppSamples/MixedSyncAsyncConsole/) |
+| **6 (contrast)** | Source-gen per-property validation has no cross-property short-circuit; async checks on other properties still run | Source Gen | [`SourceGenScenariosConsole`](ConsoleAppSamples/SourceGenScenariosConsole/) |
+| **7** | Source-gen scenario pack: mixed sync+async attrs, dual-mode attr, same-property two-phase, cross-type parallel, nested members, and startup failure | Source Gen | [`SourceGenScenariosConsole`](ConsoleAppSamples/SourceGenScenariosConsole/) |
 
-| Parallel Execution Pattern | Sample |
-|---------------------------|--------|
-| Cross-options-type (2+ types at startup) | [`CrossTypeParallelConsole`](CrossTypeParallelConsole/) ✨ |
-| Cross-validator (chained lambdas) | [`AsyncLambdaConsole`](AsyncLambdaConsole/) |
-| Nested property (`[ValidateObjectMembers]`) | [`MixedSyncAsyncConsole`](MixedSyncAsyncConsole/) ✨ |
-| Source generator member parallelism | [`Tier2b.OptionsGeneratorBlazor`](Tier2b.OptionsGeneratorBlazor/) |
+| Advanced Pattern | Pattern | Sample |
+|------------------|---------|--------|
+| Cross-options-type (2+ types at startup) | Reflection | [`CrossTypeParallelConsole`](ConsoleAppSamples/CrossTypeParallelConsole/) |
+| Cross-options-type (2+ types at startup) | Source Gen | [`SourceGenScenariosConsole`](ConsoleAppSamples/SourceGenScenariosConsole/) |
+| Cross-validator (chained lambdas) | Reflection | [`AsyncLambdaConsole`](ConsoleAppSamples/AsyncLambdaConsole/) |
+| Nested property (`[ValidateObjectMembers]`) | Reflection | [`MixedSyncAsyncConsole`](ConsoleAppSamples/MixedSyncAsyncConsole/) |
+| Nested property (`[ValidateObjectMembers]`) | Source Gen | [`SourceGenScenariosConsole`](ConsoleAppSamples/SourceGenScenariosConsole/) |
+| Source generator member parallelism | Source Gen | [`Tier2b.OptionsGeneratorBlazor`](BlazorSamples/Tier2b.OptionsGeneratorBlazor/) |
 
-✨ = newly added
+> **Scenario 6 is reflection-only.** Reflection-based `Validator.TryValidateObjectAsync()` runs all sync attributes across the object before it schedules any async attributes, so a sync failure on one property short-circuits async work everywhere. Source-generated validators use per-property `TryValidateValueAsync()`, so a sync failure on one property does **not** stop async checks on other properties.
+
+
 
 ## How the Bypass Pipeline Works
 
@@ -53,7 +61,7 @@ a property), a parallel async pipeline runs during `Host.StartAsync()`.
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-## New Samples
+## Console Sample Highlights
 
 ### MixedSyncAsyncConsole — Scenario 4 + Nested Properties
 
@@ -224,52 +232,79 @@ to show parallel execution: total ≈ 200ms (max), not 400ms (sum).
 | 2 | ✅ valid | ❌ invalid | `OptionsValidationException` for cache |
 | 3 | ❌ invalid | ❌ invalid | `AggregateException` wrapping both failures |
 
+---
+
+### SyncFallbackConsole — Sync Path Failure + Async Fix
+
+Demonstrates what happens when an **async-only** attribute (`AsyncStorageExistsAttribute`)
+is reached by a **sync** validation path.
+
+- **Reflection path:** `ValidateDataAnnotations()` + `ValidateOnStart()` calls
+  `Validator.TryValidateObject()`, which reaches `IsValid()` and throws
+  `NotSupportedException`.
+- **Source-gen path:** registering `CloudInfoOptionsValidator` as
+  `IValidateOptions<T>` makes generated `Validate()` call `IsValid()` too, which
+  throws the same way.
+- **Fix:** switch to the async pipeline:
+  - reflection → `ValidateDataAnnotationsAsync()` + `ValidateOnStartAsync()`
+  - source gen → register `CloudInfoOptionsValidator` as
+    `IAsyncValidateOptions<T>` + `ValidateOnStartAsync()`
+
+This sample explicitly covers **both** reflection and source-gen patterns.
+
+---
+
+### SourceGenScenariosConsole — Source-Gen Scenario Pack
+
+Source-generated equivalents of [`MixedSyncAsyncConsole`](ConsoleAppSamples/MixedSyncAsyncConsole/)
+and [`CrossTypeParallelConsole`](ConsoleAppSamples/CrossTypeParallelConsole/).
+It bundles the source-gen versions of the key behaviors into one console app:
+
+1. mixed sync + async attrs on the same property
+2. dual-mode attr sync fallback
+3. same-property two-phase behavior (sync fail skips async on that property)
+4. cross-property non-short-circuit contrast vs reflection
+5. cross-type parallel startup validation
+6. nested `[ValidateObjectMembers]`
+7. startup failure / `OptionsValidationException`
+
 ## Folder Structure
 
 ```
 Options/
-├── Options.Shared/                  ← Shared options POCOs and async attributes
-│   ├── CloudInfoOptions.cs          ← [Required] + [AsyncStorageExists]
-│   └── AsyncStorageExistsAttribute  ← Simulates async endpoint probe
-│
-├── Tier2.OptionsBlazor/             ← Scenario 1: ValidateDataAnnotationsAsync()
-├── Tier2.OptionsMonitorBlazor/      ← Scenario 1 + runtime reload
-├── AsyncLambdaConsole/              ← Scenario 2: .ValidateAsync<TDep>(lambda)
-├── Tier2b.OptionsGeneratorBlazor/   ← Scenario 3: [OptionsValidator] + IAsyncValidateOptions
-│
-├── MixedSyncAsyncConsole/        ✨ ← Scenario 4: mixed sync+async + [ValidateObjectMembers]
-│   ├── SmtpSettings.cs              ← Mixed attrs + nested [ValidateObjectMembers]
-│   ├── SmtpCredentials.cs           ← Nested POCO with sync attrs
-│   ├── AsyncSmtpReachableAttribute  ← Simulates async SMTP check
-│   └── Program.cs                   ← 3 scenarios: valid / sync fail / async fail
-│
-└── CrossTypeParallelConsole/     ✨ ← Cross-type parallelism with timing proof
-    ├── DatabaseSettings.cs          ← [AsyncConnectionReachable] (200ms)
-    ├── CacheSettings.cs             ← [AsyncCacheReachable] (200ms)
-    ├── AsyncConnection/Cache attrs  ← Simulated 200ms connectivity checks
-    └── Program.cs                   ← 3 scenarios: both OK / one fails / both fail
+├── Options.Shared/                          ← Shared library (stays at top)
+├── ConsoleAppSamples/
+│   ├── AsyncLambdaConsole/                  ← Scenario 2: `.ValidateAsync<TDep>(lambda)`
+│   ├── MixedSyncAsyncConsole/               ← Scenario 4 + reflection nested `[ValidateObjectMembers]`
+│   ├── CrossTypeParallelConsole/            ← Reflection cross-options-type parallel startup validation
+│   ├── SyncFallbackConsole/                 ← Sync path hits async-only attr; async pipeline fix
+│   └── SourceGenScenariosConsole/           ← Source-gen scenario pack + reflection contrast
+├── BlazorSamples/
+│   ├── Tier2.OptionsBlazor/                 ← Scenario 1: `ValidateDataAnnotationsAsync()`
+│   ├── Tier2.OptionsMonitorBlazor/          ← Scenario 1 + runtime reload
+│   └── Tier2b.OptionsGeneratorBlazor/       ← Scenario 3: `[OptionsValidator]` + `IAsyncValidateOptions<T>`
+└── README.md
 ```
 
 ## Running the Samples
 
-Each console sample runs standalone:
+Set up the repo-local .NET SDK first:
 
 ```powershell
-# Set up the repo-local .NET SDK
 $env:DOTNET_ROOT = "C:\REPOS\async-validation-demo\.dotnet"
 $env:PATH = "C:\REPOS\async-validation-demo\.dotnet;$env:PATH"
-
-# Mixed sync + async demo
-dotnet run --project src/Options/MixedSyncAsyncConsole
-
-# Cross-type parallel demo
-dotnet run --project src/Options/CrossTypeParallelConsole
 ```
 
-For the Blazor samples:
+Run each sample from its own project directory so `appsettings.json` is resolved correctly:
 
 ```powershell
-dotnet run --project src/Options/Tier2.OptionsBlazor
-dotnet run --project src/Options/Tier2.OptionsMonitorBlazor
-dotnet run --project src/Options/Tier2b.OptionsGeneratorBlazor
+Push-Location src\Options\ConsoleAppSamples\AsyncLambdaConsole; dotnet run; Pop-Location
+Push-Location src\Options\ConsoleAppSamples\MixedSyncAsyncConsole; dotnet run; Pop-Location
+Push-Location src\Options\ConsoleAppSamples\CrossTypeParallelConsole; dotnet run; Pop-Location
+Push-Location src\Options\ConsoleAppSamples\SyncFallbackConsole; dotnet run; Pop-Location
+Push-Location src\Options\ConsoleAppSamples\SourceGenScenariosConsole; dotnet run; Pop-Location
+
+Push-Location src\Options\BlazorSamples\Tier2.OptionsBlazor; dotnet run; Pop-Location
+Push-Location src\Options\BlazorSamples\Tier2.OptionsMonitorBlazor; dotnet run; Pop-Location
+Push-Location src\Options\BlazorSamples\Tier2b.OptionsGeneratorBlazor; dotnet run; Pop-Location
 ```
