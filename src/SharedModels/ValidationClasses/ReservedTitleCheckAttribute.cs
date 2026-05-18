@@ -52,7 +52,7 @@ public class ReservedTitleCheckAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 $"The title '{title}' is reserved and cannot be used.",
-                new[] { validationContext.MemberName! });
+                [validationContext.MemberName!]);
         }
 
         return ValidationResult.Success;

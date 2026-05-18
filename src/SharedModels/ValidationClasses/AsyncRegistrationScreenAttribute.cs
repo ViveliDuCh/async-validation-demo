@@ -30,7 +30,7 @@ public class AsyncRegistrationScreenAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 "Registration blocked: email domain is not allowed.",
-                new[] { "Email" });
+                ["Email"]);
         }
 
         return ValidationResult.Success;

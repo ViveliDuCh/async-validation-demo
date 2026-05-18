@@ -54,7 +54,7 @@ public class AsyncSmtpReachableAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 $"SMTP host '{host}' is not reachable.",
-                new[] { ctx.MemberName! });
+                [ctx.MemberName!]);
         }
 
         return ValidationResult.Success;

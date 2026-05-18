@@ -29,7 +29,7 @@ public class AsyncCacheReachableAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 $"Cache endpoint '{endpoint}' is not reachable.",
-                new[] { validationContext.MemberName! });
+                [validationContext.MemberName!]);
         }
 
         return ValidationResult.Success;

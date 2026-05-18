@@ -33,7 +33,7 @@ public class PasswordPolicyAttribute : ValidationAttribute
         {
             return new ValidationResult(
                 "Password must not contain the username.",
-                new[] { _passwordProperty });
+                [_passwordProperty]);
         }
 
         return ValidationResult.Success;

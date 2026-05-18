@@ -32,7 +32,7 @@ public class MaxOrderValueAttribute : ValidationAttribute
         {
             return new ValidationResult(
                 $"Order total ({total:C}) exceeds the maximum allowed value of {_maxValue:C}.",
-                new[] { "Quantity", "UnitPrice" });
+                ["Quantity", "UnitPrice"]);
         }
 
         return ValidationResult.Success;

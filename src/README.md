@@ -17,7 +17,8 @@ The samples are organized around the **4 API proposal scenarios** from
 | **4** | `Event` | `IValidatableObject` | Async entity attr `[AsyncDateRangeValid]` (calendar service → `maxDateAllowed`) |
 
 The Options samples use a standalone `Options.Shared` library to demonstrate
-`IOptions<T>` async validation at startup
+`IOptions<T>` async validation at startup, mixed sync+async pipelines, cross-type
+parallel validation, and live config reload re-validation with `IOptionsMonitor<T>`
 ([dotnet/runtime#128100](https://github.com/dotnet/runtime/issues/128100)).
 
 ## Folder Structure
@@ -73,9 +74,12 @@ src/
 │   └── OpenApiSimulation.SchemaDescriptor/ ← ISchemaDescriptor interface for self-describing attrs
 │
 └── Options/
-    ├── Options.Shared/                  ← CloudInfoOptions POCO + AsyncStorageExistsAttribute
+    ├── Options.Shared/                  ← CloudInfoOptions POCO + AsyncStorageExistsAttribute + ValidationLogService
     ├── AsyncLambdaConsole/              ← Inline async lambda validation at startup
+    ├── MixedSyncAsyncConsole/           ← Mixed sync + async on same OptionsBuilder + nested [ValidateObjectMembers]
+    ├── CrossTypeParallelConsole/        ← Cross-options-type parallel startup validation (2 types via Task.WhenAll)
     ├── Tier2.OptionsBlazor/             ← Bypass approach (reflection-based)
+    ├── Tier2.OptionsMonitorBlazor/      ← IOptionsMonitor + RevalidateOnChangeAsync (live config reload)
     └── Tier2b.OptionsGeneratorBlazor/   ← Source generator approach (AOT-friendly)
 ```
 
@@ -288,19 +292,47 @@ Attributes implement `ISchemaDescriptor` for self-describing schema metadata.
 ## Options Samples
 
 Demonstrates async validation of `IOptions<T>` configuration at application
-startup.
+startup, mixed sync+async pipelines, cross-type parallel validation, and
+live config reload re-validation with `IOptionsMonitor<T>`.
 
 ### Options.Shared
-Standalone class library containing the shared POCO (`CloudInfoOptions`) and
-async attribute (`AsyncStorageExistsAttribute`).
+Standalone class library containing the shared POCO (`CloudInfoOptions`),
+async attribute (`AsyncStorageExistsAttribute`), and `ValidationLogService`
+(timestamped validation event log used by the Monitor sample).
 
 ### AsyncLambdaConsole
 Console app demonstrating inline async lambda validation with
 `.ValidateAsync<TDep>()` — validates options at startup without implementing
 `IAsyncValidateOptions<T>` as a separate class.
 
+### MixedSyncAsyncConsole
+Console app chaining **both sync and async validation** on the same
+`OptionsBuilder<SmtpSettings>`: `.ValidateDataAnnotations()` +
+`.ValidateDataAnnotationsAsync()` + sync/async lambdas + `.ValidateOnStart()` +
+`.ValidateOnStartAsync()`. Demonstrates a dual-mode attribute
+(`AsyncSmtpReachableAttribute`) with both `IsValid` (sync fallback) and
+`IsValidAsync`, plus nested object validation via `[ValidateObjectMembers]` on
+the `Credentials` sub-object. Three scenarios: both pass, sync failure
+short-circuits async, and async-only failure.
+
+### CrossTypeParallelConsole
+Console app registering **two independent options types** (`DatabaseSettings`,
+`CacheSettings`), each with `ValidateDataAnnotationsAsync()` +
+`ValidateOnStartAsync()`. At startup, `IAsyncStartupValidator` validates both
+concurrently via `Task.WhenAll` (~200ms instead of ~400ms). Three scenarios:
+both valid (parallel timing proof), single-type failure, and aggregate failure
+from both types.
+
 ### Tier2.OptionsBlazor (Bypass Approach)
 Uses `.ValidateDataAnnotationsAsync().ValidateOnStartAsync()` extension methods.
+
+### Tier2.OptionsMonitorBlazor (Live Config Reload)
+Blazor Server app demonstrating **async re-validation on config change** via
+`RevalidateOnChangeAsync()`. Uses `IOptionsMonitor<CloudInfoOptions>` to pick
+up `appsettings.json` changes at runtime, re-running async validators on each
+reload. Includes a live validation log (`ValidationLogService`) that proves the
+async pipeline executes (not the sync `Create()` path). Failures route to an
+`onRevalidationFailed` callback instead of throwing.
 
 ### Tier2b.OptionsGeneratorBlazor (Source Generator)
 Uses `[OptionsValidator]` source generator to emit both `Validate()` and
@@ -616,7 +648,34 @@ chained async lambdas.
 dotnet build Options\Options.Shared\Options.Shared.csproj
 ```
 
-Class library only — referenced by the Tier2 and Tier2b Blazor samples.
+Class library only — referenced by the Options Blazor and console samples.
+
+#### MixedSyncAsyncConsole
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\MixedSyncAsyncConsole
+cd C:\REPOS\async-validation-demo\src\Options\MixedSyncAsyncConsole
+dotnet build
+dotnet run --no-build
+```
+
+Console app. Must be run from its project directory (requires `appsettings.json`).
+Expected output: 3 scenarios — valid config passes both pipelines, sync failure
+short-circuits (port=0, short password), and async-only failure (unreachable
+SMTP host).
+
+#### CrossTypeParallelConsole
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\CrossTypeParallelConsole
+cd C:\REPOS\async-validation-demo\src\Options\CrossTypeParallelConsole
+dotnet build
+dotnet run --no-build
+```
+
+Console app. Must be run from its project directory (requires `appsettings.json`).
+Expected output: 3 scenarios — both types valid with parallel timing (~200ms),
+single-type failure (cache unreachable), and aggregate failure from both types.
 
 #### Tier2.OptionsBlazor
 
@@ -630,6 +689,21 @@ dotnet run --no-build
 Blazor Server app. Must be run from its project directory (requires
 `appsettings.json`). Browse to the displayed URL to verify startup validation
 passed.
+
+#### Tier2.OptionsMonitorBlazor
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\Tier2.OptionsMonitorBlazor
+cd C:\REPOS\async-validation-demo\src\Options\Tier2.OptionsMonitorBlazor
+dotnet build
+dotnet run --no-build
+```
+
+Blazor Server app. Must be run from its project directory (requires
+`appsettings.json`). Browse to `/monitor` to see live config values. Edit
+`appsettings.json` while running — `RevalidateOnChangeAsync()` re-runs async
+validators and the validation log updates in real time. The console shows
+`[RevalidateOnChangeAsync]` messages if validation fails on reload.
 
 #### Tier2b.OptionsGeneratorBlazor
 
@@ -688,8 +762,10 @@ from its project directory.
 - **`AsyncLambdaConsole` must run from its project directory.** It requires
   `appsettings.json` which is only found when the working directory is the
   project folder.
-- **Tier2/Tier2b Blazor apps must run from their project directories.** Same
-  reason — they depend on `appsettings.json` at the working directory level.
+- **Console and Blazor Options apps must run from their project directories.**
+  `MixedSyncAsyncConsole`, `CrossTypeParallelConsole`, `Tier2.OptionsBlazor`,
+  `Tier2.OptionsMonitorBlazor`, and `Tier2b.OptionsGeneratorBlazor` all depend
+  on `appsettings.json` at the working directory level.
 - **Hosting layer does not call `IAsyncStartupValidator` automatically.** The
   stock .NET 11 preview SDK hosting infrastructure does not yet know about
   `IAsyncStartupValidator`. Both Tier2 and Tier2b `Program.cs` files manually

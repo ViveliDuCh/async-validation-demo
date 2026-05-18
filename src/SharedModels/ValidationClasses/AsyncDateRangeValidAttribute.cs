@@ -45,14 +45,14 @@ public class AsyncDateRangeValidAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 $"'{_startProp}' must be before '{_endProp}'.",
-                new[] { _startProp, _endProp });
+                [_startProp, _endProp]);
         }
 
         if (end.HasValue && end.Value > maxDateAllowed)
         {
             return new ValidationResult(
                 $"'{_endProp}' cannot be later than {maxDateAllowed:d} (service limit).",
-                new[] { _endProp });
+                [_endProp]);
         }
 
         return ValidationResult.Success;

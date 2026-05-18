@@ -41,7 +41,7 @@ public class Event : IValidatableObject
         {
             yield return new ValidationResult(
                 "Events with confirmed dates cannot have 'TBD' in the title.",
-                new[] { nameof(Title) });
+                [nameof(Title)]);
         }
     }
 }

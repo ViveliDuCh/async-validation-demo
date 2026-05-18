@@ -36,7 +36,7 @@ public class AsyncScheduleCheckAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 "Schedule conflict: cannot create events on New Year's Day.",
-                new[] { "StartDate" });
+                ["StartDate"]);
         }
 
         return ValidationResult.Success;

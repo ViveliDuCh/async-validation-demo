@@ -44,7 +44,7 @@ public class AsyncProductExistsAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 $"Product '{productName}' does not exist in the catalog.",
-                new[] { validationContext.MemberName! });
+                [validationContext.MemberName!]);
         }
 
         return ValidationResult.Success;

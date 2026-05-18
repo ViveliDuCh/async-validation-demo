@@ -38,7 +38,7 @@ public class MoneyTransfer : IAsyncValidatableObject
         {
             errors.Add(new ValidationResult(
                 "Cannot transfer to the same account.",
-                new[] { nameof(FromAccount), nameof(ToAccount) }));
+                [nameof(FromAccount), nameof(ToAccount)]));
         }
 
         // Async balance check (frees the thread)
@@ -49,7 +49,7 @@ public class MoneyTransfer : IAsyncValidatableObject
         {
             errors.Add(new ValidationResult(
                 $"Insufficient funds. Balance: ${balance:F2}, Transfer: ${Amount:F2}.",
-                new[] { nameof(Amount) }));
+                [nameof(Amount)]));
         }
 
         return errors;

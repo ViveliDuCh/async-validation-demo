@@ -53,7 +53,7 @@ public class Order : IValidatableObject
         {
             yield return new ValidationResult(
                 $"Total cost ({totalCost:C}) exceeds the $50,000 limit.",
-                new[] { nameof(Quantity), nameof(UnitPrice) });
+                [nameof(Quantity), nameof(UnitPrice)]);
         }
     }
 }

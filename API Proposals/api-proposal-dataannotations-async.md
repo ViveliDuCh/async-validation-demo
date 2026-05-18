@@ -52,9 +52,18 @@ Modern applications frequently need to validate against external resources (data
 +         CancellationToken cancellationToken = default);
 + }
 
-+ // New interface for object-level async validation (standalone, does NOT extend IValidatableObject)
-+ public partial interface IAsyncValidatableObject
++ // New interface for object-level async validation.
++ // Inherits from IValidatableObject with a DIM that throws NotSupportedException,
++ // mirroring the AsyncValidationAttribute pattern where sync paths fail clearly
++ // rather than silently skipping async validation.
++ public partial interface IAsyncValidatableObject : IValidatableObject
 + {
++     IEnumerable<ValidationResult> IValidatableObject.Validate(
++         ValidationContext validationContext) =>
++         throw new NotSupportedException(
++             "This object implements IAsyncValidatableObject and supports only " +
++             "asynchronous validation. Use the async Validator methods.");
++
 +     ValueTask<IEnumerable<ValidationResult>> ValidateAsync(
 +         ValidationContext validationContext,
 +         CancellationToken cancellationToken = default);
@@ -480,12 +489,11 @@ valid = Validator.TryValidateObject(
 
 1. `IAsyncValidatableObject` return type: `ValueTask<IEnumerable<>>` vs `IAsyncEnumerable<>`
 2. `ValueTask<T>` vs `Task<T>` for async validation methods
-3. **`IAsyncValidatableObject` scope and design:**
-   - Should `IAsyncValidatableObject` extend `IValidatableObject`? The current prototype has it as standalone, which is inconsistent with the attribute design (where `AsyncValidationAttribute` derives from `ValidationAttribute`). If an object implements only `IAsyncValidatableObject` and is validated through a sync path, the async validation could be **silently skipped**, incorrectly treating the object as valid.
-   - What happens if an object implements both `IAsyncValidatableObject` and `IValidatableObject`? 
-     - In the current prototype, `TryValidateObjectAsync` checks for `IAsyncValidatableObject` first, if found, it calls `ValidateAsync()` and does **not** also call `IValidatableObject.Validate()`. If the object only implements `IValidatableObject`, the async `Validator` calls the sync `Validate()` method. This means the async path never runs both; it picks one based on which interface is present, with the async interface taking precedence.
-   - If there are no concrete scenarios for async object-level validation via this interface, it may be excluded from scope this release, focusing only on async validation attributes. Type-level `AsyncValidationAttribute` subclasses can cover most of the same scenarios.
-     - **Note:** The [feasibility samples](https://github.com/ViveliDuCh/async-validation-demo/tree/basic-rampup-demos) (first iteration) include three `IAsyncValidatableObject` use cases: `MoneyTransfer` (cross-property async balance check), `Order` (cross-property async pricing service call), and `Profile` (per-property self-validation without reusable attribute classes). All three could technically be rewritten as type-level attributes, but the interface offers direct private member access and avoids attribute boilerplate for one-off validation logic.
+3. **`IAsyncValidatableObject` scope and design:** ✅ **Resolved**
+   - `IAsyncValidatableObject` now extends `IValidatableObject`, consistent with the attribute design where `AsyncValidationAttribute` derives from `ValidationAttribute`. A default interface method (DIM) for `Validate()` throws `NotSupportedException`, ensuring sync paths fail clearly (no silent skipping). This matches the pattern from [halter73's gist §1.4](https://gist.github.com/halter73/f4d0974da579fb78d17bd2e6d9f78173).
+   - When `TryValidateObjectAsync` is used, `IAsyncValidatableObject.ValidateAsync()` takes precedence. When sync `TryValidateObject` encounters an `IAsyncValidatableObject`-only type, the DIM throws — directing the developer to use async APIs.
+   - Types that explicitly implement both `Validate()` and `ValidateAsync()` continue to work: the explicit `Validate()` overrides the DIM, and the sync path uses it. The async path prefers `ValidateAsync()`.
+   - The [feasibility samples](https://github.com/ViveliDuCh/async-validation-demo/tree/basic-rampup-demos) (first iteration) include three `IAsyncValidatableObject` use cases: `MoneyTransfer` (cross-property async balance check), `Order` (cross-property async pricing service call), and `Profile` (per-property self-validation without reusable attribute classes). All three could technically be rewritten as type-level attributes, but the interface offers direct private member access and avoids attribute boilerplate for one-off validation logic.
 
 
 ---

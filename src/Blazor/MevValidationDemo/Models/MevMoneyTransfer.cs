@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.ComponentModel.DataAnnotations;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,7 +30,7 @@ public partial class MevMoneyTransfer : IAsyncValidatableObject
         {
             errors.Add(new ValidationResult(
                 "Cannot transfer to the same account.",
-                new[] { nameof(FromAccount), nameof(ToAccount) }));
+                [nameof(FromAccount), nameof(ToAccount)]));
         }
 
         await Task.Delay(50, cancellationToken);
@@ -37,7 +40,7 @@ public partial class MevMoneyTransfer : IAsyncValidatableObject
         {
             errors.Add(new ValidationResult(
                 $"Insufficient funds. Balance: ${balance:F2}, Transfer: ${Amount:F2}.",
-                new[] { nameof(Amount) }));
+                [nameof(Amount)]));
         }
 
         return errors;

@@ -59,7 +59,7 @@ public class AsyncDateRangeValidWithSyncFallbackAttribute : AsyncValidationAttri
         return start.HasValue && end.HasValue && start.Value >= end.Value
             ? new ValidationResult(
                   $"'{_startProp}' must be before '{_endProp}'.",
-                  new[] { _startProp, _endProp })
+                  [_startProp, _endProp])
             : ValidationResult.Success;
     }
 }

@@ -39,7 +39,7 @@ public class AsyncInventoryCheckAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 $"Insufficient stock for '{productName}'. Requested: {quantity}, Available: 100.",
-                new[] { "Quantity" });
+                ["Quantity"]);
         }
 
         return ValidationResult.Success;

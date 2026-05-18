@@ -36,7 +36,7 @@ public class UsernameAvailableAsyncAttribute : AsyncValidationAttribute
         return isTaken
             ? new ValidationResult(
                   $"The username '{username}' is already taken.",
-                  new[] { validationContext.MemberName! })
+                  [validationContext.MemberName!])
             : ValidationResult.Success;
     }
 }

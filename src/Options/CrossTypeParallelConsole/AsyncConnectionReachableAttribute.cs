@@ -29,7 +29,7 @@ public class AsyncConnectionReachableAttribute : AsyncValidationAttribute
         {
             return new ValidationResult(
                 $"Database at '{connectionString}' is not reachable.",
-                new[] { validationContext.MemberName! });
+                [validationContext.MemberName!]);
         }
 
         return ValidationResult.Success;

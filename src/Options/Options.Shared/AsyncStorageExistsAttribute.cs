@@ -5,7 +5,7 @@ namespace Options.Shared;
 /// <summary>
 /// Async validation attribute that simulates verifying
 /// a storage endpoint is reachable (e.g., DNS lookup, HTTP probe).
-/// Follows the same pattern as AsyncOnlyEmailDomainAttribute in SharedModels.
+/// Follows the same pattern as UsernameAvailableAsyncAttribute in SharedModels.
 /// </summary>
 public class AsyncStorageExistsAttribute : AsyncValidationAttribute
 {
@@ -17,8 +17,7 @@ public class AsyncStorageExistsAttribute : AsyncValidationAttribute
         ValidationContext validationContext,
         CancellationToken cancellationToken)
     {
-        var log = validationContext.GetService(typeof(ValidationLogService))
-            as ValidationLogService;
+        var log = (ValidationLogService?)validationContext.GetService(typeof(ValidationLogService));
 
         if (value is not string endpoint || string.IsNullOrWhiteSpace(endpoint))
             return new ValidationResult("A valid endpoint string is required.");
@@ -38,7 +37,7 @@ public class AsyncStorageExistsAttribute : AsyncValidationAttribute
                 $"✗ Validation FAILED after {sw.ElapsedMilliseconds}ms (async!) — endpoint not reachable");
             return new ValidationResult(
                 $"Storage endpoint '{endpoint}' is not reachable.",
-                new[] { validationContext.MemberName! });
+                [validationContext.MemberName!]);
         }
 
         log?.Log("AsyncStorageExistsAttribute",
@@ -48,5 +47,5 @@ public class AsyncStorageExistsAttribute : AsyncValidationAttribute
 
     // IsValid is intentionally NOT overridden.
     // Base AsyncValidationAttribute.IsValid throws NotSupportedException,
-    // enforcing the async path — same pattern as AsyncOnlyEmailDomainAttribute.
+    // enforcing the async path — same pattern as UsernameAvailableAsyncAttribute.
 }

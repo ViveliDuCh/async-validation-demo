@@ -32,7 +32,7 @@ public class DateRangeAttribute : ValidationAttribute
         {
             return new ValidationResult(
                 $"'{_startProperty}' must be before '{_endProperty}'.",
-                new[] { _startProperty, _endProperty });
+                [_startProperty, _endProperty]);
         }
 
         return ValidationResult.Success;
