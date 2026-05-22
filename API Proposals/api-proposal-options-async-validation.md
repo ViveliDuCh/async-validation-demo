@@ -85,6 +85,15 @@ Related: [dotnet/aspnetcore#46349](https://github.com/dotnet/aspnetcore/issues/4
 +         this OptionsBuilder<TOptions> optionsBuilder) where TOptions : class;
   }
 
++ // Infrastructure type for misuse protection (auto-registered as singleton).
++ // Not intended for direct use by application code.
++ [EditorBrowsable(EditorBrowsableState.Never)]
++ public sealed partial class AsyncValidationState
++ {
++     [EditorBrowsable(EditorBrowsableState.Never)]
++     public bool StartupValidatorRegistered { get; set; }
++ }
+
 + // New extension methods for async lambda validation on OptionsBuilder<T>
 + public static partial class OptionsBuilderAsyncValidationExtensions
 + {
@@ -101,6 +110,14 @@ Related: [dotnet/aspnetcore#46349](https://github.com/dotnet/aspnetcore/issues/4
 +         string failureMessage) where TOptions : class where TDep : notnull;
 +
 +     // ... up to 5 dependencies (same pattern as sync Validate<T, TDep1..TDep5>)
++ }
+
++ // On existing OptionsBuilder<TOptions>: guard registration used by ValidateAsync()
++ // and ValidateDataAnnotationsAsync(). Not intended for direct use.
++ public partial class OptionsBuilder<TOptions>
++ {
++     [EditorBrowsable(EditorBrowsableState.Never)]
++     public void RegisterAsyncValidationGuard();
 + }
 ```
 
@@ -160,8 +177,11 @@ public async ValueTask<ValidateOptionsResult> ValidateAsync(
 
     // IAsyncValidatableObject self-validation (if model implements it)
     // context.MemberName = "ValidateAsync";
-    // (builder ??= new()).AddResults(
-    //     await ((IAsyncValidatableObject)options).ValidateAsync(context, cancellationToken));
+    // await foreach (var __result in ((IAsyncValidatableObject)options)
+    //     .ValidateAsync(context, cancellationToken).ConfigureAwait(false))
+    // {
+    //     (builder ??= new()).AddResult(__result);
+    // }
 
     return builder is null ? ValidateOptionsResult.Success : builder.Build();
 
@@ -319,12 +339,31 @@ Instead of bypassing the factory, make the factory's validation step async. This
 
 The **bypass approach** avoids all of these problems by separating creation from validation. `OptionsFactory.Create()` runs normally (configure + post-configure, no async validators registered), and the async pipeline validates the resulting cached instance during `Host.StartAsync()`.
 
+### Startup validation guard strategies
+
+If async validators are registered but `ValidateOnStartAsync()` is not called (or there is no Generic Host), the guard throws `InvalidOperationException` on first `.Value` access instead of silently skipping validation. Several approaches for closing gaps in the async startup validation pipeline were explored. The [strategy exploration summary](https://gist.github.com/ViveliDuCh/8dac578bf29949857dd46f6189ae5efc) documents five alternatives:
+
+| Approach | Description | Gap 1 (No Host) | Gap 2 (Before Startup) |
+|----------|-------------|-----------------|----------------------|
+| **A1: Simple Guard ⭐ (chosen)** | `AsyncValidationGuard<T>` throws if `ValidateOnStartAsync()` was not called | ✅ | ❌ |
+| **A2: Lifecycle Guard** | 3-phase state machine tracking startup progress | ✅ | ✅ |
+| **B: Dual Registration** | Registers both async and sync-only fallback validators | ⚠️ Partial | ❌ |
+| **C: Factory Awareness** | `OptionsFactory` checks async validation state in `Create()` | ✅ | ✅ |
+| **D: Startup Ordering** | Interleaves sync and async validation per-type during startup | ❌ | ✅ |
+
+**Gap 1 (No Host):** Developer registers `.ValidateDataAnnotationsAsync()` without `Host`, async validators silently never run.
+**Gap 2 (Before Startup):** Code resolves `IOptions<T>.Value` during `Host.StartAsync()` before `IAsyncStartupValidator` runs, options cached without async validation.
+
+**Runtime re-validation (out of scope):** `IOptionsMonitor<T>` runtime config changes execute only sync validators. This is an architectural constraint of the existing sync Options interfaces. Developers needing runtime async re-validation can subscribe to `IOptionsMonitor.OnChange` and call `Validator.TryValidateObjectAsync` directly outside the pipeline.
+
 ### Risks
 
 - All additions are additive: new interfaces, new classes, new extension methods. No overload ambiguity, `ValidateDataAnnotationsAsync` and `ValidateOnStartAsync` have distinct names from their sync counterparts.
-- `ValidateDataAnnotationsAsync` registers ONLY `IAsyncValidateOptions<T>`, not `IValidateOptions<T>`. This means sync `OptionsFactory.Create()` will NOT run async-only attributes. This is by design: async attributes should only run in the async pipeline. Developers using `ValidateDataAnnotationsAsync` without `ValidateOnStartAsync` will get no validation of async attributes, the API docs should make this pairing clear.
+- `ValidateDataAnnotationsAsync` registers `IAsyncValidateOptions<T>` and an `AsyncValidationGuard<T>`. If `ValidateOnStartAsync()` is not called, the guard throws on first `.Value` access. Detection is registration-time only: it does not track whether startup has actually completed.
+- **Guard limitation (registration-time only):** The guard checks whether `ValidateOnStartAsync()` was called during service registration. It does **not** track whether `Host.StartAsync()` has actually executed yet, so it cannot detect the case where options are resolved *during* `Host.StartAsync()` but *before* `IAsyncStartupValidator` runs (Gap 2). This was an intentional v1 trade-off to avoid lifecycle state tracking complexity.
 - **Timing difference:** Sync `ValidateOnStart` validates during `OptionsFactory.Create()` (inside the first `Get()` call). Async `ValidateOnStartAsync` validates in a separate step after `Create()`. Both run during `Host.StartAsync()` before any request: the end user behavior is identical (invalid config → app crashes at startup).
 - **Parallel execution:** All async validation runs in parallel at multiple levels (see below). Validators must not rely on execution order and must be safe for concurrent invocation.
+- **Startup-only constraint:** Async validators run once during `Host.StartAsync()` via `ValidateOnStartAsync()`. Runtime config changes through `IOptionsMonitor<T>` execute only sync validators. This is an architectural constraint of the existing Options interfaces, not a v1 trade-off.
 
 ## Parallel Execution Model
 

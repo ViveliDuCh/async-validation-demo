@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,18 +28,16 @@ public class MoneyTransfer : IAsyncValidatableObject
     /// Async cross-property validation: checks same-account transfer and
     /// simulates an async balance check against an external service.
     /// </summary>
-    public async ValueTask<IEnumerable<ValidationResult>> ValidateAsync(
+    public async IAsyncEnumerable<ValidationResult> ValidateAsync(
         ValidationContext validationContext,
-        CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var errors = new List<ValidationResult>();
-
         // Sync cross-property check (no I/O needed)
         if (FromAccount == ToAccount)
         {
-            errors.Add(new ValidationResult(
+            yield return new ValidationResult(
                 "Cannot transfer to the same account.",
-                [nameof(FromAccount), nameof(ToAccount)]));
+                [nameof(FromAccount), nameof(ToAccount)]);
         }
 
         // Async balance check (frees the thread)
@@ -47,11 +46,9 @@ public class MoneyTransfer : IAsyncValidatableObject
 
         if (Amount > balance)
         {
-            errors.Add(new ValidationResult(
+            yield return new ValidationResult(
                 $"Insufficient funds. Balance: ${balance:F2}, Transfer: ${Amount:F2}.",
-                [nameof(Amount)]));
+                [nameof(Amount)]);
         }
-
-        return errors;
     }
 }

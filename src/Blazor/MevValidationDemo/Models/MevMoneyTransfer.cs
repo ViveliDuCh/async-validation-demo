@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.ComponentModel.DataAnnotations;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Validation;
@@ -20,17 +21,15 @@ public partial class MevMoneyTransfer : IAsyncValidatableObject
     [Range(0.01, double.MaxValue)]
     public decimal Amount { get; set; }
 
-    public async ValueTask<IEnumerable<ValidationResult>> ValidateAsync(
+    public async IAsyncEnumerable<ValidationResult> ValidateAsync(
         ValidationContext validationContext,
-        CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var errors = new List<ValidationResult>();
-
         if (FromAccount == ToAccount)
         {
-            errors.Add(new ValidationResult(
+            yield return new ValidationResult(
                 "Cannot transfer to the same account.",
-                [nameof(FromAccount), nameof(ToAccount)]));
+                [nameof(FromAccount), nameof(ToAccount)]);
         }
 
         await Task.Delay(50, cancellationToken);
@@ -38,11 +37,9 @@ public partial class MevMoneyTransfer : IAsyncValidatableObject
 
         if (Amount > balance)
         {
-            errors.Add(new ValidationResult(
+            yield return new ValidationResult(
                 $"Insufficient funds. Balance: ${balance:F2}, Transfer: ${Amount:F2}.",
-                [nameof(Amount)]));
+                [nameof(Amount)]);
         }
-
-        return errors;
     }
 }
