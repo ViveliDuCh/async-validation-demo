@@ -64,7 +64,7 @@ Modern applications frequently need to validate against external resources (data
 +             "This object implements IAsyncValidatableObject and supports only " +
 +             "asynchronous validation. Use the async Validator methods.");
 +
-+     ValueTask<IEnumerable<ValidationResult>> ValidateAsync(
++     IAsyncEnumerable<ValidationResult> ValidateAsync(
 +         ValidationContext validationContext,
 +         CancellationToken cancellationToken = default);
 + }
@@ -332,18 +332,17 @@ public class MoneyTransfer : IAsyncValidatableObject
     [Range(0.01, double.MaxValue)]   // sync property attr
     public decimal Amount { get; set; }
 
-    // IAsyncValidatableObject.ValidateAsync: async cross-property logic
-    public async ValueTask<IEnumerable<ValidationResult>> ValidateAsync(
-        ValidationContext validationContext, CancellationToken cancellationToken)
+    // IAsyncValidatableObject.ValidateAsync: async cross-property logic (streaming)
+    public async IAsyncEnumerable<ValidationResult> ValidateAsync(
+        ValidationContext validationContext,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var errors = new List<ValidationResult>();
-
         // Sync cross-property check (no I/O needed)
         if (FromAccount == ToAccount)
         {
-            errors.Add(new ValidationResult(
+            yield return new ValidationResult(
                 "Cannot transfer to the same account.",
-                new[] { nameof(FromAccount), nameof(ToAccount) }));
+                new[] { nameof(FromAccount), nameof(ToAccount) });
         }
 
         // Async balance check (frees the thread)
@@ -352,12 +351,10 @@ public class MoneyTransfer : IAsyncValidatableObject
 
         if (Amount > balance)
         {
-            errors.Add(new ValidationResult(
+            yield return new ValidationResult(
                 $"Insufficient funds. Balance: ${balance:F2}, Transfer: ${Amount:F2}.",
-                new[] { nameof(Amount) }));
+                new[] { nameof(Amount) });
         }
-
-        return errors;
     }
 }
 
@@ -478,22 +475,28 @@ valid = Validator.TryValidateObject(
   
   - Less discoverable. Users must know to implement an interface AND inherit `ValidationAttribute`. The subclass approach is more idiomatic for DataAnnotations.
 
+**`IAsyncValidatableObject.ValidateAsync` return type: `Task<IEnumerable<ValidationResult>>` instead of `IAsyncEnumerable<ValidationResult>`**
+
+  - As [noted in the design gist](https://gist.github.com/halter73/f4d0974da579fb78d17bd2e6d9f78173), `IAsyncEnumerable<>` allows streaming results, but the alternative `Task<IEnumerable<ValidationResult>>` is simpler and may be sufficient for most scenarios. Streaming is most beneficial for progressive UI display (e.g., Blazor forms showing errors as they arrive), but many consumers will simply `await` all results at once. `Task<IEnumerable<>>` avoids the `IAsyncEnumerable` dependency and is easier to implement for attribute authors who only need a single async check. The current proposal chooses `IAsyncEnumerable` for flexibility, but this simpler alternative remains viable if streaming is deemed unnecessary for V1.
+
 ### Notes/Risks
 
 - The new `Validator.*Async` methods follow the established `XAsync` naming pattern with distinct signatures (return `ValueTask`). No ambiguity with existing sync methods. All additions are additive, no existing APIs changed.
 - Sync `Validator.TryValidateObject` discovering an `AsyncValidationAttribute` will throw `NotSupportedException` instead of silently succeeding. This is **by design**: it surfaces the mismatch between sync callers and async-only attributes.
 - Async validators run concurrently across properties and in parallel per property. If any sync attribute fails, async attributes on that property are skipped (no wasted I/O). Validators must not rely on execution order and must be safe for concurrent execution.
+- **`ValueTask` rationale:** All async validation APIs return `ValueTask<T>` (or `ValueTask` for throwing variants). `IsValidAsync` and `GetValidationResultAsync` are leaf APIs called once per attribute per value — `ValueTask` avoids a `Task` allocation when validators complete synchronously (e.g., cached lookups). `Validator.TryValidateObjectAsync` and related methods are infrastructure APIs consumed via a single `await` by most callers; orchestration layers (source generator, Options startup) use `.AsTask()` for `Task.WhenAll` composition internally. See [analysis](https://gist.github.com/ViveliDuCh/df89b638cb3c91a8e758c7619f8f4620).
 - **Scope:** This proposal covers the core `System.ComponentModel.DataAnnotations` APIs (Phase 1). Downstream consumers (M.E.Validation, Blazor, Options, MVC) adopt independently per the [design gist](https://gist.github.com/halter73/f4d0974da579fb78d17bd2e6d9f78173) and [integration point analysis](https://github.com/jeffhandley/dataannotations-validation/blob/main/appendices/appendix-a-integration-points.md). MVC is explicitly deferred; sync-only consumers that encounter async-only attributes get a clear error directing them to the async APIs.
+
+### Resolved Items
+
+1. **`IAsyncValidatableObject.ValidateAsync` return type:** Uses `IAsyncEnumerable<ValidationResult>` (streaming). Enables progressive UI display in Blazor and component vendor ecosystems. See [comparison assessment](https://github.com/ViveliDuCh/runtime/blob/async-validation-iasyncenumerable/src/libraries/System.ComponentModel.Annotations/samples/Benchmarks/COMPARISON.md).
+2. **`GetValidationResultAsync` placement:** Confirmed on `AsyncValidationAttribute` only, not on base `ValidationAttribute`. The `Validator` handles `is AsyncValidationAttribute` dispatch internally.
+3. **`ValidationContext.Items` thread safety:** `Items` is a read-only input channel by design. No built-in attribute mutates it during validation. The pipeline does not guarantee attribute execution order beyond `RequiredAttribute` priority. Custom validators should treat `Items` as read-only; mutations during validation are unsupported. Documented via XML `<remarks>` on `ValidationContext.Items`.
+4. **Cross-property short-circuit semantics:** When `validationResults` is `null` (`breakOnFirstError=true`), the first property to complete with errors triggers cooperative cancellation of remaining in-flight async validators via linked `CancellationToken`. When `validationResults` is non-null, all properties complete and all errors are collected. Per-property sync-first gating is unconditional.
 
 ### Open Questions
 
-1. `IAsyncValidatableObject` return type: `ValueTask<IEnumerable<>>` vs `IAsyncEnumerable<>`
-2. `ValueTask<T>` vs `Task<T>` for async validation methods
-3. **`IAsyncValidatableObject` scope and design:** ✅ **Resolved**
-   - `IAsyncValidatableObject` now extends `IValidatableObject`, consistent with the attribute design where `AsyncValidationAttribute` derives from `ValidationAttribute`. A default interface method (DIM) for `Validate()` throws `NotSupportedException`, ensuring sync paths fail clearly (no silent skipping). This matches the pattern from [halter73's gist §1.4](https://gist.github.com/halter73/f4d0974da579fb78d17bd2e6d9f78173).
-   - When `TryValidateObjectAsync` is used, `IAsyncValidatableObject.ValidateAsync()` takes precedence. When sync `TryValidateObject` encounters an `IAsyncValidatableObject`-only type, the DIM throws — directing the developer to use async APIs.
-   - Types that explicitly implement both `Validate()` and `ValidateAsync()` continue to work: the explicit `Validate()` overrides the DIM, and the sync path uses it. The async path prefers `ValidateAsync()`.
-   - The [feasibility samples](https://github.com/ViveliDuCh/async-validation-demo/tree/basic-rampup-demos) (first iteration) include three `IAsyncValidatableObject` use cases: `MoneyTransfer` (cross-property async balance check), `Order` (cross-property async pricing service call), and `Profile` (per-property self-validation without reusable attribute classes). All three could technically be rewritten as type-level attributes, but the interface offers direct private member access and avoids attribute boilerplate for one-off validation logic.
+1. `ValueTask<T>` vs `Task<T>` for async validation methods — leaning `ValueTask`, acknowledged trade-off
 
 
 ---
