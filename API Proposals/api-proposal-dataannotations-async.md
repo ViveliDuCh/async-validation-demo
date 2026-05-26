@@ -34,7 +34,7 @@ Modern applications frequently need to validate against external resources (data
 +     protected AsyncValidationAttribute(Func<string> errorMessageAccessor);
 +     protected AsyncValidationAttribute(string errorMessage);
 +
-+     // Sync IsValid throws NotSupportedException, forcing callers to use the async path.
++     // Sync IsValid throws InvalidOperationException, forcing callers to use the async path.
 +     // Virtual (not sealed): subclasses may override to provide a sync fallback.
 +     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext);
 +
@@ -53,14 +53,14 @@ Modern applications frequently need to validate against external resources (data
 + }
 
 + // New interface for object-level async validation.
-+ // Inherits from IValidatableObject with a DIM that throws NotSupportedException,
++ // Inherits from IValidatableObject with a DIM that throws InvalidOperationException,
 + // mirroring the AsyncValidationAttribute pattern where sync paths fail clearly
 + // rather than silently skipping async validation.
 + public partial interface IAsyncValidatableObject : IValidatableObject
 + {
 +     IEnumerable<ValidationResult> IValidatableObject.Validate(
 +         ValidationContext validationContext) =>
-+         throw new NotSupportedException(
++         throw new InvalidOperationException(
 +             "This object implements IAsyncValidatableObject and supports only " +
 +             "asynchronous validation. Use the async Validator methods.");
 +
@@ -140,7 +140,7 @@ Modern applications frequently need to validate against external resources (data
 | Attribute type | Sync path (`GetValidationResult`) | Async path (`GetValidationResultAsync`) |
 |---|---|---|
 | Traditional `ValidationAttribute` subclass | ✅ Works normally | ✅ Async `Validator` delegates to sync `IsValid` internally |
-| `AsyncValidationAttribute` (async-only) | ❌ Throws `NotSupportedException` | ✅ Calls `IsValidAsync` |
+| `AsyncValidationAttribute` (async-only) | ❌ Throws `InvalidOperationException` | ✅ Calls `IsValidAsync` |
 | `AsyncValidationAttribute` with sync override | ✅ Uses `IsValid` override | ✅ Calls `IsValidAsync` |
 
 Prototype: https://github.com/ViveliDuCh/runtime/tree/async-validation
@@ -398,7 +398,7 @@ public class AsyncDateRangeValidWithSyncFallback : AsyncValidationAttribute
     }
 
     // Sync fallback: used by TryValidateObject (blocks the thread)
-    // Overrides the base AsyncValidationAttribute.IsValid which throws NotSupportedException
+    // Overrides the base AsyncValidationAttribute.IsValid which throws InvalidOperationException
     protected override ValidationResult? IsValid(
         object? value, ValidationContext validationContext)
     {
@@ -447,14 +447,14 @@ bool valid = await Validator.TryValidateObjectAsync(
     badEvent, new ValidationContext(badEvent), results, true);
 // Calls IsValidAsync → await Task.Delay → returns error
 
-// Sync path: works too (blocks thread, but doesn't throw NotSupportedException)
+// Sync path: works too (blocks thread, but doesn't throw InvalidOperationException)
 results.Clear();
 valid = Validator.TryValidateObject(
     badEvent, new ValidationContext(badEvent), results, true);
 // Calls IsValid (sync override) → Thread.Sleep → returns same error
 
 // CONTRAST: an async-only attribute (no sync override) throws on the sync path:
-// Validator.TryValidateObject(userWithAsyncOnlyAttr, ...) → NotSupportedException
+// Validator.TryValidateObject(userWithAsyncOnlyAttr, ...) → InvalidOperationException
 ```
 
 ### Alternative Designs
@@ -469,7 +469,7 @@ valid = Validator.TryValidateObject(
 
 **Option C (chosen): `AsyncValidationAttribute` deriving from `ValidationAttribute`**
   
-  - The sync `IsValid` override throws `NotSupportedException`, forcing async callers. Since `AsyncValidationAttribute` IS-A `ValidationAttribute`, sync `Validator` still discovers it via reflection and produces a clear error.
+  - The sync `IsValid` override throws `InvalidOperationException`, forcing async callers. Since `AsyncValidationAttribute` IS-A `ValidationAttribute`, sync `Validator` still discovers it via reflection and produces a clear error.
 
 **Option D: `IAsyncValidationAttribute` interface**
   
@@ -482,7 +482,7 @@ valid = Validator.TryValidateObject(
 ### Notes/Risks
 
 - The new `Validator.*Async` methods follow the established `XAsync` naming pattern with distinct signatures (return `ValueTask`). No ambiguity with existing sync methods. All additions are additive, no existing APIs changed.
-- Sync `Validator.TryValidateObject` discovering an `AsyncValidationAttribute` will throw `NotSupportedException` instead of silently succeeding. This is **by design**: it surfaces the mismatch between sync callers and async-only attributes.
+- Sync `Validator.TryValidateObject` discovering an `AsyncValidationAttribute` will throw `InvalidOperationException` instead of silently succeeding. This is **by design**: it surfaces the mismatch between sync callers and async-only attributes.
 - Async validators run concurrently across properties and in parallel per property. If any sync attribute fails, async attributes on that property are skipped (no wasted I/O). Validators must not rely on execution order and must be safe for concurrent execution.
 - **`ValueTask` rationale:** All async validation APIs return `ValueTask<T>` (or `ValueTask` for throwing variants). `IsValidAsync` and `GetValidationResultAsync` are leaf APIs called once per attribute per value — `ValueTask` avoids a `Task` allocation when validators complete synchronously (e.g., cached lookups). `Validator.TryValidateObjectAsync` and related methods are infrastructure APIs consumed via a single `await` by most callers; orchestration layers (source generator, Options startup) use `.AsTask()` for `Task.WhenAll` composition internally. See [analysis](https://gist.github.com/ViveliDuCh/df89b638cb3c91a8e758c7619f8f4620).
 - **Scope:** This proposal covers the core `System.ComponentModel.DataAnnotations` APIs (Phase 1). Downstream consumers (M.E.Validation, Blazor, Options, MVC) adopt independently per the [design gist](https://gist.github.com/halter73/f4d0974da579fb78d17bd2e6d9f78173) and [integration point analysis](https://github.com/jeffhandley/dataannotations-validation/blob/main/appendices/appendix-a-integration-points.md). MVC is explicitly deferred; sync-only consumers that encounter async-only attributes get a clear error directing them to the async APIs.
