@@ -13,7 +13,10 @@ namespace SharedModels.ValidationClasses;
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class AsyncInventoryCheckAttribute : AsyncValidationAttribute
 {
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
+        => throw new NotSupportedException("Use the async validation path.");
+
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)

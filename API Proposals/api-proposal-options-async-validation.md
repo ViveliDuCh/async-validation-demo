@@ -26,124 +26,124 @@ Related: [dotnet/aspnetcore#46349](https://github.com/dotnet/aspnetcore/issues/4
 
 ### Microsoft.Extensions.Options
 
-```diff
-  namespace Microsoft.Extensions.Options;
+```csharp
+namespace Microsoft.Extensions.Options;
 
-+ // New interface: async counterpart to IValidateOptions<T>
-+ public partial interface IAsyncValidateOptions<in TOptions> where TOptions : class
-+ {
-+     ValueTask<ValidateOptionsResult> ValidateAsync(
-+         string? name,
-+         TOptions options,
-+         CancellationToken cancellationToken = default);
-+ }
+// New interface: async counterpart to IValidateOptions<T>
+public partial interface IAsyncValidateOptions<in TOptions> where TOptions : class
+{
+    ValueTask<ValidateOptionsResult> ValidateAsync(
+        string? name,
+        TOptions options,
+        CancellationToken cancellationToken = default);
+}
 
-+ // New interface: async counterpart to IStartupValidator
-+ public partial interface IAsyncStartupValidator
-+ {
-+     Task ValidateAsync(CancellationToken cancellationToken = default);
-+ }
+// New interface: async counterpart to IStartupValidator
+public partial interface IAsyncStartupValidator
+{
+    Task ValidateAsync(CancellationToken cancellationToken = default);
+}
 
-+ // New class: async lambda-based validator (0 dependencies)
-+ public partial class AsyncValidateOptions<TOptions> : IAsyncValidateOptions<TOptions>
-+     where TOptions : class
-+ {
-+     public AsyncValidateOptions(string? name,
-+         Func<TOptions, CancellationToken, ValueTask<bool>> validation,
-+         string failureMessage);
-+     public string? Name { get; }
-+     public Func<TOptions, CancellationToken, ValueTask<bool>> Validation { get; }
-+     public string FailureMessage { get; }
-+     public ValueTask<ValidateOptionsResult> ValidateAsync(
-+         string? name, TOptions options, CancellationToken cancellationToken = default);
-+ }
+// New class: async lambda-based validator (0 dependencies)
+public partial class AsyncValidateOptions<TOptions> : IAsyncValidateOptions<TOptions>
+    where TOptions : class
+{
+    public AsyncValidateOptions(string? name,
+        Func<TOptions, CancellationToken, ValueTask<bool>> validation,
+        string failureMessage);
+    public string? Name { get; }
+    public Func<TOptions, CancellationToken, ValueTask<bool>> Validation { get; }
+    public string FailureMessage { get; }
+    public ValueTask<ValidateOptionsResult> ValidateAsync(
+        string? name, TOptions options, CancellationToken cancellationToken = default);
+}
 
-+ // New class: async lambda-based validator (1 dependency)
-+ public partial class AsyncValidateOptions<TOptions, TDep> : IAsyncValidateOptions<TOptions>
-+     where TOptions : class
-+ {
-+     public AsyncValidateOptions(string? name, TDep dependency,
-+         Func<TOptions, TDep, CancellationToken, ValueTask<bool>> validation,
-+         string failureMessage);
-+     public string? Name { get; }
-+     public TDep Dependency { get; }
-+     public Func<TOptions, TDep, CancellationToken, ValueTask<bool>> Validation { get; }
-+     public string FailureMessage { get; }
-+     public ValueTask<ValidateOptionsResult> ValidateAsync(
-+         string? name, TOptions options, CancellationToken cancellationToken = default);
-+ }
+// New class: async lambda-based validator (1 dependency)
+public partial class AsyncValidateOptions<TOptions, TDep> : IAsyncValidateOptions<TOptions>
+    where TOptions : class
+{
+    public AsyncValidateOptions(string? name, TDep dependency,
+        Func<TOptions, TDep, CancellationToken, ValueTask<bool>> validation,
+        string failureMessage);
+    public string? Name { get; }
+    public TDep Dependency { get; }
+    public Func<TOptions, TDep, CancellationToken, ValueTask<bool>> Validation { get; }
+    public string FailureMessage { get; }
+    public ValueTask<ValidateOptionsResult> ValidateAsync(
+        string? name, TOptions options, CancellationToken cancellationToken = default);
+}
 
-+ // ... AsyncValidateOptions<TOptions, TDep1, TDep2> through <TOptions, TDep1..TDep5>
-+ // (same pattern as existing sync ValidateOptions<T, TDep1..TDep5>)
+// ... AsyncValidateOptions<TOptions, TDep1, TDep2> through <TOptions, TDep1..TDep5>
+// (same pattern as existing sync ValidateOptions<T, TDep1..TDep5>)
 
-  // Existing OptionsBuilderExtensions
-  public static partial class OptionsBuilderExtensions
-  {
-      public static OptionsBuilder<TOptions> ValidateOnStart<TOptions>(this OptionsBuilder<TOptions> optionsBuilder);
+// Existing OptionsBuilderExtensions
+public static partial class OptionsBuilderExtensions
+{
+    public static OptionsBuilder<TOptions> ValidateOnStart<TOptions>(this OptionsBuilder<TOptions> optionsBuilder);
 
-+     public static OptionsBuilder<TOptions> ValidateOnStartAsync<TOptions>(
-+         this OptionsBuilder<TOptions> optionsBuilder) where TOptions : class;
-  }
+    public static OptionsBuilder<TOptions> ValidateOnStartAsync<TOptions>(
+        this OptionsBuilder<TOptions> optionsBuilder) where TOptions : class;
+}
 
-+ // Infrastructure type for misuse protection (auto-registered as singleton).
-+ // Not intended for direct use by application code.
-+ [EditorBrowsable(EditorBrowsableState.Never)]
-+ public sealed partial class AsyncValidationState
-+ {
-+     [EditorBrowsable(EditorBrowsableState.Never)]
-+     public bool StartupValidatorRegistered { get; set; }
-+ }
+// Infrastructure type for misuse protection (auto-registered as singleton).
+// Not intended for direct use by application code.
+[EditorBrowsable(EditorBrowsableState.Never)]
+public sealed partial class AsyncValidationState
+{
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool StartupValidatorRegistered { get; set; }
+}
 
-+ // New extension methods for async lambda validation on OptionsBuilder<T>
-+ public static partial class OptionsBuilderAsyncValidationExtensions
-+ {
-+     // 0 dependencies
-+     public static OptionsBuilder<TOptions> ValidateAsync<TOptions>(
-+         this OptionsBuilder<TOptions> optionsBuilder,
-+         Func<TOptions, CancellationToken, ValueTask<bool>> validation,
-+         string failureMessage) where TOptions : class;
-+
-+     // 1 dependency
-+     public static OptionsBuilder<TOptions> ValidateAsync<TOptions, TDep>(
-+         this OptionsBuilder<TOptions> optionsBuilder,
-+         Func<TOptions, TDep, CancellationToken, ValueTask<bool>> validation,
-+         string failureMessage) where TOptions : class where TDep : notnull;
-+
-+     // ... up to 5 dependencies (same pattern as sync Validate<T, TDep1..TDep5>)
-+ }
+// New extension methods for async lambda validation on OptionsBuilder<T>
+public static partial class OptionsBuilderAsyncValidationExtensions
+{
+    // 0 dependencies
+    public static OptionsBuilder<TOptions> ValidateAsync<TOptions>(
+        this OptionsBuilder<TOptions> optionsBuilder,
+        Func<TOptions, CancellationToken, ValueTask<bool>> validation,
+        string failureMessage) where TOptions : class;
 
-+ // On existing OptionsBuilder<TOptions>: guard registration used by ValidateAsync()
-+ // and ValidateDataAnnotationsAsync(). Not intended for direct use.
-+ public partial class OptionsBuilder<TOptions>
-+ {
-+     [EditorBrowsable(EditorBrowsableState.Never)]
-+     public void RegisterAsyncValidationGuard();
-+ }
+    // 1 dependency
+    public static OptionsBuilder<TOptions> ValidateAsync<TOptions, TDep>(
+        this OptionsBuilder<TOptions> optionsBuilder,
+        Func<TOptions, TDep, CancellationToken, ValueTask<bool>> validation,
+        string failureMessage) where TOptions : class where TDep : notnull;
+
+    // ... up to 5 dependencies (same pattern as sync Validate<T, TDep1..TDep5>)
+}
+
+// On existing OptionsBuilder<TOptions>: guard registration used by ValidateAsync()
+// and ValidateDataAnnotationsAsync(). Not intended for direct use.
+public partial class OptionsBuilder<TOptions>
+{
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public void RegisterAsyncValidationGuard();
+}
 ```
 
 ### Microsoft.Extensions.Options.DataAnnotations
 
-```diff
-  namespace Microsoft.Extensions.Options;
+```csharp
+namespace Microsoft.Extensions.Options;
 
-+ // New class: async counterpart to DataAnnotationValidateOptions<T>
-+ public partial class DataAnnotationValidateOptionsAsync<TOptions>
-+     : IAsyncValidateOptions<TOptions> where TOptions : class
-+ {
-+     public DataAnnotationValidateOptionsAsync(string? name);
-+     public string? Name { get; }
-+     public ValueTask<ValidateOptionsResult> ValidateAsync(
-+         string? name, TOptions options, CancellationToken cancellationToken = default);
-+ }
+// New class: async counterpart to DataAnnotationValidateOptions<T>
+public partial class DataAnnotationValidateOptionsAsync<TOptions>
+    : IAsyncValidateOptions<TOptions> where TOptions : class
+{
+    public DataAnnotationValidateOptionsAsync(string? name);
+    public string? Name { get; }
+    public ValueTask<ValidateOptionsResult> ValidateAsync(
+        string? name, TOptions options, CancellationToken cancellationToken = default);
+}
 
-  // Existing OptionsBuilderDataAnnotationsExtensions
-  public static partial class OptionsBuilderDataAnnotationsExtensions
-  {
-      public static OptionsBuilder<TOptions> ValidateDataAnnotations<TOptions>(this OptionsBuilder<TOptions> optionsBuilder);
+// Existing OptionsBuilderDataAnnotationsExtensions
+public static partial class OptionsBuilderDataAnnotationsExtensions
+{
+    public static OptionsBuilder<TOptions> ValidateDataAnnotations<TOptions>(this OptionsBuilder<TOptions> optionsBuilder);
 
-+     public static OptionsBuilder<TOptions> ValidateDataAnnotationsAsync<TOptions>(
-+         this OptionsBuilder<TOptions> optionsBuilder) where TOptions : class;
-  }
+    public static OptionsBuilder<TOptions> ValidateDataAnnotationsAsync<TOptions>(
+        this OptionsBuilder<TOptions> optionsBuilder) where TOptions : class;
+}
 ```
 
 ### Options Validation Source Generator

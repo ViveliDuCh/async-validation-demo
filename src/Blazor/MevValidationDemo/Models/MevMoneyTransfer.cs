@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -20,6 +21,9 @@ public partial class MevMoneyTransfer : IAsyncValidatableObject
 
     [Range(0.01, double.MaxValue)]
     public decimal Amount { get; set; }
+
+    IEnumerable<ValidationResult> IValidatableObject.Validate(ValidationContext validationContext)
+        => throw new NotSupportedException("Use the async validation path (ValidateAsync).");
 
     public async IAsyncEnumerable<ValidationResult> ValidateAsync(
         ValidationContext validationContext,

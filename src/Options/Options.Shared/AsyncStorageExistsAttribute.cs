@@ -12,7 +12,10 @@ public class AsyncStorageExistsAttribute : AsyncValidationAttribute
     public AsyncStorageExistsAttribute()
         : base("Storage endpoint could not be reached.") { }
 
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
+        => throw new NotSupportedException("Use the async validation path.");
+
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)
@@ -45,7 +48,4 @@ public class AsyncStorageExistsAttribute : AsyncValidationAttribute
         return ValidationResult.Success;
     }
 
-    // IsValid is intentionally NOT overridden.
-    // Base AsyncValidationAttribute.IsValid throws NotSupportedException,
-    // enforcing the async path — same pattern as UsernameAvailableAsyncAttribute.
 }

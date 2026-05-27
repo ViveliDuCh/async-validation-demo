@@ -78,8 +78,8 @@ var event2 = new SyncFallbackEvent { Title = "Planning", StartDate = new DateTim
 var sw = Stopwatch.StartNew();
 var r1 = new List<ValidationResult>();
 var r2 = new List<ValidationResult>();
-var t1 = Validator.TryValidateObjectAsync(event1, new ValidationContext(event1), r1, true).AsTask();
-var t2 = Validator.TryValidateObjectAsync(event2, new ValidationContext(event2), r2, true).AsTask();
+var t1 = Validator.TryValidateObjectAsync(event1, new ValidationContext(event1), r1, true);
+var t2 = Validator.TryValidateObjectAsync(event2, new ValidationContext(event2), r2, true);
 await Task.WhenAll(t1, t2);
 sw.Stop();
 Console.WriteLine($"  Parallel async:  {sw.ElapsedMilliseconds}ms  (both run concurrently)");

@@ -20,7 +20,7 @@ public class AsyncSmtpReachableAttribute : AsyncValidationAttribute
         : base("SMTP host is not reachable.") { }
 
     // Async path: used by ValidateDataAnnotationsAsync → TryValidateObjectAsync
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)

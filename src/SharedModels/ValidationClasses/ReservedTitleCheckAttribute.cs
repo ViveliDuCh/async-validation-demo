@@ -26,7 +26,7 @@ public class ReservedTitleCheckAttribute : AsyncValidationAttribute
             "Placeholder"
         };
 
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)
@@ -68,7 +68,6 @@ public class ReservedTitleCheckAttribute : AsyncValidationAttribute
         object? value, ValidationContext validationContext)
     {
         return IsValidAsync(value, validationContext, CancellationToken.None)
-            .AsTask()
             .GetAwaiter().GetResult();
     }
 }

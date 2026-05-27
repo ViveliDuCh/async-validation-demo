@@ -28,7 +28,7 @@ public class AsyncDateRangeValidWithSyncFallbackAttribute : AsyncValidationAttri
     }
 
     // Async path: used by TryValidateObjectAsync (non-blocking)
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)

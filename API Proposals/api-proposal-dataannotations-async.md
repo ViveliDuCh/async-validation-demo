@@ -24,115 +24,115 @@ Modern applications frequently need to validate against external resources (data
 
 > **Note:** This API surface matches the [feasibility prototype](https://github.com/ViveliDuCh/runtime/tree/async-validation).
 
-```diff
-  namespace System.ComponentModel.DataAnnotations;
+```csharp
+namespace System.ComponentModel.DataAnnotations;
 
-+ // New abstract class deriving from ValidationAttribute
-+ public abstract partial class AsyncValidationAttribute : ValidationAttribute
-+ {
-+     protected AsyncValidationAttribute();
-+     protected AsyncValidationAttribute(Func<string> errorMessageAccessor);
-+     protected AsyncValidationAttribute(string errorMessage);
-+
-+     // Sync IsValid throws InvalidOperationException, forcing callers to use the async path.
-+     // Virtual (not sealed): subclasses may override to provide a sync fallback.
-+     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext);
-+
-+     // Async override point for subclasses
-+     protected abstract ValueTask<ValidationResult?> IsValidAsync(
-+         object? value,
-+         ValidationContext validationContext,
-+         CancellationToken cancellationToken);
-+
-+     // Public async entry point, counterpart to GetValidationResult.
-+     // Calls IsValidAsync, populates error message via FormatErrorMessage on null/empty.
-+     public ValueTask<ValidationResult?> GetValidationResultAsync(
-+         object? value,
-+         ValidationContext validationContext,
-+         CancellationToken cancellationToken = default);
-+ }
+// New abstract class deriving from ValidationAttribute
+public abstract partial class AsyncValidationAttribute : ValidationAttribute
+{
+    protected AsyncValidationAttribute();
+    protected AsyncValidationAttribute(Func<string> errorMessageAccessor);
+    protected AsyncValidationAttribute(string errorMessage);
 
-+ // New interface for object-level async validation.
-+ // Inherits from IValidatableObject with a DIM that throws InvalidOperationException,
-+ // mirroring the AsyncValidationAttribute pattern where sync paths fail clearly
-+ // rather than silently skipping async validation.
-+ public partial interface IAsyncValidatableObject : IValidatableObject
-+ {
-+     IEnumerable<ValidationResult> IValidatableObject.Validate(
-+         ValidationContext validationContext) =>
-+         throw new InvalidOperationException(
-+             "This object implements IAsyncValidatableObject and supports only " +
-+             "asynchronous validation. Use the async Validator methods.");
-+
-+     IAsyncEnumerable<ValidationResult> ValidateAsync(
-+         ValidationContext validationContext,
-+         CancellationToken cancellationToken = default);
-+ }
+    // Sync IsValid throws InvalidOperationException, forcing callers to use the async path.
+    // Virtual (not sealed): subclasses may override to provide a sync fallback.
+    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext);
 
-  // Async counterparts on the existing Validator static class
-  public static partial class Validator
-  {
-      public static bool TryValidateObject(object instance, ValidationContext validationContext, ICollection<ValidationResult>? validationResults);
-      // validateAllProperties: when true, validates all properties; when false, only [Required] properties.
-      public static bool TryValidateObject(object instance, ValidationContext validationContext, ICollection<ValidationResult>? validationResults, bool validateAllProperties);
-      public static bool TryValidateProperty(object? value, ValidationContext validationContext, ICollection<ValidationResult>? validationResults);
-      public static bool TryValidateValue(object? value, ValidationContext validationContext, ICollection<ValidationResult>? validationResults, IEnumerable<ValidationAttribute> validationAttributes);
-      public static void ValidateObject(object instance, ValidationContext validationContext);
-      // validateAllProperties: when true, validates all properties; when false, only [Required] properties.
-      public static void ValidateObject(object instance, ValidationContext validationContext, bool validateAllProperties);
-      public static void ValidateProperty(object? value, ValidationContext validationContext);
-      public static void ValidateValue(object? value, ValidationContext validationContext, IEnumerable<ValidationAttribute> validationAttributes);
+    // Async override point for subclasses
+    protected abstract ValueTask<ValidationResult?> IsValidAsync(
+        object? value,
+        ValidationContext validationContext,
+        CancellationToken cancellationToken);
 
-+     public static ValueTask<bool> TryValidateObjectAsync(
-+         object instance,
-+         ValidationContext validationContext,
-+         ICollection<ValidationResult>? validationResults,
-+         CancellationToken cancellationToken = default);
+    // Public async entry point, counterpart to GetValidationResult.
+    // Calls IsValidAsync, populates error message via FormatErrorMessage on null/empty.
+    public ValueTask<ValidationResult?> GetValidationResultAsync(
+        object? value,
+        ValidationContext validationContext,
+        CancellationToken cancellationToken = default);
+}
 
-+     // validateAllProperties: when true, validates all properties; when false, only [Required] properties.
-+     public static ValueTask<bool> TryValidateObjectAsync(
-+         object instance,
-+         ValidationContext validationContext,
-+         ICollection<ValidationResult>? validationResults,
-+         bool validateAllProperties,
-+         CancellationToken cancellationToken = default);
+// New interface for object-level async validation.
+// Inherits from IValidatableObject with a DIM that throws InvalidOperationException,
+// mirroring the AsyncValidationAttribute pattern where sync paths fail clearly
+// rather than silently skipping async validation.
+public partial interface IAsyncValidatableObject : IValidatableObject
+{
+    IEnumerable<ValidationResult> IValidatableObject.Validate(
+        ValidationContext validationContext) =>
+        throw new InvalidOperationException(
+            "This object implements IAsyncValidatableObject and supports only " +
+            "asynchronous validation. Use the async Validator methods.");
 
-+     public static ValueTask<bool> TryValidatePropertyAsync(
-+         object? value,
-+         ValidationContext validationContext,
-+         ICollection<ValidationResult>? validationResults,
-+         CancellationToken cancellationToken = default);
+    IAsyncEnumerable<ValidationResult> ValidateAsync(
+        ValidationContext validationContext,
+        CancellationToken cancellationToken = default);
+}
 
-+     public static ValueTask<bool> TryValidateValueAsync(
-+         object? value,
-+         ValidationContext validationContext,
-+         ICollection<ValidationResult>? validationResults,
-+         IEnumerable<ValidationAttribute> validationAttributes,
-+         CancellationToken cancellationToken = default);
+// Async counterparts on the existing Validator static class
+public static partial class Validator
+{
+    // Existing sync methods (unchanged)
+    public static bool TryValidateObject(object instance, ValidationContext validationContext, ICollection<ValidationResult>? validationResults);
+    public static bool TryValidateObject(object instance, ValidationContext validationContext, ICollection<ValidationResult>? validationResults, bool validateAllProperties);
+    public static bool TryValidateProperty(object? value, ValidationContext validationContext, ICollection<ValidationResult>? validationResults);
+    public static bool TryValidateValue(object? value, ValidationContext validationContext, ICollection<ValidationResult>? validationResults, IEnumerable<ValidationAttribute> validationAttributes);
+    public static void ValidateObject(object instance, ValidationContext validationContext);
+    public static void ValidateObject(object instance, ValidationContext validationContext, bool validateAllProperties);
+    public static void ValidateProperty(object? value, ValidationContext validationContext);
+    public static void ValidateValue(object? value, ValidationContext validationContext, IEnumerable<ValidationAttribute> validationAttributes);
 
-+     public static ValueTask ValidateObjectAsync(
-+         object instance,
-+         ValidationContext validationContext,
-+         CancellationToken cancellationToken = default);
+    // New async methods
+    public static ValueTask<bool> TryValidateObjectAsync(
+        object instance,
+        ValidationContext validationContext,
+        ICollection<ValidationResult>? validationResults,
+        CancellationToken cancellationToken = default);
 
-+     // validateAllProperties: when true, validates all properties; when false, only [Required] properties.
-+     public static ValueTask ValidateObjectAsync(
-+         object instance,
-+         ValidationContext validationContext,
-+         bool validateAllProperties,
-+         CancellationToken cancellationToken = default);
+    // validateAllProperties: when true, validates all properties; when false, only [Required] properties.
+    public static ValueTask<bool> TryValidateObjectAsync(
+        object instance,
+        ValidationContext validationContext,
+        ICollection<ValidationResult>? validationResults,
+        bool validateAllProperties,
+        CancellationToken cancellationToken = default);
 
-+     public static ValueTask ValidatePropertyAsync(
-+         object? value,
-+         ValidationContext validationContext,
-+         CancellationToken cancellationToken = default);
+    public static ValueTask<bool> TryValidatePropertyAsync(
+        object? value,
+        ValidationContext validationContext,
+        ICollection<ValidationResult>? validationResults,
+        CancellationToken cancellationToken = default);
 
-+     public static ValueTask ValidateValueAsync(
-+         object? value,
-+         ValidationContext validationContext,
-+         IEnumerable<ValidationAttribute> validationAttributes,
-+         CancellationToken cancellationToken = default);
-  }
+    public static ValueTask<bool> TryValidateValueAsync(
+        object? value,
+        ValidationContext validationContext,
+        ICollection<ValidationResult>? validationResults,
+        IEnumerable<ValidationAttribute> validationAttributes,
+        CancellationToken cancellationToken = default);
+
+    public static ValueTask ValidateObjectAsync(
+        object instance,
+        ValidationContext validationContext,
+        CancellationToken cancellationToken = default);
+
+    // validateAllProperties: when true, validates all properties; when false, only [Required] properties.
+    public static ValueTask ValidateObjectAsync(
+        object instance,
+        ValidationContext validationContext,
+        bool validateAllProperties,
+        CancellationToken cancellationToken = default);
+
+    public static ValueTask ValidatePropertyAsync(
+        object? value,
+        ValidationContext validationContext,
+        CancellationToken cancellationToken = default);
+
+    public static ValueTask ValidateValueAsync(
+        object? value,
+        ValidationContext validationContext,
+        IEnumerable<ValidationAttribute> validationAttributes,
+        CancellationToken cancellationToken = default);
+}
 ```
 
 **Sync/async dispatch behavior:**

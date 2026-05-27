@@ -14,7 +14,7 @@ public class AsyncSmtpReachableAttribute : AsyncValidationAttribute
     public AsyncSmtpReachableAttribute()
         : base("SMTP host is not reachable.") { }
 
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value, ValidationContext validationContext, CancellationToken cancellationToken)
     {
         if (value is not string host || string.IsNullOrWhiteSpace(host))
