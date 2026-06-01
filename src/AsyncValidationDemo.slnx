@@ -2,6 +2,7 @@
   <Folder Name="/Console/">
     <Project Path="Console/BasicAsyncSample/BasicAsyncSample.csproj" />
     <Project Path="Console/AsyncValidationConsoleDemo/AsyncValidationConsoleDemo.csproj" />
+    <Project Path="Console/ConfigureAwaitSafetySample/ConfigureAwaitSafetySample.csproj" />
   </Folder>
   <Folder Name="/Blazor/">
     <Project Path="Blazor/AsyncBasicSample/AsyncBasicSample.csproj" />
