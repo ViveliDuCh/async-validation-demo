@@ -39,6 +39,7 @@
   <Folder Name="/Options/">
     <Project Path="Options/Options.Shared/Options.Shared.csproj" />
     <Project Path="Options/AsyncLambdaConsole/AsyncLambdaConsole.csproj" />
+    <Project Path="Options/ConsoleAppSamples/StartupValidatorConsole/StartupValidatorConsole.csproj" />
     <Project Path="Options/Tier2.OptionsBlazor/Tier2.OptionsBlazor.csproj" />
     <Project Path="Options/Tier2b.OptionsGeneratorBlazor/Tier2b.OptionsGeneratorBlazor.csproj" />
   </Folder>

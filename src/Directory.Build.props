@@ -43,6 +43,18 @@
                Private="true" />
   </ItemGroup>
 
+  <!-- Hosting: two-stage startup validation orchestration (PR #128788)
+       NOTE: The full two-stage orchestration (Host.StartAsync calling IAsyncStartupValidator.ValidateAsync
+       automatically) requires the Hosting package with PR #128788 changes merged. Until then, async
+       validators are verified by resolving IAsyncStartupValidator manually after host.StartAsync(). -->
+  <!--
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.Hosting"
+               HintPath="$(LocalPackagesDir)\hosting\Microsoft.Extensions.Hosting.dll"
+               Private="true" />
+  </ItemGroup>
+  -->
+
   <!-- Options source generator: [OptionsValidator] async emission (Tier 2b) -->
   <ItemGroup>
     <Analyzer Include="$(LocalPackagesDir)\options\Microsoft.Extensions.Options.SourceGeneration.dll" />
