@@ -45,6 +45,7 @@
       <Project Path="Options/ConsoleAppSamples/CrossTypeParallelConsole/CrossTypeParallelConsole.csproj" />
       <Project Path="Options/ConsoleAppSamples/SourceGenScenariosConsole/SourceGenScenariosConsole.csproj" />
       <Project Path="Options/ConsoleAppSamples/SyncFallbackConsole/SyncFallbackConsole.csproj" />
+      <Project Path="Options/ConsoleAppSamples/TransitiveValidationConsole/TransitiveValidationConsole.csproj" />
     </Folder>
     <Folder Name="/Options/BlazorSamples/">
       <Project Path="Options/BlazorSamples/Tier2.OptionsBlazor/Tier2.OptionsBlazor.csproj" />

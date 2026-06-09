@@ -26,6 +26,7 @@ All samples use the **local-packages** DLLs built from the
 | Cross-validator (chained lambdas) | Reflection | [`AsyncLambdaConsole`](ConsoleAppSamples/AsyncLambdaConsole/) |
 | Nested property (`[ValidateObjectMembers]`) | Reflection | [`MixedSyncAsyncConsole`](ConsoleAppSamples/MixedSyncAsyncConsole/) |
 | Nested property (`[ValidateObjectMembers]`) | Source Gen | [`SourceGenScenariosConsole`](ConsoleAppSamples/SourceGenScenariosConsole/) |
+| Transitive validation (nested + collection + circular) | Reflection | [`TransitiveValidationConsole`](ConsoleAppSamples/TransitiveValidationConsole/) |
 | Source generator member parallelism | Source Gen | [`Tier2b.OptionsGeneratorBlazor`](BlazorSamples/Tier2b.OptionsGeneratorBlazor/) |
 
 > **Scenario 6 is reflection-only.** Reflection-based `Validator.TryValidateObjectAsync()` runs all sync attributes across the object before it schedules any async attributes, so a sync failure on one property short-circuits async work everywhere. Source-generated validators use per-property `TryValidateValueAsync()`, so a sync failure on one property does **not** stop async checks on other properties.
@@ -268,6 +269,46 @@ It bundles the source-gen versions of the key behaviors into one console app:
 6. nested `[ValidateObjectMembers]`
 7. startup failure / `OptionsValidationException`
 
+---
+
+### TransitiveValidationConsole — Transitive Async Validation
+
+Demonstrates `ValidateDataAnnotationsAsync()` with the **recursive walk** that
+honors `[ValidateObjectMembers]` and `[ValidateEnumeratedItems]` — the same
+transitive validation the sync `DataAnnotationValidateOptions` provides, but
+using `Validator.TryValidateObjectAsync` at each level.
+
+#### What it covers
+
+1. **[ValidateObjectMembers]** — nested `DatabaseSettings` with `[AsyncConnectionStringValid]`
+2. **Multi-level nesting** — `TenantSettings → FailoverSettings → DatabaseSettings`
+3. **[ValidateEnumeratedItems]** — `List<EndpointEntry>` with per-item `[AsyncEndpointHealthy]`
+4. **Mixed sync + async at multiple levels** — `[Required]`/`[Range]` + async attrs
+5. **Circular references** — `CircularParent ↔ CircularChild` cycle detection
+
+#### Options Model
+
+```
+TenantSettings (top-level)
+  ├── [ValidateObjectMembers] Database   → DatabaseSettings
+  │     └── [AsyncConnectionStringValid] ConnectionString
+  ├── [ValidateObjectMembers] Failover   → FailoverSettings
+  │     └── [ValidateObjectMembers] Primary → DatabaseSettings
+  └── [ValidateEnumeratedItems] Endpoints → List<EndpointEntry>
+        └── [AsyncEndpointHealthy] Url
+```
+
+#### Scenarios
+
+| # | Config | Expected |
+|---|--------|----------|
+| 1 | All valid | Recursive walk passes at every level |
+| 2 | Database unreachable | First-level `[ValidateObjectMembers]` catches it |
+| 3 | Failover DB unreachable | Multi-level recursion catches deep-nested failure |
+| 4 | Unhealthy endpoint in list | `[ValidateEnumeratedItems]` catches it at index |
+| 5 | Mixed failures everywhere | Sync + async errors aggregated across all levels |
+| 6 | Circular Parent ↔ Child | Cycle detection prevents infinite loop |
+
 ## Folder Structure
 
 ```
@@ -278,7 +319,8 @@ Options/
 │   ├── MixedSyncAsyncConsole/               ← Scenario 4 + reflection nested `[ValidateObjectMembers]`
 │   ├── CrossTypeParallelConsole/            ← Reflection cross-options-type parallel startup validation
 │   ├── SyncFallbackConsole/                 ← Sync path hits async-only attr; async pipeline fix
-│   └── SourceGenScenariosConsole/           ← Source-gen scenario pack + reflection contrast
+│   ├── SourceGenScenariosConsole/           ← Source-gen scenario pack + reflection contrast
+│   └── TransitiveValidationConsole/         ← Transitive async validation: nested + collection + circular
 ├── BlazorSamples/
 │   ├── Tier2.OptionsBlazor/                 ← Scenario 1: `ValidateDataAnnotationsAsync()`
 │   ├── Tier2.OptionsMonitorBlazor/          ← Scenario 1 + runtime reload
@@ -303,6 +345,7 @@ Push-Location src\Options\ConsoleAppSamples\MixedSyncAsyncConsole; dotnet run; P
 Push-Location src\Options\ConsoleAppSamples\CrossTypeParallelConsole; dotnet run; Pop-Location
 Push-Location src\Options\ConsoleAppSamples\SyncFallbackConsole; dotnet run; Pop-Location
 Push-Location src\Options\ConsoleAppSamples\SourceGenScenariosConsole; dotnet run; Pop-Location
+Push-Location src\Options\ConsoleAppSamples\TransitiveValidationConsole; dotnet run; Pop-Location
 
 Push-Location src\Options\BlazorSamples\Tier2.OptionsBlazor; dotnet run; Pop-Location
 Push-Location src\Options\BlazorSamples\Tier2.OptionsMonitorBlazor; dotnet run; Pop-Location

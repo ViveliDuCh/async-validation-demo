@@ -20,7 +20,7 @@ public sealed class SmtpSettingsNestedValidator
         return PrefixFailures(_credentialsValidator.Validate(name, options.Credentials));
     }
 
-    public async Task<ValidateOptionsResult> ValidateAsync(
+    public async ValueTask<ValidateOptionsResult> ValidateAsync(
         string? name,
         SmtpSettings options,
         CancellationToken cancellationToken)
