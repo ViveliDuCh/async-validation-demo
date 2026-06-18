@@ -126,18 +126,21 @@ static IHost BuildHost(string configSection)
     builder.Services.AddSingleton<IStorageService, FakeStorageService>();
 
     // ════════════════════════════════════════════════════════════════
-    // KEY API: .ValidateAsync<TDep>(async lambda) + .ValidateOnStartAsync()
+    // KEY API: .Validate<TDep>(async lambda) + .ValidateOnStart()
     //
     // This is the async counterpart to:
     //   .Validate<IStorageService>((opts, svc) => svc.Exists(opts.Endpoint), "msg")
     //   .ValidateOnStart()
+    //
+    // The async lambda is an OVERLOAD of .Validate(...) — there is no
+    // separate .ValidateAsync(...) method on OptionsBuilder<T>.
     // ════════════════════════════════════════════════════════════════
     builder.Services.AddOptions<CloudInfoOptions>()
         .BindConfiguration($"{configSection}:CloudInfo")
-        .ValidateAsync<IStorageService>(async (opts, storageService, ct) =>
+        .Validate<IStorageService>(async (opts, storageService, ct) =>
             await storageService.ExistsAsync(opts.Endpoint, ct),
             "Storage endpoint does not exist or is not reachable.")
-        .ValidateOnStartAsync();
+        .ValidateOnStart();
 
     return builder.Build();
 }
@@ -150,25 +153,25 @@ static IHost BuildHostWithMultipleLambdas(string configSection)
     builder.Services.AddSingleton<IStorageService, FakeStorageService>();
 
     // Chain multiple async lambdas — each registers a separate
-    // IAsyncValidateOptions<T> that runs during ValidateOnStartAsync().
+    // IAsyncValidateOptions<T> that runs during ValidateOnStart().
     builder.Services.AddOptions<CloudInfoOptions>()
         .BindConfiguration($"{configSection}:CloudInfo")
-        .ValidateAsync(async (opts, ct) =>
+        .Validate(async (opts, ct) =>
         {
             await Task.CompletedTask;
             return !string.IsNullOrWhiteSpace(opts.Storage);
         },
         "Cloud Info Options Storage must not be empty.")
-        .ValidateAsync(async (opts, ct) =>
+        .Validate(async (opts, ct) =>
         {
             await Task.CompletedTask;
             return !string.IsNullOrWhiteSpace(opts.Region);
         },
         "Cloud Info Options Region must not be empty.")
-        .ValidateAsync<IStorageService>(async (opts, storageService, ct) =>
+        .Validate<IStorageService>(async (opts, storageService, ct) =>
             await storageService.ExistsAsync(opts.Endpoint, ct),
             "Storage endpoint does not exist or is not reachable.")
-        .ValidateOnStartAsync();
+        .ValidateOnStart();
 
     return builder.Build();
 }

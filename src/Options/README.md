@@ -1,9 +1,24 @@
 # Options Async Validation Samples
 
 Demonstrates the async bypass pipeline for `IOptions<T>` startup validation
-([dotnet/runtime#128100](https://github.com/dotnet/runtime/issues/128100)).
+([dotnet/runtime#128100](https://github.com/dotnet/runtime/issues/128100),
+merged via [dotnet/runtime#128788](https://github.com/dotnet/runtime/pull/128788)
+and the DataAnnotations bridge [dotnet/runtime#129218](https://github.com/dotnet/runtime/pull/129218)).
 All samples use the **local-packages** DLLs built from the
 [`async-validation` branch](https://github.com/ViveliDuCh/runtime/tree/async-validation) of `dotnet/runtime`.
+
+> ### ⚠️ Merged API delta vs. the prototype prose below
+>
+> The merged shipping API uses fewer methods than the prototype. When reading
+> the rest of this document, mentally apply the following translation:
+>
+> | Prototype (older prose) | Merged (shipping) |
+> |---|---|
+> | `ValidateDataAnnotationsAsync()` | `ValidateDataAnnotations()` — on .NET 11+ this single call registers **both** `IValidateOptions<T>` and `IAsyncValidateOptions<T>` from one shared `DataAnnotationValidateOptions<T>`. |
+> | `ValidateOnStartAsync()` | `ValidateOnStart()` — single method drives both `IStartupValidator` (sync) and `IAsyncStartupValidator` (async) when both are registered. |
+> | `OptionsBuilder<T>.ValidateAsync(async lambda, …)` | `OptionsBuilder<T>.Validate(async lambda, …)` — async is now an overload of the existing `Validate(…)` method. |
+> | `Task<ValidationResult?>` returned from `IsValidAsync` | **same** — merged API returns `Task<>`, not `ValueTask<>`. |
+> | `NotSupportedException` thrown by sync fallback | `InvalidOperationException` (matches merged XML docs). |
 
 ## Scenario Coverage Matrix
 
@@ -14,7 +29,7 @@ All samples use the **local-packages** DLLs built from the
 | **2** | Async lambda with DI dependency | Reflection | [`AsyncLambdaConsole`](ConsoleAppSamples/AsyncLambdaConsole/) |
 | **3** | Source generator `[OptionsValidator]` + `IAsyncValidateOptions<T>` | Source Gen | [`Tier2b.OptionsGeneratorBlazor`](BlazorSamples/Tier2b.OptionsGeneratorBlazor/) |
 | **4** | Mixed sync + async on the same `OptionsBuilder` + nested `[ValidateObjectMembers]` | Reflection | [`MixedSyncAsyncConsole`](ConsoleAppSamples/MixedSyncAsyncConsole/) |
-| **5** | Sync pipeline hits async-only `AsyncStorageExistsAttribute` and throws `NotSupportedException`; fix is to switch to the async pipeline | Both | [`SyncFallbackConsole`](ConsoleAppSamples/SyncFallbackConsole/) |
+| **5** | Sync pipeline hits async-only `AsyncStorageExistsAttribute` and throws `InvalidOperationException`; fix is to switch to the async pipeline | Both | [`SyncFallbackConsole`](ConsoleAppSamples/SyncFallbackConsole/) |
 | **6** | Cross-property two-phase short-circuit: a sync failure anywhere in object validation prevents async attrs from running | Reflection | [`MixedSyncAsyncConsole`](ConsoleAppSamples/MixedSyncAsyncConsole/) |
 | **6 (contrast)** | Source-gen per-property validation has no cross-property short-circuit; async checks on other properties still run | Source Gen | [`SourceGenScenariosConsole`](ConsoleAppSamples/SourceGenScenariosConsole/) |
 | **7** | Source-gen scenario pack: mixed sync+async attrs, dual-mode attr, same-property two-phase, cross-type parallel, nested members, and startup failure | Source Gen | [`SourceGenScenariosConsole`](ConsoleAppSamples/SourceGenScenariosConsole/) |
@@ -40,26 +55,33 @@ The async Options validation uses a **bypass** design: instead of making
 a property), a parallel async pipeline runs during `Host.StartAsync()`.
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Host.StartAsync()                            │
-│                                                                     │
-│  ┌──────────────────────────────┐  ┌─────────────────────────────┐  │
-│  │     SYNC PATH (existing)     │  │    ASYNC PATH (new bypass)  │  │
-│  │                              │  │                             │  │
-│  │  IOptions<T>.Value           │  │  IAsyncStartupValidator     │  │
-│  │    → OptionsFactory.Create() │  │    .ValidateAsync()         │  │
-│  │      → IValidateOptions<T>   │  │      → IAsyncValidateOptions│  │
-│  │        .Validate()           │  │        .ValidateAsync()     │  │
-│  │      → Validator             │  │      → Validator            │  │
-│  │        .TryValidateObject()  │  │        .TryValidateObject   │  │
-│  │                              │  │         Async()             │  │
-│  │  Triggered by:               │  │  Triggered by:              │  │
-│  │  · ValidateDataAnnotations() │  │  · ValidateDataAnnotations  │  │
-│  │  · Validate(lambda)          │  │     Async()                 │  │
-│  │  · ValidateOnStart()         │  │  · ValidateAsync(lambda)    │  │
-│  └──────────────────────────────┘  │  · ValidateOnStartAsync()   │  │
-│                                    └─────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        Host.StartAsync()                             │
+│                                                                      │
+│  ┌──────────────────────────────┐   ┌─────────────────────────────┐  │
+│  │     SYNC PATH (existing)     │   │    ASYNC PATH (new bypass)  │  │
+│  │                              │   │                             │  │
+│  │  IOptions<T>.Value           │   │  IAsyncStartupValidator     │  │
+│  │    → OptionsFactory.Create() │   │    .ValidateAsync()         │  │
+│  │      → IValidateOptions<T>   │   │      → IAsyncValidateOptions│  │
+│  │        .Validate()           │   │        .ValidateAsync()     │  │
+│  │      → Validator             │   │      → Validator            │  │
+│  │        .TryValidateObject()  │   │        .TryValidate         │  │
+│  │                              │   │         ObjectAsync()       │  │
+│  │  Triggered by:               │   │  Triggered by:              │  │
+│  │  · ValidateDataAnnotations() │   │  · ValidateDataAnnotations()│  │
+│  │  · Validate(lambda)          │   │     (same call, .NET 11+    │  │
+│  │  · ValidateOnStart()         │   │      registers both)        │  │
+│  │                              │   │  · Validate(async lambda)   │  │
+│  │                              │   │     (overload of Validate)  │  │
+│  │                              │   │  · ValidateOnStart() drives │  │
+│  │                              │   │     this validator too      │  │
+│  └──────────────────────────────┘   └─────────────────────────────┘  │
+│                                                                      │
+│  ValidateOnStart() registers BOTH IStartupValidator (sync) and       │
+│  IAsyncStartupValidator (async) when an IAsyncValidateOptions<T>     │
+│  is registered. There is no separate ValidateOnStartAsync().         │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Console Sample Highlights
@@ -100,27 +122,31 @@ public class SmtpCredentials
 ```
 
 > **Dual-mode attributes:** `[AsyncSmtpReachable]` overrides both `IsValidAsync()`
-> (async, non-blocking) and `IsValid()` (sync fallback, blocking). This is the
-> recommended pattern when mixing `ValidateDataAnnotations()` + `ValidateDataAnnotationsAsync()`
-> on the same model — the sync path calls `IsValid()` and the async path calls `IsValidAsync()`.
+> (async, non-blocking) and `IsValid(value, ctx)` (sync fallback, blocking). On the
+> merged API, `AsyncValidationAttribute.IsValid(value, ctx)` is `protected abstract`
+> — every async attribute **must** implement it. The sync pipeline calls `IsValid()`;
+> the async pipeline calls `IsValidAsync()`. A single `.ValidateDataAnnotations()` chain
+> on .NET 11+ wires up both, so one registration covers both pipelines.
 
-#### Registration (mixed sync + async)
+#### Registration (mixed sync + async — merged API)
 
 ```csharp
 builder.Services.AddOptions<SmtpSettings>()
     .Bind(config.GetSection("Smtp"))
-    .ValidateDataAnnotations()        // sync [Required], [Range], [AsyncSmtpReachable] sync fallback
-    .ValidateDataAnnotationsAsync()   // async [AsyncSmtpReachable] non-blocking,
-                                      // nested [ValidateObjectMembers]
+    .ValidateDataAnnotations()        // .NET 11+: registers BOTH IValidateOptions<T>
+                                      // and IAsyncValidateOptions<T> from one shared
+                                      // DataAnnotationValidateOptions<T> instance —
+                                      // covers sync attrs, async attrs, and nested
+                                      // [ValidateObjectMembers] in both pipelines.
     .Validate(opts => opts.Port > 0,
         "Port must be positive.")                        // sync lambda
-    .ValidateAsync(async (opts, ct) =>
-    {
-        await Task.CompletedTask;
+    .Validate(async (opts, ct) =>                        // async lambda — same Validate()
+    {                                                    // method, new overload taking
+        await Task.CompletedTask;                        // Func<T, CT, Task<bool>>
         return opts.Host != "localhost" || opts.Port != 25;
-    }, "Default SMTP config not allowed in production.") // async lambda
-    .ValidateOnStart()                // triggers sync validators in Create()
-    .ValidateOnStartAsync();          // triggers async validators at startup
+    }, "Default SMTP config not allowed in production.")
+    .ValidateOnStart();               // single call — drives IStartupValidator AND
+                                      // IAsyncStartupValidator at Host.StartAsync().
 ```
 
 #### What happens at startup
@@ -134,24 +160,24 @@ Host.StartAsync()
   │     [Range]    Port ✓
   │     Validate(lambda) Port > 0 ✓
   │
-  └── Async path (ValidateOnStartAsync → IAsyncStartupValidator):
-        ┌──────────────────────────────────────┐
-        │ ValidateDataAnnotationsAsync runs     │
-        │ Validator.TryValidateObjectAsync:     │
-        │                                       │
-        │   Top-level:                          │
-        │     [AsyncSmtpReachable]              │
-        │       .IsValidAsync() Host ─────┐     │
-        │                                 │     │
-        │   Nested [ValidateObjectMembers]:│     │
-        │     Credentials ────────────────┤     │
-        │       [Required] Username       │     │
+  └── Async path (ValidateOnStart → IAsyncStartupValidator):
+        ┌────────────────────────────────────────┐
+        │ ValidateDataAnnotations runs            │
+        │ Validator.TryValidateObjectAsync:       │
+        │                                         │
+        │   Top-level:                            │
+        │     [AsyncSmtpReachable]                │
+        │       .IsValidAsync() Host ─────┐       │
+        │                                 │       │
+        │   Nested [ValidateObjectMembers]:│      │
+        │     Credentials ────────────────┤       │
+        │       [Required] Username       │       │
         │       [Required] Password       ├─ parallel
-        │       [MinLength] Password      │     │
-        │                                 │     │
-        │   ValidateAsync(lambda) ────────┘     │
-        │     localhost:25 check                │
-        └──────────────────────────────────────┘
+        │       [MinLength] Password      │       │
+        │                                 │       │
+        │   Validate(async lambda) ───────┘       │
+        │     localhost:25 check                  │
+        └────────────────────────────────────────┘
 ```
 
 #### Scenarios
@@ -167,8 +193,9 @@ Host.StartAsync()
 ### CrossTypeParallelConsole — Cross-Options-Type Parallelism
 
 Demonstrates registering **two independent options types** with
-`ValidateOnStartAsync()`. At startup, `IAsyncStartupValidator` validates both
-concurrently via `Task.WhenAll`.
+`ValidateOnStart()`. On the merged API, that single call drives the
+`IAsyncStartupValidator` registered by `ValidateDataAnnotations()`, and that
+validator runs both options types concurrently via `Task.WhenAll`.
 
 #### Options Models
 
@@ -199,13 +226,13 @@ public class CacheSettings
 ```csharp
 builder.Services.AddOptions<DatabaseSettings>()
     .BindConfiguration("Database")
-    .ValidateDataAnnotationsAsync()
-    .ValidateOnStartAsync();
+    .ValidateDataAnnotations()   // .NET 11+: also registers IAsyncValidateOptions<T>
+    .ValidateOnStart();          // drives IAsyncStartupValidator too
 
 builder.Services.AddOptions<CacheSettings>()
     .BindConfiguration("Cache")
-    .ValidateDataAnnotationsAsync()
-    .ValidateOnStartAsync();
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 ```
 
 #### Parallel execution at startup
@@ -240,16 +267,20 @@ to show parallel execution: total ≈ 200ms (max), not 400ms (sum).
 Demonstrates what happens when an **async-only** attribute (`AsyncStorageExistsAttribute`)
 is reached by a **sync** validation path.
 
-- **Reflection path:** `ValidateDataAnnotations()` + `ValidateOnStart()` calls
-  `Validator.TryValidateObject()`, which reaches `IsValid()` and throws
-  `NotSupportedException`.
-- **Source-gen path:** registering `CloudInfoOptionsValidator` as
-  `IValidateOptions<T>` makes generated `Validate()` call `IsValid()` too, which
+- **Reflection sync path:** if the user calls `Validator.TryValidateObject()`
+  directly (or registers only a sync `IValidateOptions<T>` that does the same),
+  reaching an async-only attribute throws `InvalidOperationException`
+  ("This validation attribute requires asynchronous validation. Use the async
+  Validator APIs instead.").
+- **Source-gen sync path:** registering `CloudInfoOptionsValidator` solely as
+  `IValidateOptions<T>` makes the generated `Validate()` call `IsValid()`, which
   throws the same way.
-- **Fix:** switch to the async pipeline:
-  - reflection → `ValidateDataAnnotationsAsync()` + `ValidateOnStartAsync()`
-  - source gen → register `CloudInfoOptionsValidator` as
-    `IAsyncValidateOptions<T>` + `ValidateOnStartAsync()`
+- **Fix on merged API:** use the unified DataAnnotations chain:
+  - reflection → `ValidateDataAnnotations() + ValidateOnStart()` — on .NET 11+ a
+    single chain registers `IAsyncValidateOptions<T>` too, and `ValidateOnStart()`
+    drives both startup validators.
+  - source gen → register `CloudInfoOptionsValidator` as `IAsyncValidateOptions<T>`
+    (in addition to or instead of `IValidateOptions<T>`) + `ValidateOnStart()`.
 
 This sample explicitly covers **both** reflection and source-gen patterns.
 
@@ -273,7 +304,8 @@ It bundles the source-gen versions of the key behaviors into one console app:
 
 ### TransitiveValidationConsole — Transitive Async Validation
 
-Demonstrates `ValidateDataAnnotationsAsync()` with the **recursive walk** that
+Demonstrates `ValidateDataAnnotations()` (which now also registers the async
+validator on .NET 11+) with the **recursive walk** that
 honors `[ValidateObjectMembers]` and `[ValidateEnumeratedItems]` — the same
 transitive validation the sync `DataAnnotationValidateOptions` provides, but
 using `Validator.TryValidateObjectAsync` at each level.
@@ -322,7 +354,7 @@ Options/
 │   ├── SourceGenScenariosConsole/           ← Source-gen scenario pack + reflection contrast
 │   └── TransitiveValidationConsole/         ← Transitive async validation: nested + collection + circular
 ├── BlazorSamples/
-│   ├── Tier2.OptionsBlazor/                 ← Scenario 1: `ValidateDataAnnotationsAsync()`
+│   ├── Tier2.OptionsBlazor/                 ← Scenario 1: `ValidateDataAnnotations()` + manual sync-then-async startup validation
 │   ├── Tier2.OptionsMonitorBlazor/          ← Scenario 1 + runtime reload
 │   └── Tier2b.OptionsGeneratorBlazor/       ← Scenario 3: `[OptionsValidator]` + `IAsyncValidateOptions<T>`
 └── README.md

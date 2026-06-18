@@ -16,7 +16,7 @@ public class AsyncConnectionStringValidAttribute : AsyncValidationAttribute
     public AsyncConnectionStringValidAttribute()
         : base("Connection string is invalid or unreachable.") { }
 
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)

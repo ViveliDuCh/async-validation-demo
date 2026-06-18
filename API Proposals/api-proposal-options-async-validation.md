@@ -1,3 +1,29 @@
+> ## ⚠️ Merged API delta (post-PR #128788 / #129218)
+>
+> This proposal reflects the **prototype**; the API as merged into `dotnet/runtime` `main` differs as follows. Samples in [this repo](https://github.com/ViveliDuCh/async-validation-demo/tree/api-proposal-samples) have been updated to match the merged surface.
+>
+> | Surface | Proposal | **Merged** |
+> |---|---|---|
+> | `IAsyncValidateOptions<T>.ValidateAsync` | `ValueTask<ValidateOptionsResult>` | **`Task<ValidateOptionsResult>`** |
+> | `IAsyncStartupValidator.ValidateAsync` | `Task` | `Task` (unchanged) |
+> | `AsyncValidateOptions<T, ...>` lambda type | `Func<…, ValueTask<bool>>` | **`Func<…, Task<bool>>`** |
+> | `OptionsBuilder<T>.ValidateAsync(async lambda, …)` | new method | **No such method.** The async lambda is an **overload of `OptionsBuilder<T>.Validate(...)`** that accepts `Func<T, CancellationToken, Task<bool>>` (and `<TDep>` overloads). |
+> | `OptionsBuilder<T>.ValidateOnStartAsync()` | new method | **No such method.** Existing `ValidateOnStart()` registers `IAsyncStartupValidator` automatically whenever an `IAsyncValidateOptions<T>` is present. |
+> | `AddOptionsWithValidateOnStartAsync<T>()` | new method | **No such method.** Use the existing `AddOptionsWithValidateOnStart<T>()`. |
+> | `OptionsBuilder<T>.ValidateDataAnnotationsAsync()` (Bridge proposal #129056) | new method | **No such method.** On `.NET 11+`, the existing `ValidateDataAnnotations<T>()` registers **both** `IValidateOptions<T>` and `IAsyncValidateOptions<T>` from a single `DataAnnotationValidateOptions<T>` instance. |
+> | `AsyncValidationState` infrastructure singleton | proposed | **Not merged** as a public type. Internal bookkeeping handles registration de-duplication. |
+>
+> See merged sources:
+> - [`Microsoft.Extensions.Options` ref](https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Options/ref/Microsoft.Extensions.Options.cs)
+> - [`OptionsBuilderDataAnnotationsExtensions.cs`](https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Options.DataAnnotations/src/OptionsBuilderDataAnnotationsExtensions.cs) (single `ValidateDataAnnotations<T>` now registering both interfaces on net11+)
+> - [`DataAnnotationValidateOptions.Async.cs`](https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Options.DataAnnotations/src/DataAnnotationValidateOptions.Async.cs)
+>
+> Everything below describes the original proposal. When reading, mentally translate:
+> - `ValueTask<...>` → `Task<...>`
+> - `.ValidateOnStartAsync()` → `.ValidateOnStart()`
+> - `.ValidateDataAnnotationsAsync()` → `.ValidateDataAnnotations()`
+> - `OptionsBuilder.ValidateAsync(lambda)` → `OptionsBuilder.Validate(lambda)` (overload, not new method)
+
 ### Background and motivation
 
 The Options validation pipeline (`IValidateOptions<T>` → `DataAnnotationValidateOptions<T>` → `Validator.TryValidateObject`) is entirely synchronous. With the proposed async `Validator` APIs in `System.ComponentModel.DataAnnotations` ([companion proposal](https://github.com/dotnet/runtime/issues/128096)), the core validation engine can await I/O-bound validation, but the Options pipeline can't consume it because every layer is sync:

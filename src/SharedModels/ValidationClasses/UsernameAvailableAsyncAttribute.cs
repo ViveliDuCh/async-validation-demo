@@ -20,9 +20,9 @@ public class UsernameAvailableAsyncAttribute : AsyncValidationAttribute
         : base("The username is already taken.") { }
 
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
-        => throw new NotSupportedException("Use the async validation path.");
+        => throw new InvalidOperationException("Use the async validation path.");
 
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)

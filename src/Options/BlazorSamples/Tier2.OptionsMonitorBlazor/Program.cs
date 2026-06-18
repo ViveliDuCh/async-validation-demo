@@ -12,27 +12,74 @@ builder.Services.AddRazorComponents()
 // Use IOptionsMonitor<T> to pick up changes at runtime without restarting.
 builder.Services.AddSingleton<ValidationLogService>();
 
+// On .NET 11+, ValidateDataAnnotations() registers BOTH IValidateOptions<T>
+// and IAsyncValidateOptions<T>. We deliberately omit ValidateOnStart() —
+// it would wire the sync IStartupValidator into Host.StartAsync(), which
+// crashes on the async-only [AsyncStorageExists] attribute before the
+// async validator runs. We invoke the async validator manually below.
 builder.Services.AddOptions<CloudInfoOptions>()
-    .BindConfiguration("CloudInfo")
-    .ValidateDataAnnotationsAsync()
-    .ValidateOnStartAsync()
-    .RevalidateOnChangeAsync(onRevalidationFailed: ex =>
+    .BindConfiguration("CloudInfo");
+
+// Register DataAnnotationValidateOptions<T> only for the async path.
+// On .NET 11+ it implements both interfaces, but exposing only the
+// async one keeps IOptions<T>.Value / IOptionsMonitor<T>.CurrentValue
+// from running the sync validator (which would crash on the async-only
+// [AsyncStorageExists] attribute on CloudInfoOptions).
+builder.Services.AddSingleton<IAsyncValidateOptions<CloudInfoOptions>>(_ => new Tier2.OptionsMonitorBlazor.DataAnnotationsAsyncValidateOptions<CloudInfoOptions>(Microsoft.Extensions.Options.Options.DefaultName));
+
+var app = builder.Build();
+
+// ════════════════════════════════════════════════════════════════════
+// Async re-validation on config change (manual wire-up)
+// ────────────────────────────────────────────────────────────────────
+// The prototype's OptionsBuilder.RevalidateOnChangeAsync(onFailed) did not
+// ship in the merged Options API. We replicate it here by subscribing to
+// IOptionsMonitor<T>.OnChange and invoking the registered
+// IAsyncValidateOptions<T> for each reload.
+// ════════════════════════════════════════════════════════════════════
+var monitor = app.Services.GetRequiredService<IOptionsMonitor<CloudInfoOptions>>();
+var asyncValidators = app.Services.GetServices<IAsyncValidateOptions<CloudInfoOptions>>().ToArray();
+
+async Task RunAsyncValidationAsync(CloudInfoOptions current)
+{
+    foreach (IAsyncValidateOptions<CloudInfoOptions> v in asyncValidators)
     {
-        Console.WriteLine($"[RevalidateOnChangeAsync] Config reload failed validation:");
+        ValidateOptionsResult result = await v.ValidateAsync(Microsoft.Extensions.Options.Options.DefaultName, current);
+        if (result.Failed)
+        {
+            throw new OptionsValidationException(
+                Microsoft.Extensions.Options.Options.DefaultName, typeof(CloudInfoOptions), result.Failures);
+        }
+    }
+}
+
+monitor.OnChange(async (current, _) =>
+{
+    try
+    {
+        await RunAsyncValidationAsync(current);
+        Console.WriteLine("[Revalidate] Config reloaded: async validation passed.");
+    }
+    catch (OptionsValidationException ex)
+    {
+        Console.WriteLine("[Revalidate] Config reload failed validation:");
         foreach (string failure in ex.Failures)
         {
             Console.WriteLine($"  - {failure}");
         }
-    });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Revalidate] Unexpected revalidation error: {ex.GetType().Name}: {ex.Message}");
+    }
+});
 
-var app = builder.Build();
-
-// Run async startup validation — gate the app from starting with bad config.
-var asyncValidator = app.Services.GetService<IAsyncStartupValidator>();
-if (asyncValidator is not null)
-{
-    await asyncValidator.ValidateAsync();
-}
+// Initial async validation — gate the app from starting with bad config.
+// Bind manually so we don't go through IOptions<T>.Value (which would
+// trigger the sync DataAnnotations validator and crash on async-only attrs).
+var initial = new CloudInfoOptions();
+app.Configuration.GetSection("CloudInfo").Bind(initial);
+await RunAsyncValidationAsync(initial);
 
 app.UseStaticFiles();
 app.UseAntiforgery();

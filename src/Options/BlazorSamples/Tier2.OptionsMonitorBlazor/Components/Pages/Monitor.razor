@@ -80,7 +80,7 @@
 <p class="text-muted mt-2">
     <strong>Why this proves async:</strong> Each entry shows <code>IsValidAsync</code> executing with
     ~100ms async delay (simulated network probe). If the sync <code>IsValid</code> path ran instead,
-    it would throw <code>NotSupportedException</code> — the log would never appear.
+    it would throw <code>InvalidOperationException</code> — the log would never appear.
 </p>
 
 <hr class="my-4" />

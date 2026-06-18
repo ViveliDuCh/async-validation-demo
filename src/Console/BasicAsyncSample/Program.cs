@@ -54,14 +54,14 @@ var badEvent = new Event
 };
 await ValidateAndPrintAsync(badEvent, new ValidationContext(badEvent), "Event");
 
-// Demonstrate that sync callers get NotSupportedException for async-only attrs
+// Demonstrate that sync callers get InvalidOperationException for async-only attrs
 Console.WriteLine("\n  Sync path with async-only [AsyncDateRangeValid] (no sync fallback):");
 try
 {
     Validator.TryValidateObject(badEvent, new ValidationContext(badEvent), null, true);
     Console.WriteLine("  (Should not reach here)");
 }
-catch (NotSupportedException ex)
+catch (InvalidOperationException ex)
 {
     Console.WriteLine($"  Caught expected: {ex.Message}");
 }
@@ -78,8 +78,8 @@ var event2 = new SyncFallbackEvent { Title = "Planning", StartDate = new DateTim
 var sw = Stopwatch.StartNew();
 var r1 = new List<ValidationResult>();
 var r2 = new List<ValidationResult>();
-var t1 = Validator.TryValidateObjectAsync(event1, new ValidationContext(event1), r1, true).AsTask();
-var t2 = Validator.TryValidateObjectAsync(event2, new ValidationContext(event2), r2, true).AsTask();
+var t1 = Validator.TryValidateObjectAsync(event1, new ValidationContext(event1), r1, true);
+var t2 = Validator.TryValidateObjectAsync(event2, new ValidationContext(event2), r2, true);
 await Task.WhenAll(t1, t2);
 sw.Stop();
 Console.WriteLine($"  Parallel async:  {sw.ElapsedMilliseconds}ms  (both run concurrently)");

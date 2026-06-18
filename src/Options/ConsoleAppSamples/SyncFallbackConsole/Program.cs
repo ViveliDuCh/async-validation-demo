@@ -8,16 +8,19 @@ using Microsoft.Extensions.Options;
 using Options.Shared;
 using SyncFallbackConsole;
 
-Console.WriteLine("=== NotSupportedException Demo: Sync Path vs Async-Only Attributes ===\n");
-Console.WriteLine("AsyncStorageExistsAttribute does NOT override IsValid().");
-Console.WriteLine("Base AsyncValidationAttribute.IsValid() throws NotSupportedException.");
-Console.WriteLine("This demo shows what happens when sync pipelines hit that attribute,");
-Console.WriteLine("and how to fix it by using the async pipeline instead.\n");
+Console.WriteLine("=== Sync-pipeline vs async-only attribute demo ===\n");
+Console.WriteLine("AsyncStorageExistsAttribute overrides IsValid(value, ctx) to throw");
+Console.WriteLine("InvalidOperationException (\"Use the async validation path.\"). When the");
+Console.WriteLine("merged runtime's sync Validator path encounters an AsyncValidationAttribute,");
+Console.WriteLine("it preempts with NotSupportedException (\"…supports only asynchronous");
+Console.WriteLine("validation. Use the async Validator methods…\") — so callers may see EITHER");
+Console.WriteLine("type depending on whether the runtime preempts or the override actually");
+Console.WriteLine("runs. The demo catches both.\n");
 
 // ────────────────────────────────────────────────────────────────────
 // Scenario A: Reflection — ValidateDataAnnotations (sync) hits async-only attr
 // ────────────────────────────────────────────────────────────────────
-Console.WriteLine("--- Scenario A: Reflection sync path → NotSupportedException ---");
+Console.WriteLine("--- Scenario A: Reflection sync path → preempt / IsValid throws ---");
 Console.WriteLine("  Using: ValidateDataAnnotations() + ValidateOnStart() [sync pipeline]");
 {
     try
@@ -43,6 +46,12 @@ Console.WriteLine("  Using: ValidateDataAnnotations() + ValidateOnStart() [sync 
     {
         Console.WriteLine($"  ✅ Caught OptionsValidationException wrapping NotSupportedException:");
         Console.WriteLine($"     \"{nse.Message}\"");
+        Console.WriteLine("     → The sync Validator preempted on the AsyncValidationAttribute base type.\n");
+    }
+    catch (OptionsValidationException ex) when (ex.InnerException is InvalidOperationException ioe)
+    {
+        Console.WriteLine($"  ✅ Caught OptionsValidationException wrapping InvalidOperationException:");
+        Console.WriteLine($"     \"{ioe.Message}\"");
         Console.WriteLine("     → The sync Validator called IsValid() on AsyncStorageExistsAttribute,");
         Console.WriteLine("       which throws because it only supports IsValidAsync().\n");
     }
@@ -50,6 +59,11 @@ Console.WriteLine("  Using: ValidateDataAnnotations() + ValidateOnStart() [sync 
     {
         Console.WriteLine($"  ✅ Caught NotSupportedException directly:");
         Console.WriteLine($"     \"{nse.Message}\"\n");
+    }
+    catch (InvalidOperationException ioe)
+    {
+        Console.WriteLine($"  ✅ Caught InvalidOperationException directly:");
+        Console.WriteLine($"     \"{ioe.Message}\"\n");
     }
     catch (Exception ex)
     {
@@ -64,7 +78,7 @@ Console.WriteLine("  Using: ValidateDataAnnotations() + ValidateOnStart() [sync 
 // ────────────────────────────────────────────────────────────────────
 // Scenario B: Source gen — Validate() (sync) hits async-only attr
 // ────────────────────────────────────────────────────────────────────
-Console.WriteLine("--- Scenario B: Source-gen sync path → NotSupportedException ---");
+Console.WriteLine("--- Scenario B: Source-gen sync path → preempt / IsValid throws ---");
 Console.WriteLine("  Using: CloudInfoOptionsValidator as IValidateOptions<T> [sync interface]");
 {
     try
@@ -95,12 +109,23 @@ Console.WriteLine("  Using: CloudInfoOptionsValidator as IValidateOptions<T> [sy
     {
         Console.WriteLine($"  ✅ Caught OptionsValidationException wrapping NotSupportedException:");
         Console.WriteLine($"     \"{nse.Message}\"");
+        Console.WriteLine("     → The source-gen Validate() preempted on the AsyncValidationAttribute base type.\n");
+    }
+    catch (OptionsValidationException ex) when (ex.InnerException is InvalidOperationException ioe)
+    {
+        Console.WriteLine($"  ✅ Caught OptionsValidationException wrapping InvalidOperationException:");
+        Console.WriteLine($"     \"{ioe.Message}\"");
         Console.WriteLine("     → The source-gen Validate() called IsValid() on AsyncStorageExistsAttribute.\n");
     }
     catch (NotSupportedException nse)
     {
         Console.WriteLine($"  ✅ Caught NotSupportedException directly:");
         Console.WriteLine($"     \"{nse.Message}\"\n");
+    }
+    catch (InvalidOperationException ioe)
+    {
+        Console.WriteLine($"  ✅ Caught InvalidOperationException directly:");
+        Console.WriteLine($"     \"{ioe.Message}\"\n");
     }
     catch (Exception ex)
     {
@@ -118,7 +143,7 @@ Console.WriteLine("  Using: CloudInfoOptionsValidator as IValidateOptions<T> [sy
 Console.WriteLine("--- Scenario C: The Fix — async pipeline (both patterns work) ---\n");
 
 // C1: Reflection fix
-Console.WriteLine("  C1: Reflection fix — ValidateDataAnnotationsAsync + ValidateOnStartAsync");
+Console.WriteLine("  C1: Reflection fix — async validator only (skip options.Value sync resolve)");
 {
     try
     {
@@ -127,8 +152,11 @@ Console.WriteLine("  C1: Reflection fix — ValidateDataAnnotationsAsync + Valid
 
         builder.Services.AddOptions<CloudInfoOptions>()
             .BindConfiguration("CloudInfo")
-            .ValidateDataAnnotationsAsync()  // async: calls TryValidateObjectAsync
-            .ValidateOnStartAsync();         // triggers async validators at startup
+            .ValidateDataAnnotations()  // .NET 11+: registers BOTH IValidateOptions<T> and
+                                        // IAsyncValidateOptions<T>. The async side calls
+                                        // IsValidAsync; the sync side would still throw if
+                                        // exercised, so we only invoke the async validator.
+            .ValidateOnStart();         // drives IAsyncStartupValidator at startup
 
         using IHost host = builder.Build();
 
@@ -138,9 +166,11 @@ Console.WriteLine("  C1: Reflection fix — ValidateDataAnnotationsAsync + Valid
             await asyncValidator.ValidateAsync();
         }
 
-        var options = host.Services.GetRequiredService<IOptions<CloudInfoOptions>>();
-        CloudInfoOptions opts = options.Value;
-        Console.WriteLine($"     ✅ Reflection async: {opts.Storage} / {opts.Region} / {opts.Endpoint}\n");
+        // NOTE: do NOT resolve options.Value here. With an async-only attribute,
+        //       OptionsFactory.Create() goes through the sync IValidateOptions<T>
+        //       which would still throw InvalidOperationException. The async
+        //       startup validator running cleanly is what proves the fix.
+        Console.WriteLine("     ✅ Reflection async validator ran without throwing.\n");
     }
     catch (Exception ex)
     {
@@ -149,7 +179,7 @@ Console.WriteLine("  C1: Reflection fix — ValidateDataAnnotationsAsync + Valid
 }
 
 // C2: Source gen fix
-Console.WriteLine("  C2: Source-gen fix — IAsyncValidateOptions<T> + ValidateOnStartAsync");
+Console.WriteLine("  C2: Source-gen fix — register validator as IAsyncValidateOptions<T> + ValidateOnStart");
 {
     try
     {
@@ -164,7 +194,7 @@ Console.WriteLine("  C2: Source-gen fix — IAsyncValidateOptions<T> + ValidateO
             new CloudInfoOptionsValidator());
 
         builder.Services.AddOptions<CloudInfoOptions>()
-            .ValidateOnStartAsync();
+            .ValidateOnStart();
 
         using IHost host = builder.Build();
 
@@ -174,6 +204,8 @@ Console.WriteLine("  C2: Source-gen fix — IAsyncValidateOptions<T> + ValidateO
             await asyncValidator.ValidateAsync();
         }
 
+        // Here options.Value IS safe because there is no IValidateOptions<T> registered,
+        // so OptionsFactory.Create() doesn't run any sync DataAnnotations.
         var options = host.Services.GetRequiredService<IOptions<CloudInfoOptions>>();
         CloudInfoOptions opts = options.Value;
         Console.WriteLine($"     ✅ Source-gen async: {opts.Storage} / {opts.Region} / {opts.Endpoint}\n");

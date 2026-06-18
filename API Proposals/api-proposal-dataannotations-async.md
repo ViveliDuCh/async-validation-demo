@@ -1,3 +1,23 @@
+> ## ⚠️ Merged API delta (post-PR #128656)
+>
+> This proposal reflects the **prototype**; the API as merged into `dotnet/runtime` `main` differs in the following ways. Samples in [this repo](https://github.com/ViveliDuCh/async-validation-demo/tree/api-proposal-samples) have been updated to match the merged surface.
+>
+> | Surface | Proposal | **Merged** |
+> |---|---|---|
+> | `AsyncValidationAttribute.IsValidAsync` | `ValueTask<ValidationResult?>` | **`Task<ValidationResult?>`** |
+> | `AsyncValidationAttribute.GetValidationResultAsync` | `ValueTask<…>` | **`Task<…>`** |
+> | `Validator.TryValidate*Async` / `Validate*Async` | `ValueTask<bool>` / `ValueTask` | **`Task<bool>` / `Task`** |
+> | `AsyncValidationAttribute.IsValid(value, ctx)` | `protected override`, throws by default | **`protected abstract override`** — every subclass must implement a sync fallback (or throw). Scenario 4 (sync fallback) is therefore the *required* shape, not optional. |
+> | `AsyncValidationAttribute.IsValid(value)` | inherited | **`public sealed override`** that delegates to `IsValid(value, null!)` |
+> | `IAsyncValidatableObject` | DIM throws `InvalidOperationException` on `Validate` | **No DIM.** Implementers must provide `IValidatableObject.Validate` themselves (throw `InvalidOperationException` or do real work). |
+>
+> See merged sources:
+> - [`AsyncValidationAttribute.cs`](https://github.com/dotnet/runtime/blob/main/src/libraries/System.ComponentModel.Annotations/src/System/ComponentModel/DataAnnotations/AsyncValidationAttribute.cs)
+> - [`IAsyncValidatableObject.cs`](https://github.com/dotnet/runtime/blob/main/src/libraries/System.ComponentModel.Annotations/src/System/ComponentModel/DataAnnotations/IAsyncValidatableObject.cs)
+> - [Ref assembly](https://github.com/dotnet/runtime/blob/main/src/libraries/System.ComponentModel.Annotations/ref/System.ComponentModel.Annotations.cs)
+>
+> Everything below describes the original proposal. Treat `ValueTask` → `Task` and "throws by default" → "abstract" when reading.
+
 ### Background and motivation
 
 `System.ComponentModel.DataAnnotations` validation has been synchronous since its introduction in .NET Framework 3.5 SP1 (2008). The `Validator` class, `ValidationAttribute.IsValid`, `IValidatableObject`, and `ValidationContext` (all added in .NET Framework 4.0) form a fully synchronous pipeline. [Across the .NET product suite](https://github.com/jeffhandley/dataannotations-validation/blob/main/chapters/11-integration-history.md), DataAnnotations has been integrated into 11 distinct application models: MVC, Blazor, Options, EF Core conventions, OpenAPI schema, Minimal APIs via `Microsoft.Extensions.Validation`, CommunityToolkit.Mvvm `ObservableValidator`, the Options validation source generator, .NET Aspire, and the foundational `Validator` class itself. Every one is synchronous at the DataAnnotations level.

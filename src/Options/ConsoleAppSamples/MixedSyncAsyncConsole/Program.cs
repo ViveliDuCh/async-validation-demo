@@ -9,12 +9,14 @@ using Microsoft.Extensions.Options;
 
 Console.WriteLine("=== Mixed Sync + Async Options Validation Demo ===\n");
 Console.WriteLine("This demo chains BOTH sync and async validation on the same OptionsBuilder:");
-Console.WriteLine("  .ValidateDataAnnotations()      → sync [Required], [Range], [AsyncSmtpReachable] sync fallback");
-Console.WriteLine("  .ValidateDataAnnotationsAsync()  → async [AsyncSmtpReachable] non-blocking path");
+Console.WriteLine("  .ValidateDataAnnotations()      → registers BOTH IValidateOptions<T> + IAsyncValidateOptions<T>");
+Console.WriteLine("                                    sync path: [Required], [Range], [AsyncSmtpReachable] sync fallback");
+Console.WriteLine("                                    async path: [AsyncSmtpReachable] non-blocking, [ValidateObjectMembers]");
 Console.WriteLine("  .Validate(...)                   → sync lambda");
-Console.WriteLine("  .ValidateAsync(...)              → async lambda");
-Console.WriteLine("  .ValidateOnStart()               → triggers sync validators");
-Console.WriteLine("  .ValidateOnStartAsync()          → triggers async validators");
+Console.WriteLine("  .Validate(async (opts, ct) =>)   → async lambda (overload of .Validate, not a new method)");
+Console.WriteLine("  .ValidateOnStart()               → runs sync validators eagerly AND, when an");
+Console.WriteLine("                                    IAsyncValidateOptions<T> is present, drives the");
+Console.WriteLine("                                    IAsyncStartupValidator at Host.StartAsync()");
 Console.WriteLine();
 Console.WriteLine("Also demonstrates [ValidateObjectMembers] for nested property");
 Console.WriteLine("parallelism on the SmtpSettings.Credentials sub-object.\n");
@@ -125,14 +127,13 @@ static IHost BuildHost(string configSection)
     // KEY: Mixed sync + async validation on the SAME OptionsBuilder
     //
     // This is the exact pattern from Issue Scenario 4:
-    //   .ValidateDataAnnotations()        → sync path: [Required], [Range],
-    //                                       [AsyncSmtpReachable] sync fallback
-    //   .ValidateDataAnnotationsAsync()   → async path: [AsyncSmtpReachable]
-    //                                       non-blocking, [ValidateObjectMembers]
+    //   .ValidateDataAnnotations()        → registers BOTH sync + async:
+    //                                       sync path: [Required], [Range], [AsyncSmtpReachable] sync fallback
+    //                                       async path: [AsyncSmtpReachable] non-blocking, [ValidateObjectMembers]
     //   .Validate(...)                    → sync lambda
-    //   .ValidateAsync(...)               → async lambda
-    //   .ValidateOnStart()                → triggers sync validators
-    //   .ValidateOnStartAsync()           → triggers async validators
+    //   .Validate(async (opts, ct) =>)    → async lambda (overload of Validate)
+    //   .ValidateOnStart()                → triggers sync validators eagerly and the
+    //                                       IAsyncStartupValidator at Host.StartAsync()
     //
     // The [AsyncSmtpReachable] attribute provides BOTH paths:
     //   - IsValidAsync() for the async pipeline (non-blocking)
@@ -141,16 +142,14 @@ static IHost BuildHost(string configSection)
     builder.Services.AddOptions<SmtpSettings>()
         .Bind(builder.Configuration.GetSection($"{configSection}:Smtp"))
         .ValidateDataAnnotations()
-        .ValidateDataAnnotationsAsync()
         .Validate(opts => opts.Port > 0,
             "Port must be positive.")
-        .ValidateAsync(async (opts, ct) =>
+        .Validate(async (opts, ct) =>
         {
             await Task.CompletedTask;
             return opts.Host != "localhost" || opts.Port != 25;
         }, "Default SMTP config (localhost:25) is not allowed in production.")
-        .ValidateOnStart()
-        .ValidateOnStartAsync();
+        .ValidateOnStart();
 
     return builder.Build();
 }

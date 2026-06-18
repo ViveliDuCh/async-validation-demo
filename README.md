@@ -1,5 +1,17 @@
 # async-validation-demo
 
+> ### ⚠️ Status: aligned with **merged** runtime APIs
+>
+> Samples track the shipping shape from
+> [dotnet/runtime#128656](https://github.com/dotnet/runtime/pull/128656) (DataAnnotations async),
+> [#128788](https://github.com/dotnet/runtime/pull/128788) (Options async startup validation), and
+> [#129218](https://github.com/dotnet/runtime/pull/129218) (Options DataAnnotations bridge):
+> `IsValidAsync`/`Validator.*Async` return `Task<>` (not `ValueTask<>`); there is no
+> `ValidateOnStartAsync()` / `ValidateDataAnnotationsAsync()` / `OptionsBuilder.ValidateAsync(lambda)` —
+> the existing `ValidateDataAnnotations()`, `ValidateOnStart()`, and overloaded `Validate(…)` cover
+> both pipelines on .NET 11+; sync fallback throws `InvalidOperationException`. The two
+> `API Proposals/*.md` files and `src/README.md` include full prototype-vs-merged translation tables.
+
 Standalone demo repo that proves the async `DataAnnotations` validation API surface works across .NET technologies — Console, WinForms, WPF, Blazor, Minimal API, and MVC — without requiring multi-repo builds.
 
 ## Goal

@@ -1,5 +1,23 @@
 # System.ComponentModel.Annotations Async Validation Samples
 
+> ### ⚠️ Merged API delta vs. the prototype prose below
+>
+> Samples and code listings have been updated to match the **merged** runtime
+> APIs ([dotnet/runtime#128656](https://github.com/dotnet/runtime/pull/128656),
+> [#128788](https://github.com/dotnet/runtime/pull/128788),
+> [#129218](https://github.com/dotnet/runtime/pull/129218)). When reading older
+> prose elsewhere, apply this translation:
+>
+> | Prototype | Merged (shipping) |
+> |---|---|
+> | `IsValidAsync` returns `ValueTask<ValidationResult?>` | `Task<ValidationResult?>` |
+> | `Validator.TryValidate*Async` returns `ValueTask<…>` | `Task<…>` / `Task<bool>` |
+> | `OptionsBuilder.ValidateAsync(lambda, …)` | `OptionsBuilder.Validate(async lambda, …)` (overload) |
+> | `.ValidateDataAnnotationsAsync()` | `.ValidateDataAnnotations()` (registers both sync + async on .NET 11+) |
+> | `.ValidateOnStartAsync()` | `.ValidateOnStart()` (drives both startup validators) |
+> | Sync fallback throws `NotSupportedException` | Sync fallback throws `InvalidOperationException` |
+> | `AsyncValidationAttribute.IsValid(value, ctx)` was virtual | `protected abstract override` — every subclass must implement it |
+
 Demonstrates the async validation APIs (`AsyncValidationAttribute`,
 `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, etc.) across
 Console, WinForms, WPF, Blazor, Minimal API, MVC, EF Core, OpenAPI, and
@@ -307,30 +325,35 @@ async attribute (`AsyncStorageExistsAttribute`), and `ValidationLogService`
 
 ### AsyncLambdaConsole
 Console app demonstrating inline async lambda validation with
-`.ValidateAsync<TDep>()` — validates options at startup without implementing
-`IAsyncValidateOptions<T>` as a separate class.
+`.Validate<TDep>(async (opts, dep, ct) => …)` — registers an async lambda as the
+options validator at startup, no separate `IAsyncValidateOptions<T>` class
+required. On the merged API, async lambdas are an overload of the existing
+`Validate(…)` method (and the `TDep` variants), so there is no separate
+`ValidateAsync(…)`.
 
 ### MixedSyncAsyncConsole
 Console app chaining **both sync and async validation** on the same
-`OptionsBuilder<SmtpSettings>`: `.ValidateDataAnnotations()` +
-`.ValidateDataAnnotationsAsync()` + sync/async lambdas + `.ValidateOnStart()` +
-`.ValidateOnStartAsync()`. Demonstrates a dual-mode attribute
-(`AsyncSmtpReachableAttribute`) with both `IsValid` (sync fallback) and
+`OptionsBuilder<SmtpSettings>`: a single `.ValidateDataAnnotations()` (on
+.NET 11+ this registers both `IValidateOptions<T>` and `IAsyncValidateOptions<T>`)
++ sync/async `.Validate(…)` lambdas + `.ValidateOnStart()` (drives both
+`IStartupValidator` and `IAsyncStartupValidator`). Demonstrates a dual-mode
+attribute (`AsyncSmtpReachableAttribute`) with both `IsValid(value, ctx)` (the
+required `protected abstract override` sync fallback on the merged API) and
 `IsValidAsync`, plus nested object validation via `[ValidateObjectMembers]` on
 the `Credentials` sub-object. Three scenarios: both pass, sync failure
 short-circuits async, and async-only failure.
 
 ### CrossTypeParallelConsole
 Console app registering **two independent options types** (`DatabaseSettings`,
-`CacheSettings`), each with `ValidateDataAnnotationsAsync()` +
-`ValidateOnStartAsync()`. At startup, `IAsyncStartupValidator` validates both
+`CacheSettings`), each with `ValidateDataAnnotations()` + `ValidateOnStart()`.
+On .NET 11+, the registered `IAsyncStartupValidator` validates both types
 concurrently via `Task.WhenAll` (~200ms instead of ~400ms). Three scenarios:
 both valid (parallel timing proof), single-type failure, and aggregate failure
 from both types.
 
 ### SyncFallbackConsole
-Console app demonstrating `NotSupportedException` when the sync pipeline hits
-an async-only attribute. Three scenarios: (A) reflection sync path throws,
+Console app demonstrating `InvalidOperationException` when the sync pipeline
+hits an async-only attribute. Three scenarios: (A) reflection sync path throws,
 (B) source-gen sync path throws, and (C) the fix — switch to the async
 pipeline. Covers both reflection and source-gen patterns.
 
@@ -342,7 +365,12 @@ attr sync fallback, same-property two-phase, cross-property non-short-circuit
 nested `[ValidateObjectMembers]`, and startup failure.
 
 ### Tier2.OptionsBlazor (Bypass Approach)
-Uses `.ValidateDataAnnotationsAsync().ValidateOnStartAsync()` extension methods.
+Uses a single `.ValidateDataAnnotations().ValidateOnStart()` chain — on .NET 11+
+the same chain registers both sync and async validators. `Program.cs` then
+manually invokes `IStartupValidator.Validate()` first (fail-fast on cheap sync
+checks) and `await IAsyncStartupValidator.ValidateAsync()` second (awaits any
+async attribute) until the hosting layer integrates the async validator
+natively.
 
 ### Tier2.OptionsMonitorBlazor (Live Config Reload)
 Blazor Server app demonstrating **async re-validation on config change** via
@@ -705,8 +733,8 @@ dotnet run --no-build
 ```
 
 Console app. Must be run from its project directory (requires `appsettings.json`).
-Expected output: 3 scenarios — reflection sync throws `NotSupportedException`,
-source-gen sync throws `NotSupportedException`, and the async pipeline fix
+Expected output: 3 scenarios — reflection sync throws `InvalidOperationException`,
+source-gen sync throws `InvalidOperationException`, and the async pipeline fix
 works for both.
 
 #### SourceGenScenariosConsole
@@ -815,8 +843,8 @@ from its project directory.
 - **Hosting layer does not call `IAsyncStartupValidator` automatically.** The
   stock .NET 11 preview SDK hosting infrastructure does not yet know about
   `IAsyncStartupValidator`. Both Tier2 and Tier2b `Program.cs` files manually
-  call `await app.Services.GetService<IAsyncStartupValidator>()?.ValidateAsync()`
-  as a workaround.
+  invoke `IStartupValidator.Validate()` (sync gate, fail fast) followed by
+  `await IAsyncStartupValidator.ValidateAsync()` (async gate) as a workaround.
 - **Source gen: no cross-property two-phase short-circuit.** The source
   generator validates each property independently via `TryValidateValueAsync()`,
   so sync failures on one property do not prevent async checks on other

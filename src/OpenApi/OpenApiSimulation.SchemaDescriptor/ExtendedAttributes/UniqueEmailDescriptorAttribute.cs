@@ -24,9 +24,9 @@ public class UniqueEmailDescriptorAttribute : AsyncValidationAttribute, ISchemaD
         };
 
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
-        => throw new NotSupportedException("Use the async validation path.");
+        => throw new InvalidOperationException("Use the async validation path.");
 
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value, ValidationContext validationContext, CancellationToken cancellationToken)
     {
         if (value is not string email || string.IsNullOrEmpty(email))

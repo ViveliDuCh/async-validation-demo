@@ -23,7 +23,7 @@ public partial class MevMoneyTransfer : IAsyncValidatableObject
     public decimal Amount { get; set; }
 
     IEnumerable<ValidationResult> IValidatableObject.Validate(ValidationContext validationContext)
-        => throw new NotSupportedException("Use the async validation path (ValidateAsync).");
+        => throw new InvalidOperationException("Use the async validation path (ValidateAsync).");
 
     public async IAsyncEnumerable<ValidationResult> ValidateAsync(
         ValidationContext validationContext,

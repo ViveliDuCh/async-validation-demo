@@ -182,8 +182,8 @@ Console.WriteLine("--- Scenario 6: Circular Reference (cycle detection) ---");
                     BackRef = opts // ← circular reference!
                 };
             })
-            .ValidateDataAnnotationsAsync()
-            .ValidateOnStartAsync();
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         using ServiceProvider sp = services.BuildServiceProvider();
         var asyncValidator = sp.GetService<IAsyncStartupValidator>();
@@ -225,8 +225,8 @@ static IHost BuildTenantHost(string configSection)
     // ════════════════════════════════════════════════════════════════
     builder.Services.AddOptions<TenantSettings>()
         .Bind(builder.Configuration.GetSection($"{configSection}:Tenant"))
-        .ValidateDataAnnotationsAsync()
-        .ValidateOnStartAsync();
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
 
     return builder.Build();
 }

@@ -28,7 +28,7 @@ public class MoneyTransfer : IAsyncValidatableObject
     /// Sync validation is not supported — use ValidateAsync instead.
     /// </summary>
     IEnumerable<ValidationResult> IValidatableObject.Validate(ValidationContext validationContext)
-        => throw new NotSupportedException("Use the async validation path (ValidateAsync).");
+        => throw new InvalidOperationException("Use the async validation path (ValidateAsync).");
 
     /// <summary>
     /// Async cross-property validation: checks same-account transfer and

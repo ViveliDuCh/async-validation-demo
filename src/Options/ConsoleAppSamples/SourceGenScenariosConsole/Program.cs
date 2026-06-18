@@ -223,7 +223,7 @@ static IHost BuildSourceGenSmtpAsyncHost(string configSection)
     builder.Services.AddSingleton<IAsyncValidateOptions<SmtpSettings>>(new SmtpSettingsValidator());
     builder.Services.AddSingleton<IAsyncValidateOptions<SmtpSettings>>(new SmtpSettingsNestedValidator());
     builder.Services.AddOptions<SmtpSettings>()
-        .ValidateOnStartAsync();
+        .ValidateOnStart();
 
     return builder.Build();
 }
@@ -249,8 +249,8 @@ static IHost BuildReflectionSmtpAsyncHost(string configSection)
 
     builder.Services.AddOptions<SmtpSettings>()
         .Bind(builder.Configuration.GetSection($"{configSection}:Smtp"))
-        .ValidateDataAnnotationsAsync()
-        .ValidateOnStartAsync();
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
 
     return builder.Build();
 }
@@ -269,9 +269,9 @@ static IHost BuildSourceGenCrossTypeAsyncHost(string configSection)
     builder.Services.AddSingleton<IAsyncValidateOptions<CacheSettings>>(new CacheSettingsValidator());
 
     builder.Services.AddOptions<SmtpSettings>()
-        .ValidateOnStartAsync();
+        .ValidateOnStart();
     builder.Services.AddOptions<CacheSettings>()
-        .ValidateOnStartAsync();
+        .ValidateOnStart();
 
     return builder.Build();
 }

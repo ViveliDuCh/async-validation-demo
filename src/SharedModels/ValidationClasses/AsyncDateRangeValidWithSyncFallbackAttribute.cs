@@ -12,7 +12,7 @@ namespace SharedModels.ValidationClasses;
 /// API Proposal Scenario 4: Async attribute with sync fallback.
 /// Overrides both IsValidAsync (async path) and IsValid (sync path)
 /// so that sync callers (Validator.TryValidateObject) can still use this attribute
-/// without throwing NotSupportedException.
+/// without throwing InvalidOperationException.
 /// Matches the AsyncDateRangeValidWithSyncFallback example from dotnet/runtime#128096.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
@@ -28,7 +28,7 @@ public class AsyncDateRangeValidWithSyncFallbackAttribute : AsyncValidationAttri
     }
 
     // Async path: used by TryValidateObjectAsync (non-blocking)
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)
@@ -38,7 +38,7 @@ public class AsyncDateRangeValidWithSyncFallbackAttribute : AsyncValidationAttri
     }
 
     // Sync fallback: used by TryValidateObject (blocks the thread)
-    // Overrides the base AsyncValidationAttribute.IsValid which throws NotSupportedException
+    // Overrides the base AsyncValidationAttribute.IsValid which throws InvalidOperationException
     protected override ValidationResult? IsValid(
         object? value, ValidationContext validationContext)
     {

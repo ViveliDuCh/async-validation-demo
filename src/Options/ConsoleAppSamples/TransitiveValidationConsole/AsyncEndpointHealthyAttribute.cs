@@ -16,7 +16,7 @@ public class AsyncEndpointHealthyAttribute : AsyncValidationAttribute
     public AsyncEndpointHealthyAttribute()
         : base("Endpoint is unhealthy.") { }
 
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)

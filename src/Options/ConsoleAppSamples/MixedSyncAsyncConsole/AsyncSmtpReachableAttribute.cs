@@ -12,7 +12,7 @@ namespace MixedSyncAsyncConsole;
 /// 
 /// This dual-mode pattern is the recommended approach when mixing sync + async
 /// pipelines on the same model — the sync fallback uses Thread.Sleep instead of
-/// Task.Delay, allowing sync callers to work without NotSupportedException.
+/// Task.Delay, allowing sync callers to work without InvalidOperationException.
 /// </summary>
 public class AsyncSmtpReachableAttribute : AsyncValidationAttribute
 {
@@ -20,7 +20,7 @@ public class AsyncSmtpReachableAttribute : AsyncValidationAttribute
         : base("SMTP host is not reachable.") { }
 
     // Async path: used by ValidateDataAnnotationsAsync → TryValidateObjectAsync
-    protected override async ValueTask<ValidationResult?> IsValidAsync(
+    protected override async Task<ValidationResult?> IsValidAsync(
         object? value,
         ValidationContext validationContext,
         CancellationToken cancellationToken)
@@ -35,7 +35,7 @@ public class AsyncSmtpReachableAttribute : AsyncValidationAttribute
     }
 
     // Sync fallback: used by ValidateDataAnnotations → TryValidateObject
-    // Overrides base AsyncValidationAttribute.IsValid (which throws NotSupportedException)
+    // Overrides base AsyncValidationAttribute.IsValid (which throws InvalidOperationException)
     protected override ValidationResult? IsValid(
         object? value, ValidationContext validationContext)
     {

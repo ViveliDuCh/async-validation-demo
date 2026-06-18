@@ -159,13 +159,13 @@ static IHost BuildHost(string configSection)
     // ════════════════════════════════════════════════════════════════
     builder.Services.AddOptions<DatabaseSettings>()
         .Bind(builder.Configuration.GetSection($"{configSection}:Database"))
-        .ValidateDataAnnotationsAsync()
-        .ValidateOnStartAsync();
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
 
     builder.Services.AddOptions<CacheSettings>()
         .Bind(builder.Configuration.GetSection($"{configSection}:Cache"))
-        .ValidateDataAnnotationsAsync()
-        .ValidateOnStartAsync();
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
 
     return builder.Build();
 }
