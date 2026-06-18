@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "OptionsBlazor.ManualOnly": {
+    "OptionsBlazor.StartupAndManual": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {

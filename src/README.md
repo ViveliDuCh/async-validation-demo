@@ -1,23 +1,5 @@
 # System.ComponentModel.Annotations Async Validation Samples
 
-> ### ⚠️ Merged API delta vs. the prototype prose below
->
-> Samples and code listings have been updated to match the **merged** runtime
-> APIs ([dotnet/runtime#128656](https://github.com/dotnet/runtime/pull/128656),
-> [#128788](https://github.com/dotnet/runtime/pull/128788),
-> [#129218](https://github.com/dotnet/runtime/pull/129218)). When reading older
-> prose elsewhere, apply this translation:
->
-> | Prototype | Merged (shipping) |
-> |---|---|
-> | `IsValidAsync` returns `ValueTask<ValidationResult?>` | `Task<ValidationResult?>` |
-> | `Validator.TryValidate*Async` returns `ValueTask<…>` | `Task<…>` / `Task<bool>` |
-> | `OptionsBuilder.ValidateAsync(lambda, …)` | `OptionsBuilder.Validate(async lambda, …)` (overload) |
-> | `.ValidateDataAnnotationsAsync()` | `.ValidateDataAnnotations()` (registers both sync + async on .NET 11+) |
-> | `.ValidateOnStartAsync()` | `.ValidateOnStart()` (drives both startup validators) |
-> | Sync fallback throws `NotSupportedException` | Sync fallback throws `InvalidOperationException` |
-> | `AsyncValidationAttribute.IsValid(value, ctx)` was virtual | `protected abstract override` — every subclass must implement it |
-
 Demonstrates the async validation APIs (`AsyncValidationAttribute`,
 `IAsyncValidatableObject`, `Validator.TryValidateObjectAsync`, etc.) across
 Console, WinForms, WPF, Blazor, Minimal API, MVC, EF Core, OpenAPI, and
@@ -100,9 +82,10 @@ src/
     │   ├── SyncFallbackConsole/         ← Sync pipeline throws on async-only attributes; async pipeline fixes it
     │   └── SourceGenScenariosConsole/   ← Source-gen validation matrix for mixed, cross-type, nested, and startup scenarios
     ├── BlazorSamples/
-    │   ├── Tier2.OptionsBlazor/         ← Bypass approach (reflection-based)
-    │   ├── Tier2.OptionsMonitorBlazor/  ← IOptionsMonitor + RevalidateOnChangeAsync (live config reload)
-    │   └── Tier2b.OptionsGeneratorBlazor/ ← Source generator approach (AOT-friendly)
+    │   ├── OptionsBlazor.ManualOnly/        ← Async-only attribute; manual sync-then-async gating (no `.ValidateOnStart()`)
+    │   ├── OptionsBlazor.StartupAndManual/  ← Sync-fallback async attribute; `.ValidateOnStart()` AND manual `Validate()`/`ValidateAsync()`
+    │   ├── Tier2.OptionsMonitorBlazor/      ← IOptionsMonitor + manual async revalidation (live config reload)
+    │   └── Tier2b.OptionsGeneratorBlazor/   ← Source generator approach (AOT-friendly)
 ```
 
 ---
@@ -364,21 +347,36 @@ attr sync fallback, same-property two-phase, cross-property non-short-circuit
 (contrasts with reflection behavior), cross-type parallel via `Task.WhenAll`,
 nested `[ValidateObjectMembers]`, and startup failure.
 
-### Tier2.OptionsBlazor (Bypass Approach)
-Uses a single `.ValidateDataAnnotations().ValidateOnStart()` chain — on .NET 11+
-the same chain registers both sync and async validators. `Program.cs` then
-manually invokes `IStartupValidator.Validate()` first (fail-fast on cheap sync
-checks) and `await IAsyncStartupValidator.ValidateAsync()` second (awaits any
-async attribute) until the hosting layer integrates the async validator
-natively.
+### OptionsBlazor.ManualOnly (Async-only attribute)
+The model's `[AsyncStorageExists]` attribute throws on the sync path, so
+`.ValidateOnStart()` cannot be used (the host's `StartupValidator` would crash
+inside `Host.StartAsync()`). The sample registers a custom
+`IAsyncValidateOptions<T>` wrapper around the DataAnnotations pipeline and
+manually runs a sync gate (catching the expected preemption) followed by an
+async gate before `app.Run()`. Razor pages avoid `IOptions<T>.Value`-triggered
+sync validation by going through the same async-only registration.
+
+### OptionsBlazor.StartupAndManual (Sync-fallback attribute, both gates)
+The model uses `[AsyncStorageExistsWithSyncFallback]`, which overrides BOTH
+`IsValid(value, ctx)` (cheap well-formedness check, no I/O) and
+`IsValidAsync(...)` (real reachability probe). Because the sync override does
+not throw, `.ValidateDataAnnotations() + .ValidateOnStart()` works end-to-end
+— the host runs the sync `StartupValidator` during `Host.StartAsync()` against
+the fallback. After `app.Build()`, `Program.cs` ALSO calls
+`IValidateOptions<T>.Validate()` and `IAsyncValidateOptions<T>.ValidateAsync()`
+manually to demonstrate both gates as explicit calls (useful for diagnostics
+or revalidation outside the startup flow).
 
 ### Tier2.OptionsMonitorBlazor (Live Config Reload)
-Blazor Server app demonstrating **async re-validation on config change** via
-`RevalidateOnChangeAsync()`. Uses `IOptionsMonitor<CloudInfoOptions>` to pick
-up `appsettings.json` changes at runtime, re-running async validators on each
-reload. Includes a live validation log (`ValidationLogService`) that proves the
-async pipeline executes (not the sync `Create()` path). Failures route to an
-`onRevalidationFailed` callback instead of throwing.
+Blazor Server app demonstrating **async re-validation on config change**. Uses
+`IOptionsMonitor<CloudInfoOptions>` to pick up `appsettings.json` changes at
+runtime, and subscribes to `IOptionsMonitor<T>.OnChange()` to invoke the
+registered `IAsyncValidateOptions<T>` for each reload (the prototype's
+`RevalidateOnChangeAsync(onRevalidationFailed: …)` did not ship in the merged
+Options API). Failures are surfaced via an `OptionsValidationException` catch
+block with the same callback semantics. Includes a live validation log
+(`ValidationLogService`) that proves the async pipeline executes (not the sync
+`Create()` path).
 
 ### Tier2b.OptionsGeneratorBlazor (Source Generator)
 Uses `[OptionsValidator]` source generator to emit both `Validate()` and
@@ -752,18 +750,39 @@ sync+async attrs, dual-mode sync fallback, same-property two-phase,
 cross-property non-short-circuit (vs reflection), cross-type parallel via
 `Task.WhenAll`, nested `[ValidateObjectMembers]`, and startup failure.
 
-#### Tier2.OptionsBlazor
+#### OptionsBlazor.ManualOnly
 
 ```powershell
-# Working directory: C:\REPOS\async-validation-demo\src\Options\BlazorSamples\Tier2.OptionsBlazor
-cd C:\REPOS\async-validation-demo\src\Options\BlazorSamples\Tier2.OptionsBlazor
+# Working directory: C:\REPOS\async-validation-demo\src\Options\BlazorSamples\OptionsBlazor.ManualOnly
+cd C:\REPOS\async-validation-demo\src\Options\BlazorSamples\OptionsBlazor.ManualOnly
 dotnet build
 dotnet run --no-build
 ```
 
 Blazor Server app. Must be run from its project directory (requires
-`appsettings.json`). Browse to the displayed URL to verify startup validation
-passed.
+`appsettings.json`). Uses an async-only attribute and registers ONLY the async
+`IAsyncValidateOptions<T>` to keep `IOptions<T>.Value` from triggering the sync
+validator. `Program.cs` then manually runs a sync gate (catching the expected
+preemption on the async-only attribute) followed by an async gate before
+`app.Run()`. Browse to the displayed URL to verify startup validation passed.
+
+#### OptionsBlazor.StartupAndManual
+
+```powershell
+# Working directory: C:\REPOS\async-validation-demo\src\Options\BlazorSamples\OptionsBlazor.StartupAndManual
+cd C:\REPOS\async-validation-demo\src\Options\BlazorSamples\OptionsBlazor.StartupAndManual
+dotnet build
+dotnet run --no-build
+```
+
+Blazor Server app. Uses a sync-fallback async attribute
+(`[AsyncStorageExistsWithSyncFallback]`), so
+`.ValidateDataAnnotations() + .ValidateOnStart()` works end-to-end — the host
+runs the sync `StartupValidator` during `Host.StartAsync()`. After
+`app.Build()`, `Program.cs` ALSO calls `IValidateOptions<T>.Validate()` and
+`IAsyncValidateOptions<T>.ValidateAsync()` manually (look for
+`[Manual] SYNC pass: PASSED` and `[Manual] ASYNC pass: PASSED` in the console
+output).
 
 #### Tier2.OptionsMonitorBlazor
 
@@ -836,15 +855,18 @@ from its project directory.
 
 - **Options console and Blazor apps must run from their project directories.**
   `AsyncLambdaConsole`, `MixedSyncAsyncConsole`, `CrossTypeParallelConsole`,
-  `SyncFallbackConsole`, `SourceGenScenariosConsole`,
-  `Tier2.OptionsBlazor`, `Tier2.OptionsMonitorBlazor`, and
+  `SyncFallbackConsole`, `SourceGenScenariosConsole`, `OptionsBlazor.ManualOnly`,
+  `OptionsBlazor.StartupAndManual`, `Tier2.OptionsMonitorBlazor`, and
   `Tier2b.OptionsGeneratorBlazor` all depend on `appsettings.json` at the
   working directory level.
 - **Hosting layer does not call `IAsyncStartupValidator` automatically.** The
   stock .NET 11 preview SDK hosting infrastructure does not yet know about
-  `IAsyncStartupValidator`. Both Tier2 and Tier2b `Program.cs` files manually
-  invoke `IStartupValidator.Validate()` (sync gate, fail fast) followed by
-  `await IAsyncStartupValidator.ValidateAsync()` (async gate) as a workaround.
+  `IAsyncStartupValidator`. The Blazor Options samples manually invoke
+  `IValidateOptions<T>.Validate()` (sync gate) and
+  `IAsyncValidateOptions<T>.ValidateAsync()` (async gate) after `app.Build()`
+  as a workaround. `OptionsBlazor.StartupAndManual` ALSO uses
+  `.ValidateOnStart()` because its sync-fallback attribute makes the host's
+  built-in sync `StartupValidator` safe to run.
 - **Source gen: no cross-property two-phase short-circuit.** The source
   generator validates each property independently via `TryValidateValueAsync()`,
   so sync failures on one property do not prevent async checks on other

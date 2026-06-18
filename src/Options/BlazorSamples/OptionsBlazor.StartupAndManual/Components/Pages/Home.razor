@@ -1,0 +1,78 @@
+@page "/"
+@using Microsoft.Extensions.Options
+@using Options.Shared
+@inject IOptions<CloudInfoFallbackOptions> CloudInfoOptions
+@inject ValidationLogService Log
+
+<h3>Tier 2 — Startup + Manual (sync &amp; async)</h3>
+<p>
+    This page displays <code>CloudInfoFallbackOptions</code> bound from
+    <code>appsettings.json</code> and validated in <strong>three</strong>
+    passes during startup:
+</p>
+<ol>
+    <li>
+        <code>.ValidateDataAnnotations() + .ValidateOnStart()</code> —
+        the host runs the sync DataAnnotations validator during
+        <code>Host.StartAsync()</code>. The async attribute's
+        <code>IsValid(value, ctx)</code> override does a cheap
+        well-formedness check (no I/O).
+    </li>
+    <li>
+        Manual <code>IValidateOptions&lt;T&gt;.Validate()</code> in
+        <code>Program.cs</code> — same sync pass, called explicitly.
+    </li>
+    <li>
+        Manual <code>IAsyncValidateOptions&lt;T&gt;.ValidateAsync()</code>
+        — runs <code>IsValidAsync(...)</code>, which simulates a real
+        reachability probe.
+    </li>
+</ol>
+<p>
+    If any pass failed the app would have crashed at startup; you would
+    not see this page.
+</p>
+
+@if (cloudInfo is not null)
+{
+    <div class="card mt-3">
+        <div class="card-header">CloudInfoFallbackOptions (validated at startup)</div>
+        <div class="card-body">
+            <ul class="list-unstyled mb-0">
+                <li><strong>Storage:</strong> @cloudInfo.Storage</li>
+                <li><strong>Region:</strong> @cloudInfo.Region</li>
+                <li><strong>Endpoint:</strong> @cloudInfo.Endpoint</li>
+            </ul>
+        </div>
+    </div>
+}
+
+<div class="card mt-3">
+    <div class="card-header">ValidationLogService — recorded events</div>
+    <div class="card-body">
+        @if (Log.GetEntries().Count == 0)
+        {
+            <em>No entries recorded.</em>
+        }
+        else
+        {
+            <ul class="mb-0">
+                @foreach (var e in Log.GetEntries())
+                {
+                    <li><code>@e.Source</code> — @e.Message</li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+@code {
+    private CloudInfoFallbackOptions? cloudInfo;
+
+    protected override void OnInitialized()
+    {
+        // Safe to resolve .Value: the async attribute's sync fallback does
+        // not throw, so the sync DataAnnotations pipeline cannot crash.
+        cloudInfo = CloudInfoOptions.Value;
+    }
+}

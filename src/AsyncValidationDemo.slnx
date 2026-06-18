@@ -48,7 +48,8 @@
       <Project Path="Options/ConsoleAppSamples/TransitiveValidationConsole/TransitiveValidationConsole.csproj" />
     </Folder>
     <Folder Name="/Options/BlazorSamples/">
-      <Project Path="Options/BlazorSamples/Tier2.OptionsBlazor/Tier2.OptionsBlazor.csproj" />
+      <Project Path="Options/BlazorSamples/OptionsBlazor.ManualOnly/OptionsBlazor.ManualOnly.csproj" />
+      <Project Path="Options/BlazorSamples/OptionsBlazor.StartupAndManual/OptionsBlazor.StartupAndManual.csproj" />
       <Project Path="Options/BlazorSamples/Tier2.OptionsMonitorBlazor/Tier2.OptionsMonitorBlazor.csproj" />
       <Project Path="Options/BlazorSamples/Tier2b.OptionsGeneratorBlazor/Tier2b.OptionsGeneratorBlazor.csproj" />
     </Folder>

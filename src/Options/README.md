@@ -7,24 +7,12 @@ and the DataAnnotations bridge [dotnet/runtime#129218](https://github.com/dotnet
 All samples use the **local-packages** DLLs built from the
 [`async-validation` branch](https://github.com/ViveliDuCh/runtime/tree/async-validation) of `dotnet/runtime`.
 
-> ### ⚠️ Merged API delta vs. the prototype prose below
->
-> The merged shipping API uses fewer methods than the prototype. When reading
-> the rest of this document, mentally apply the following translation:
->
-> | Prototype (older prose) | Merged (shipping) |
-> |---|---|
-> | `ValidateDataAnnotationsAsync()` | `ValidateDataAnnotations()` — on .NET 11+ this single call registers **both** `IValidateOptions<T>` and `IAsyncValidateOptions<T>` from one shared `DataAnnotationValidateOptions<T>`. |
-> | `ValidateOnStartAsync()` | `ValidateOnStart()` — single method drives both `IStartupValidator` (sync) and `IAsyncStartupValidator` (async) when both are registered. |
-> | `OptionsBuilder<T>.ValidateAsync(async lambda, …)` | `OptionsBuilder<T>.Validate(async lambda, …)` — async is now an overload of the existing `Validate(…)` method. |
-> | `Task<ValidationResult?>` returned from `IsValidAsync` | **same** — merged API returns `Task<>`, not `ValueTask<>`. |
-> | `NotSupportedException` thrown by sync fallback | `InvalidOperationException` (matches merged XML docs). |
-
 ## Scenario Coverage Matrix
 
 | Issue Scenario | Description | Pattern | Sample |
 |---------------|-------------|---------|--------|
-| **1** | Async DataAnnotations at startup | Reflection | [`Tier2.OptionsBlazor`](BlazorSamples/Tier2.OptionsBlazor/) |
+| **1** | Async DataAnnotations at startup — async-only attribute, manual sync+async gating | Reflection | [`OptionsBlazor.ManualOnly`](BlazorSamples/OptionsBlazor.ManualOnly/) |
+| **1** | Async DataAnnotations with sync fallback — `.ValidateDataAnnotations()` + `.ValidateOnStart()` AND manual `Validate()` + `ValidateAsync()` | Reflection | [`OptionsBlazor.StartupAndManual`](BlazorSamples/OptionsBlazor.StartupAndManual/) |
 | **1** | Async DataAnnotations + `OptionsMonitor` reload/revalidation | Reflection | [`Tier2.OptionsMonitorBlazor`](BlazorSamples/Tier2.OptionsMonitorBlazor/) |
 | **2** | Async lambda with DI dependency | Reflection | [`AsyncLambdaConsole`](ConsoleAppSamples/AsyncLambdaConsole/) |
 | **3** | Source generator `[OptionsValidator]` + `IAsyncValidateOptions<T>` | Source Gen | [`Tier2b.OptionsGeneratorBlazor`](BlazorSamples/Tier2b.OptionsGeneratorBlazor/) |
@@ -354,7 +342,8 @@ Options/
 │   ├── SourceGenScenariosConsole/           ← Source-gen scenario pack + reflection contrast
 │   └── TransitiveValidationConsole/         ← Transitive async validation: nested + collection + circular
 ├── BlazorSamples/
-│   ├── Tier2.OptionsBlazor/                 ← Scenario 1: `ValidateDataAnnotations()` + manual sync-then-async startup validation
+│   ├── OptionsBlazor.ManualOnly/            ← Scenario 1: async-only attribute; manual sync-then-async gating (no `.ValidateOnStart()`)
+│   ├── OptionsBlazor.StartupAndManual/      ← Scenario 1: sync-fallback async attribute; `.ValidateDataAnnotations()` + `.ValidateOnStart()` AND manual `Validate()` + `ValidateAsync()`
 │   ├── Tier2.OptionsMonitorBlazor/          ← Scenario 1 + runtime reload
 │   └── Tier2b.OptionsGeneratorBlazor/       ← Scenario 3: `[OptionsValidator]` + `IAsyncValidateOptions<T>`
 └── README.md
@@ -379,7 +368,8 @@ Push-Location src\Options\ConsoleAppSamples\SyncFallbackConsole; dotnet run; Pop
 Push-Location src\Options\ConsoleAppSamples\SourceGenScenariosConsole; dotnet run; Pop-Location
 Push-Location src\Options\ConsoleAppSamples\TransitiveValidationConsole; dotnet run; Pop-Location
 
-Push-Location src\Options\BlazorSamples\Tier2.OptionsBlazor; dotnet run; Pop-Location
+Push-Location src\Options\BlazorSamples\OptionsBlazor.ManualOnly; dotnet run; Pop-Location
+Push-Location src\Options\BlazorSamples\OptionsBlazor.StartupAndManual; dotnet run; Pop-Location
 Push-Location src\Options\BlazorSamples\Tier2.OptionsMonitorBlazor; dotnet run; Pop-Location
 Push-Location src\Options\BlazorSamples\Tier2b.OptionsGeneratorBlazor; dotnet run; Pop-Location
 ```
